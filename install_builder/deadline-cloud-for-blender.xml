@@ -1,0 +1,105 @@
+<component>
+    <name>blender_integrated_submitter</name>
+    <description>Integrated submitter for Blender</description>
+	<detailedDescription>Blender plugin for submitting work to Deadline</detailedDescription>
+    <canBeEdited>1</canBeEdited>
+    <selected>0</selected>
+    <show>1</show>
+    <parameterList>
+        <directoryParameter>
+            <name>blenderaddondir</name>
+            <description>Blender Add-ons Directory</description>
+            <explanation>Please specify the add-ons directory of your Blender installation. This directory is used to install the Deadline Submitter as a Blender add-on.</explanation>
+            <value></value>
+            <default></default>
+            <allowEmptyValue>0</allowEmptyValue>
+            <ask>yes</ask>
+            <cliOptionName>blenderAddonDir</cliOptionName>
+            <mustBeWritable>yes</mustBeWritable>
+            <mustExist>0</mustExist>
+            <width>40</width>
+        </directoryParameter>
+        <stringParameter name="blender_integrated_submitter_summary" ask="0" cliOptionShow="0">
+            <value>Blender Submitter
+- Install the integrated Blender submitter files to the Blender Add-ons directory
+- Install Blender Submitter dependencies to the Blender Modules directory</value>
+        </stringParameter>
+    </parameterList>
+    <folderList>
+        <folder>
+            <description>Program Files</description>
+            <destination>${blender_installdir}</destination>
+            <name>blender</name>
+            <platforms>all</platforms>
+            <distributionFileList>
+                <distributionDirectory allowWildcards="1">
+                    <origin>components/deadline-cloud-for-blender/src/*</origin>
+                    <excludeFiles>*/install_builder</excludeFiles>
+                </distributionDirectory>
+            </distributionFileList>
+        </folder>
+        <folder>
+            <description>Dependency Files</description>
+            <destination>${installdir}/tmp/blender_deps</destination>
+            <name>blenderdeps</name>
+            <platforms>all</platforms>
+            <distributionFileList>
+                <distributionDirectory allowWildcards="1">
+                    <origin>components/deadline-cloud-for-blender/dependency_bundle</origin>
+                </distributionDirectory>
+            </distributionFileList>
+        </folder>
+    </folderList>
+    <initializationActionList>
+        <setInstallerVariable name="all_components" value="${all_components} blender_integrated_submitter"/>
+    </initializationActionList>
+    <readyToInstallActionList>
+        <setInstallerVariable name="blender_installdir" value="${blenderaddondir}"/>
+        <setInstallerVariable name="blender_moduledir" value="${blenderaddondir}/../modules"/>
+        <if>
+            <conditionRuleList>
+                <platformTest type="windows"/>
+            </conditionRuleList>
+            <actionList>
+                <setInstallerVariable name="blender_deps_platform" value="windows"/>
+            </actionList>
+        </if>
+        <if>
+            <conditionRuleList>
+                <platformTest type="linux"/>
+            </conditionRuleList>
+            <actionList>
+                <setInstallerVariable name="blender_deps_platform" value="linux"/>
+            </actionList>
+        </if>
+        <if>
+            <conditionRuleEvaluationLogic>and</conditionRuleEvaluationLogic>
+            <conditionRuleList>
+                <platformTest type="osx"/>
+                <platformTest type="osx-intel"/>
+            </conditionRuleList>
+            <actionList>
+                <setInstallerVariable name="blender_deps_platform" value="macos-intel"/>
+            </actionList>
+        </if>
+        <if>
+            <conditionRuleEvaluationLogic>and</conditionRuleEvaluationLogic>
+            <conditionRuleList>
+                <platformTest type="osx"/>
+                <platformTest negate="1" type="osx-intel"/>
+            </conditionRuleList>
+            <actionList>
+                <setInstallerVariable name="blender_deps_platform" value="macos-arm64"/>
+            </actionList>
+        </if>
+    </readyToInstallActionList>
+    <postInstallationActionList>
+        <unzip>
+            <destinationDirectory>${blender_moduledir}</destinationDirectory>
+            <zipFile>${installdir}/tmp/blender_deps/dependency_bundle/deadline_cloud_for_blender_submitter-deps-${blender_deps_platform}.zip</zipFile>
+        </unzip>
+        <deleteFile>
+            <path>${installdir}/tmp/blender_deps</path>
+        </deleteFile>
+    </postInstallationActionList>
+</component>
