@@ -1,0 +1,16 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+        "frame": { "type": "number" },
+        "scene" : { "type": "string" },
+        "layer" : { "type": "string" },
+        "animation" : { "type": "boolean" },
+        "output_path": { "type": "string" }
+    },
+    "required": [
+        "frame",
+        "scene",
+        "animation"
+    ]
+}

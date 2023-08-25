@@ -1,0 +1,20 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+        "project_file": { "type": "string" },
+        "strict_error_checking": { "type": "boolean" },
+        "version": { "type": "string" },
+        "renderer": {
+            "enum": [
+                "CYCLES",
+                "BLENDER_WORKBENCH"
+            ]
+        }
+   },
+    "required": [
+        "project_file",
+        "version",
+        "renderer"
+    ]
+}
