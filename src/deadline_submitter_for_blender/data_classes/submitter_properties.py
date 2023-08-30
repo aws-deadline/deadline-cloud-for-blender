@@ -41,6 +41,17 @@ def queue_callback(self, context):
         return ()
 
 
+def storage_profile_callback(self, context):
+    wm_type = bpy.types.WindowManager
+    wm_instance = context.window_manager
+    if hasattr(wm_type, "deadline_storage_profile_lookup"):
+        return wm_type.deadline_storage_profile_lookup[
+            (wm_instance.deadline_farm, wm_instance.deadline_queue)
+        ]
+    else:
+        return ()
+
+
 def submission_status_callback(self, context):
     return (
         ("READY", "Ready", "Ready"),
@@ -136,6 +147,17 @@ def create():  # pragma: no cover
         items=queue_callback,
         name="Queue",
         description="Deadline queue to submit the job to.",
+        default=None,
+        options=set(),
+        update=None,
+        get=None,
+        set=None,
+    )
+
+    wm.deadline_storage_profile = bpy.props.EnumProperty(
+        items=storage_profile_callback,
+        name="Storage Profile",
+        description="Deadline storage profile to submit the job with.",
         default=None,
         options=set(),
         update=None,
@@ -254,6 +276,7 @@ def delete():  # pragma: no cover
     del wm.deadline_job_description
     del wm.deadline_farm
     del wm.deadline_queue
+    del wm.deadline_storage_profile
     del wm.deadline_submission_status
     del wm.deadline_max_retries_per_task
     del wm.deadline_priority

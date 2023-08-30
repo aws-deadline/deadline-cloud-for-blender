@@ -8,6 +8,7 @@ Blender Submitter.
 """
 
 import os
+import sys
 import bpy
 from deadline.client import api as deadline_api
 from deadline.client import config as deadline_config
@@ -112,9 +113,43 @@ def get_queues(farm_id: str, config: Optional[ConfigParser] = None):
     return queue_items
 
 
-def set_farm_and_queue_lookups():
+def get_storage_profiles(farm_id: str, queue_id: str, config: Optional[ConfigParser] = None):
+    storage_profiles = deadline_api.list_storage_profiles_for_queue(
+        farmId=farm_id, queueId=queue_id, config=config
+    )
+    storage_profile_items = []
+    for storage_profile in storage_profiles.get("storageProfiles"):
+        if storage_profile.get("osFamily", "").lower() == _get_storage_profile_os_family().lower():
+            storage_profile_items.append(
+                (
+                    storage_profile.get("storageProfileId"),
+                    storage_profile.get("displayName"),
+                    storage_profile.get("osFamily", ""),
+                )
+            )
+
+    return storage_profile_items
+
+
+def _get_storage_profile_os_family() -> str:
     """
-    Loads all the available farm and queue data into temporary attributes for fast lookups to keep the UI performant.
+    Get a string specifying what the OS is, following the format the Deadline storage profile API expects.
+    """
+    if sys.platform.startswith("linux"):
+        return "Linux"
+
+    if sys.platform.startswith("darwin"):
+        return "Macos"
+
+    if sys.platform.startswith("win"):
+        return "Windows"
+
+    return ""
+
+
+def set_farm_queue_and_storage_profile_lookups():
+    """
+    Loads all the available farm, queue, and storage profile data into temporary attributes for fast lookups to keep the UI performant.
     If we use the get_farms and get_queues directly in the farm/queue callbacks, Blender will continually call Deadline
     for this info.
     """
@@ -127,6 +162,9 @@ def set_farm_and_queue_lookups():
         if hasattr(wm_type, "deadline_queue_lookup"):
             del wm_type.deadline_queue_lookup
 
+        if hasattr(wm_type, "deadline_storage_profile_lookup"):
+            del wm_type.deadline_storage_profile_lookup
+
         congfig = active_profile()
         farms = get_farms(config=congfig)
         wm_type.deadline_farm_lookup = farms
@@ -136,6 +174,15 @@ def set_farm_and_queue_lookups():
             queue_lookup[farm_id] = get_queues(farm_id, config=congfig)
 
         wm_type.deadline_queue_lookup = queue_lookup
+
+        storage_profile_lookup = {}
+        for farm_id in queue_lookup.keys():
+            for queue_id, queue_name, queue_description in queue_lookup[farm_id]:
+                storage_profile_lookup[(farm_id, queue_id)] = get_storage_profiles(
+                    farm_id=farm_id, queue_id=queue_id, config=congfig
+                )
+
+        wm_type.deadline_storage_profile_lookup = storage_profile_lookup
 
 
 def get_credentials_status() -> str:
@@ -184,6 +231,9 @@ def deadline_logout():
     if hasattr(wm_type, "deadline_queue_lookup"):
         del wm_type.deadline_queue_lookup
 
+    if hasattr(wm_type, "deadline_storage_profile_lookup"):
+        del wm_type.deadline_storage_profile_lookup
+
 
 def deadline_login():
     def _on_cancellation_check():
@@ -202,7 +252,7 @@ def deadline_login():
     print(creds_status)
     if creds_status == "AUTHENTICATED":
         print("Deadline Logged In")
-        set_farm_and_queue_lookups()
+        set_farm_queue_and_storage_profile_lookups()
         wm.deadline_logged_in = True
 
     wm.deadline_status = creds_status

@@ -380,6 +380,7 @@ def build_config() -> ConfigParser:
     config_file = ConfigParser()
     config.set_setting("defaults.farm_id", wm.deadline_farm, config_file)
     config.set_setting("defaults.queue_id", wm.deadline_queue, config_file)
+    config.set_setting("settings.storage_profile_id", wm.deadline_storage_profile, config_file)
     endpoint_url = config.get_setting("settings.deadline_endpoint_url")
     config.set_setting("settings.deadline_endpoint_url", endpoint_url, config_file)
     active_profile(config=config_file)

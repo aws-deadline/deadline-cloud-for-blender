@@ -47,6 +47,7 @@ class DEADLINE_PT_Deadline_Settings(bpy.types.Panel):
 
         sub_col.prop(wm, "deadline_farm")
         sub_col.prop(wm, "deadline_queue")
+        sub_col.prop(wm, "deadline_storage_profile")
 
         enabled_section = sub_col.row(align=True)
         enabled_section.alignment = "RIGHT"

@@ -62,6 +62,39 @@ def test_queue_callback_has_no_queues(mock_wm_type):
     assert result == ()
 
 
+@patch.object(submitter_properties.bpy.types, "WindowManager")
+def test_storage_profile_callback_has_storage_profiles(mock_wm_type):
+    # GIVEN
+    storage_profiles = [("sp1", "sp2", "sp3")]
+
+    mock_wm_context = Mock()
+    mock_wm_context.deadline_farm = "farm1"
+    mock_wm_context.deadline_queue = "queue1"
+    mock_context = Mock()
+    mock_context.window_manager = mock_wm_context
+
+    mock_wm_type.deadline_storage_profile_lookup = {("farm1", "queue1"): storage_profiles}
+
+    # WHEN
+    result = submitter_properties.storage_profile_callback(None, mock_context)
+
+    # THEN
+    assert result == storage_profiles
+
+
+@patch.object(submitter_properties.bpy.types, "WindowManager")
+def test_storage_profile_callback_has_no_storage_profiles(mock_wm_type):
+    # GIVEN
+    mock_context = Mock()
+    del mock_wm_type.deadline_storage_profile_lookup
+
+    # WHEN
+    result = submitter_properties.storage_profile_callback(None, mock_context)
+
+    # THEN
+    assert result == ()
+
+
 def test_submission_status_callback():
     # GIVEN
     submission_statuses = (

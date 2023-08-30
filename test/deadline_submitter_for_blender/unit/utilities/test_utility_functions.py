@@ -100,11 +100,12 @@ def test_get_queues(mock_api):
 
 @patch.object(utility_functions, "active_profile")
 @patch.object(utility_functions.bpy.context, "window_manager")
+@patch.object(utility_functions, "get_storage_profiles")
 @patch.object(utility_functions, "get_queues")
 @patch.object(utility_functions, "get_farms")
 @patch.object(utility_functions.bpy.types, "WindowManager")
-def test_set_farm_and_queue_lookups(
-    mock_wm, mock_farms, mock_queues, mock_wm_context, mock_active_profile
+def test_set_farm_queue_and_storage_profile_lookups(
+    mock_wm, mock_farms, mock_queues, mock_storage_profiles, mock_wm_context, mock_active_profile
 ):
     # GIVEN
     mock_wm_context.deadline_logged_in = True
@@ -112,22 +113,29 @@ def test_set_farm_and_queue_lookups(
 
     returned_farms = [("farm-1", "farm", "farm")]
     returned_queues = [("queue-1", "queue", "queue")]
+    returned_storage_profiles = [("sp-1", "storage profile", "storage profile")]
 
     mock_farms.return_value = returned_farms
     mock_queues.return_value = returned_queues
+    mock_storage_profiles.return_value = returned_storage_profiles
 
     initial_farm_lookup = Mock()
     initial_queue_lookup = Mock()
+    initial_storage_profile_lookup = Mock()
 
     mock_wm.deadline_farm_lookup = initial_farm_lookup
     mock_wm.deadline_queue_lookup = initial_queue_lookup
+    mock_wm.deadline_storage_profile_lookup = initial_storage_profile_lookup
 
     # WHEN
-    utility_functions.set_farm_and_queue_lookups()
+    utility_functions.set_farm_queue_and_storage_profile_lookups()
 
     # THEN
     assert mock_wm.deadline_farm_lookup == returned_farms
     assert mock_wm.deadline_queue_lookup == {"farm-1": returned_queues}
+    assert mock_wm.deadline_storage_profile_lookup == {
+        ("farm-1", "queue-1"): returned_storage_profiles
+    }
 
 
 @patch.object(utility_functions, "deadline_api")
@@ -199,6 +207,7 @@ def test_deadline_logout(
     # GIVEN
     initial_farm_lookup = Mock()
     initial_queue_lookup = Mock()
+    initial_storage_profile_lookup = Mock()
 
     expected_creds = "NEEDS_LOGIN"
     expected_type = "SSO_LOGIN"
@@ -211,6 +220,7 @@ def test_deadline_logout(
 
     mock_wm_type.deadline_farm_lookup = initial_farm_lookup
     mock_wm_type.deadline_queue_lookup = initial_queue_lookup
+    mock_wm_type.deadline_storage_profile_lookup = initial_storage_profile_lookup
 
     # WHEN
     utility_functions.deadline_logout()
@@ -227,10 +237,11 @@ def test_deadline_logout(
 
     assert not hasattr(mock_wm_type, "deadline_farm_lookup")
     assert not hasattr(mock_wm_type, "deadline_queue_lookup")
+    assert not hasattr(mock_wm_type, "deadline_storage_profile_lookup")
 
 
 @patch.object(utility_functions, "active_profile")
-@patch.object(utility_functions, "set_farm_and_queue_lookups")
+@patch.object(utility_functions, "set_farm_queue_and_storage_profile_lookups")
 @patch.object(utility_functions, "get_deadline_api_available")
 @patch.object(utility_functions, "get_credentials_type")
 @patch.object(utility_functions, "get_credentials_status")
@@ -274,7 +285,7 @@ def test_deadline_login_success(
 
 
 @patch.object(utility_functions, "active_profile")
-@patch.object(utility_functions, "set_farm_and_queue_lookups")
+@patch.object(utility_functions, "set_farm_queue_and_storage_profile_lookups")
 @patch.object(utility_functions, "get_deadline_api_available")
 @patch.object(utility_functions, "get_credentials_type")
 @patch.object(utility_functions, "get_credentials_status")

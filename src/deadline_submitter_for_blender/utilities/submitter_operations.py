@@ -22,7 +22,7 @@ from .utility_functions import (
     deadline_login,
     deadline_logout,
     get_assets,
-    set_farm_and_queue_lookups,
+    set_farm_queue_and_storage_profile_lookups,
 )
 
 
@@ -129,7 +129,7 @@ class DeadlineSubmit:
         if wm.deadline_project_path == "":
             bpy.ops.deadline.set_project_path()
 
-        # Build a temp config file for setting the selected farm and queue
+        # Build a temp config file for setting the selected farm, queue, and storage profile
         config = build_config()
 
         # Generate the job bundle files required for submitting with DeadlineClientLib
@@ -193,7 +193,7 @@ class DEADLINE_OT_Refresh_Deadline(bpy.types.Operator):  # pragma: no cover
     bl_option = {"REGISTER"}
 
     def execute(self, context):
-        set_farm_and_queue_lookups()
+        set_farm_queue_and_storage_profile_lookups()
         return {"FINISHED"}
 
 
@@ -214,6 +214,7 @@ class DeadlineExport:
         data["deadline_job_description"] = wm.deadline_job_description
         data["deadline_farm"] = wm.deadline_farm
         data["deadline_queue"] = wm.deadline_queue
+        data["deadline_storage_profile"] = wm.deadline_storage_profile
         data["deadline_submission_status"] = wm.deadline_submission_status
         data["deadline_max_retries_per_task"] = wm.deadline_max_retries_per_task
         data["deadline_priority"] = wm.deadline_priority
@@ -297,6 +298,7 @@ class DeadlineImport:
                 "deadline_job_output_attachments",
                 "deadline_farm",
                 "deadline_queue",
+                "deadline_storage_profile",
                 "deadline_scene",
                 "deadline_layer",
             ]:
@@ -324,6 +326,17 @@ class DeadlineImport:
                 )
             ):
                 setattr(wm, "deadline_queue", data["deadline_queue"])
+
+                if (
+                    wm.get("deadline_storage_profile_lookup", None)
+                    and wm.deadline_storage_profile_lookup(
+                        (data["deadline_farm"], data["deadline_queue"]), None
+                    )
+                    and wm.deadline_storage_profile_lookup(
+                        (data["deadline_farm"], data["deadline_queue"])
+                    ).get(data["deadline_storage_profile"], None)
+                ):
+                    setattr(wm, "deadline_storage_profile", data["deadline_storage_profile"])
 
         # handle file attachments
         bpy.ops.deadline.clear_assets()
