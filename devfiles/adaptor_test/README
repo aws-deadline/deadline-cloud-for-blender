@@ -1,0 +1,18 @@
+# Testing the adaptor
+
+1. Go into the worker container.
+2. Activate the worker's environment: `source /opt/dcworker/venv/bin/activate`.
+3. Inspect the contents of the test dir: `/code/devfiles/adaptor_test`.
+4. Ensure the scripts below point to this data correctly.
+5. Run some of the scripts below.
+
+```bash
+# Foreground  
+python -m blender_adaptor.BlenderAdaptor run --init-data file:///code/devfiles/adaptor_test/in/initData.json --run-data file:///code/devfiles/adaptor_test/in/runData.json  
+  
+  
+# Daemonized (LINKS UNCHECKED)
+python -m blender_adaptor.BlenderAdaptor daemon start --init-data file:///code/adaptortest/initData.json --connection-file /code/adaptortest/connection.json  
+python -m blender_adaptor.BlenderAdaptor daemon run --run-data file:///code/adaptortest/runData.json --connection-file /code/adaptortest/connection.json  
+python -m blender_adaptor.BlenderAdaptor daemon stop --connection-file /code/adaptortest/connection.json
+```

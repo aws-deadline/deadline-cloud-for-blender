@@ -5,7 +5,7 @@ pre-install-commands = [
 
 [envs.default.scripts]
 sync = "pip install -r requirements-testing.txt"
-test = "pytest --cov-config pyproject.toml {args:test/*/unit}"
+test = "pytest --cov-config pyproject.toml {args:test}"
 typing = "mypy {args:src test}"
 style = [
   "ruff {args:.}",
@@ -19,21 +19,13 @@ lint = [
   "style",
   "typing",
 ]
-deps-bundle = [
-  "./depsBundle.sh"
-]
 
 [[envs.all.matrix]]
-python = ["3.9", "3.10", "3.11"]
+python = ["3.10", "3.11", "3.12"]
 
 [envs.default.env-vars]
 PIP_INDEX_URL="https://aws:{env:CODEARTIFACT_AUTH_TOKEN}@{env:CODEARTIFACT_DOMAIN}-{env:CODEARTIFACT_ACCOUNT_ID}.d.codeartifact.{env:CODEARTIFACT_REGION}.amazonaws.com/pypi/{env:CODEARTIFACT_REPOSITORY}/simple/"
 SKIP_BOOTSTRAP_TEST_RESOURCES="True"
-
-[envs.integ.env-vars]
-PIP_INDEX_URL="https://aws:{env:CODEARTIFACT_AUTH_TOKEN}@{env:CODEARTIFACT_DOMAIN}-{env:CODEARTIFACT_ACCOUNT_ID}.d.codeartifact.{env:CODEARTIFACT_REGION}.amazonaws.com/pypi/{env:CODEARTIFACT_REPOSITORY}/simple/"
-DEADLINE_SERVICE_MODEL_BUCKET="{env:DEADLINE_SERVICE_MODEL_BUCKET}"
-DCC_INSTALLER_S3_BUCKET="{env:DCC_INSTALLER_S3_BUCKET}"
 
 [envs.codebuild.scripts]
 build = "hatch build"

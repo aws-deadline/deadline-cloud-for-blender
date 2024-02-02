@@ -1,0 +1,3 @@
+Blender 3.3 LTS – Scanlands (blender-3.30splash.blend) by Piotr Krynski
+is licensed under CC-BY-SA
+via https://www.blender.org/download/demo-files/ (direct link: https://download.blender.org/demo/splash/blender-3.3-splash.blend)

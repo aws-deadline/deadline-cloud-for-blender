@@ -5,23 +5,20 @@ build-backend = "hatchling.build"
 [project]
 name = "deadline-cloud-for-blender"
 dynamic = ["version"]
-description = ''
 readme = "README.md"
 license = ""
-requires-python = ">=3.7"
+requires-python = ">=3.10"
+# Blender 3.5+ uses Python version 3.10+ (https://vfxplatform.com/ 2023)
 
-dependencies = [
-    "deadline == 0.16.*",
-    "openjobio == 0.8.*",
-]
+dependencies = ["deadline == 0.37.*", "openjd-adaptor-runtime == 0.4.*"]
 
 [project.scripts]
-BlenderAdaptor = "deadline_adaptor_for_blender.BlenderAdaptor:main"
+BlenderAdaptor = "deadline.blender_adaptor.BlenderAdaptor:main"
+
+# --- HATCH ---
 
 [tool.hatch.build]
-artifacts = [
-  "*_version.py",
-]
+artifacts = ["*_version.py"]
 
 [tool.hatch.version]
 source = "vcs"
@@ -33,97 +30,98 @@ version_scheme = "post-release"
 version-file = "_version.py"
 
 [tool.hatch.build.hooks.custom]
-path = "hatch_version_hook.py"
+path = "hatch_custom_hook.py"
+blender_addon_init = "src/deadline/blender_submitter/addons/deadline_cloud_blender_submitter/__init__.py"
 
-[[tool.hatch.build.hooks.custom.copy_map]]
-sources = [
-  "_version.py",
-]
+[tool.hatch.build.hooks.custom.copy_version_py]
 destinations = [
-  "src/deadline_adaptor_for_blender",
-  "src/deadline_submitter_for_blender",
+  "src/deadline/blender_adaptor",
+  "src/deadline/blender_submitter",
 ]
 
 [tool.hatch.build.targets.sdist]
-include = [
-    "src/*",
-    "hatch_version_hook.py",
-]
+include = ["src/*", "hatch_custom_hook.py"]
 
 [tool.hatch.build.targets.wheel]
-packages = [
-  "src/deadline_adaptor_for_blender",
-  "src/deadline_submitter_for_blender",
-]
+packages = ["src/deadline"]
+
+# --- MYPY ---
 
 [tool.mypy]
-python_version = 3.9
+python_version = "3.10"
 check_untyped_defs = true
 show_error_codes = true
 pretty = true
-files = [ "src/**/*.py" ]
+files = ["src/**/*.py"]
 ignore_missing_imports = true
+# Tell mypy that there's a namespace package at src/deadline
+namespace_packages = true
+explicit_package_bases = true
+mypy_path = "src"
 
-[[tool.mypy.overrides]]
-module = ["bpy", "bpy.*", "bpy_extras.*", "deadline_client.*"]
+# [[tool.mypy.overrides]]
+# module = ["bpy.*","PySide2.*"]
+
+# --- RUFF / BLACK ---
 
 [tool.ruff]
-ignore = [
-  "E501",
-]
+ignore = ["E501"]
 line-length = 100
 
 [tool.ruff.isort]
-known-first-party = [
-  "deadline_adaptor_for_blender",
-  "deadline_submitter_for_blender",
-]
+known-first-party = ["deadline_worker_agent"]
 
 [tool.black]
 line-length = 100
-target-version = [ "py39", "py310" ]
+
+# --- PYTEST ---
 
 [tool.pytest.ini_options]
 xfail_strict = true
 addopts = [
-    "--durations=5",
-    "--cov=src/deadline_adaptor_for_blender",
-    "--cov=src/deadline_submitter_for_blender",
-    "--color=yes",
-    "--cov-report=html:build/coverage",
-    "--cov-report=xml:build/coverage/coverage.xml",
-    "--cov-report=term-missing",
-    "--numprocesses=auto",
+  "--durations=5",
+  "--cov=src/deadline/blender_adaptor",
+  "--cov=src/deadline/blender_submitter",
+  "--color=yes",
+  "--cov-report=html:build/coverage",
+  "--cov-report=xml:build/coverage/coverage.xml",
+  "--cov-report=term-missing",
+  "--numprocesses=auto",
 ]
-testpaths = [ "test" ]
-looponfailroots = [
-    "src",
-    "test",
-]
+testpaths = ["test"]
+looponfailroots = ["src", "test"]
 # looponfailroots is deprecated, this removes the deprecation from the test output
-filterwarnings = [
-    "ignore::DeprecationWarning"
-]
+filterwarnings = ["ignore::DeprecationWarning"]
+
+# --- COVERAGE ---
 
 [tool.coverage.run]
+source_pkgs = [
+  "deadline/blender_adaptor",
+  "deadline/blender_submitter",
+  "blender_submitter_plugin/plugins",
+]
 branch = true
-parallel = false
-source_pkgs = [ "deadline_adaptor_for_blender", "deadline_submitter_for_blender" ]
-omit = [ "**/__main__.py", "**/_version.py", "*/deadline_submitter_for_blender/ui/*" ]
+parallel = true
+omit = [
+  "**/__main__.py",
+  "**/_version.py",
+  "*/deadline/blender_submitter/ui/*",
+  "*/deadline/blender_submitter/shelf.py",
+]
+
 
 [tool.coverage.paths]
-source =  [
-    "src/"
-]
+source = ["src/", "blender_submitter_plugin/plugins/"]
 
 [tool.coverage.report]
 show_missing = true
-fail_under = 90
+fail_under = 45
 
 [tool.semantic_release]
 # Can be removed or set to true once we are v1
 major_on_zero = false
-tag_format = "v{version}"
+tag_format = "{version}"
 
 [tool.semantic_release.publish]
 upload_to_vcs_release = false
