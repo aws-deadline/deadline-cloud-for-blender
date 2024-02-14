@@ -47,3 +47,13 @@ test = "pytest --no-cov {args:test/*/integ}"
 
 [envs.e2e.scripts]
 test = "pytest --no-cov {args:test/*/e2e}"
+
+[envs.release]
+detached = true
+dependencies = [
+  "python-semantic-release == 8.7.*"
+]
+
+[envs.release.scripts]
+bump = "semantic-release -v --strict version --no-push --no-commit --no-tag --skip-build {args}"
+version = "semantic-release -v --strict version --print {args}"
