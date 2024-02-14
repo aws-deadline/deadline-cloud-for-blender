@@ -19,7 +19,8 @@ SUBMITTER_DIR = (
     / "deadline_cloud_blender_submitter"
 )
 sys.path.append(str(SUBMITTER_DIR))
-import template_filling
+import template_filling  # noqa: E402
+
 
 @pytest.fixture
 def submitter_settings():
@@ -354,7 +355,7 @@ def test_fill_job_template(submitter_settings, layers):
 
 def test_get_param_values(submitter_settings, common_layer_settings):
     """Test getting param values."""
-    expected = {
+    expected_settings = {
         "BlenderFile": submitter_settings.project_path,
         common_layer_settings.frames_parameter_name: common_layer_settings.frame_range,
         "OutputFileName": common_layer_settings.output_file_prefix,
@@ -366,7 +367,7 @@ def test_get_param_values(submitter_settings, common_layer_settings):
         "RenderScene": common_layer_settings.scene_name,
         "RenderEngine": common_layer_settings.renderer_name,
     }
-    expected = [{"name": k, "value": v} for k, v in expected.items()]
+    expected = [{"name": k, "value": v} for k, v in expected_settings.items()]
 
     filled = template_filling.get_parameter_values(
         submitter_settings, common_layer_settings, queue_params=[]

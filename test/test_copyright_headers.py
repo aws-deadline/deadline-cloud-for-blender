@@ -76,10 +76,12 @@ def test_copyright_headers():
                     except FileMissingCopyRight as e:
                         failed_files.add(e.filepath)
                 file_count += 1
-    
+
     if failed_files:
-        formatted_failed_files = '\n\t'.join(str(filepath) for filepath in failed_files)
-        raise Exception(f"Found {len(failed_files)} files without copyright headers:\n\t{formatted_failed_files}")
+        formatted_failed_files = "\n\t".join(str(filepath) for filepath in failed_files)
+        raise Exception(
+            f"Found {len(failed_files)} files without copyright headers:\n\t{formatted_failed_files}"
+        )
 
     print(f"test_copyright_headers checked {file_count} files successfully.")
 

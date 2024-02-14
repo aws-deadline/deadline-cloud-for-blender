@@ -28,3 +28,5 @@ def get_render_handler(renderer: str = "eevee") -> DefaultBlenderHandler:
         return CyclesHandler()
     if renderer == "workbench":
         return WorkbenchHandler()
+
+    raise RuntimeError(f"Unsupported renderer: {renderer}")

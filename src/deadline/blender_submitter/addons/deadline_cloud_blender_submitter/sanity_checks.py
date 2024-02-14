@@ -3,11 +3,13 @@
 """
 Sanity checks done on submit or export bundle
 """
+from typing import Union
 
 import bpy
+from PySide2 import QtWidgets
+
 from deadline_cloud_blender_submitter import blender_utils
 from deadline_cloud_blender_submitter import scene_settings_widget as ssw
-from PySide2 import QtWidgets
 
 
 def run_sanity_checks(settings):
@@ -142,7 +144,7 @@ def is_correct_frame_range(frames: str) -> bool:
     return True
 
 
-def has_no_duplicate_frames(frames: str) -> [bool, str]:
+def has_no_duplicate_frames(frames: str) -> list[Union[bool, str]]:
     """
     Check if there are any repeating numbers in the given frame range.
     Input from text field can only have numbers, commas or dashes due to
@@ -152,12 +154,12 @@ def has_no_duplicate_frames(frames: str) -> [bool, str]:
     :type frames: str
     :returns: a list containing a boolean that indicates whether there were no duplicates and a string with the
     duplicate numbers
-    :return_type: list[bool, str]
+    :return_type: list[Union[bool, str]]
     """
     # remove any spaces and split into groups
     frames_input = frames.strip()
     override_frames = frames_input.split(",")
-    frames_to_render = []
+    frames_to_render: list[int] = []
     has_no_duplicates = True
     duplicates = []
     for frames in override_frames:

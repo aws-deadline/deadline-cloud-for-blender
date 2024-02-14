@@ -24,9 +24,8 @@ from deadline.client.exceptions import DeadlineOperationError
 
 _logger = logging.getLogger(__name__)
 
-_SETTINGS_FILE_EXT = ".deadline_render_settings.json"
-
 _ALL_CAMERAS = "ALL_CAMERAS"
+_SETTINGS_FILE_EXT = ".deadline_render_settings.json"
 
 
 @dataclass
@@ -362,22 +361,30 @@ def get_parameter_values(
 ) -> list[dict[str, Any]]:
     """Collect the parameter values for the job bundle as a list of name/value dicts."""
 
-    params = {}
+    param_dict: dict[str, Any] = {
+        "BlenderFile": settings.project_path,
+        "OutputFileName": layer_settings.output_file_prefix,
+        "OutputDir": layer_settings.output_directories,
+        "RenderScene": layer_settings.scene_name,
+        "RenderEngine": layer_settings.renderer_name,
+    }
 
-    params["BlenderFile"] = settings.project_path
-    params[layer_settings.frames_parameter_name] = layer_settings.frame_range
-    params["OutputFileName"] = layer_settings.output_file_prefix
-    params[layer_settings.image_width_parameter_name] = layer_settings.image_resolution[0]
-    params[layer_settings.image_height_parameter_name] = layer_settings.image_resolution[1]
-    params["OutputDir"] = layer_settings.output_directories
-    params["RenderScene"] = layer_settings.scene_name
-    params["RenderEngine"] = layer_settings.renderer_name
+    if layer_settings.frames_parameter_name:
+        param_dict[layer_settings.frames_parameter_name] = layer_settings.frame_range
+    if layer_settings.image_width_parameter_name:
+        param_dict[layer_settings.image_width_parameter_name] = (
+            layer_settings.image_resolution[0],
+        )
+    if layer_settings.image_height_parameter_name:
+        param_dict[layer_settings.image_height_parameter_name] = (
+            layer_settings.image_resolution[1],
+        )
 
     # Format the parameter values as a list of dicts, each with a "name" and a "value" key.
-    params = [{"name": k, "value": v} for k, v in params.items()]
+    params = [{"name": k, "value": v} for k, v in param_dict.items()]
 
     # Check for any overlap between the job parameters we've defined and the queue parameters. This is an error, as we weren't synchronizing the values between the two different tabs where they came from.
-    overlap = {p["name"] for p in params}.intersection({p["name"] for p in queue_params})
+    overlap: set[str] = {p["name"] for p in params}.intersection({p["name"] for p in queue_params})
     if overlap:
         raise DeadlineOperationError(
             "The following queue parameters conflict with the Blender job parameters:\n"

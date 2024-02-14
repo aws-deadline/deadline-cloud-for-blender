@@ -8,3 +8,4 @@ pytest-cov == 4.*
 pytest-xdist == 3.*
 ruff == 0.1.*
 twine == 4.*
+types-pyyaml == 6.*

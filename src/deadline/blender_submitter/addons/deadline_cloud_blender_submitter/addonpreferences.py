@@ -18,18 +18,17 @@ class DEADLINE_CLOUD_AddonPreferences(AddonPreferences):
 
     # TODO: Will need to be a dynamic selection
 
-    job_history: StringProperty(
+    job_history: StringProperty(  # type: ignore
         name="Job History Dir",
         default="",
     )
-    user_identities: EnumProperty(
+    user_identities: EnumProperty(  # type: ignore
         name="User Identities",
         description="User Identities",
         items=[("op1", "False", ""), ("op2", "True", "")],
     )
-    deadline_cloud_endpoint_url: StringProperty(name="Deadline Cloud Endpoint URL", default="")
-    auto_accept_confirm_prompt: BoolProperty(name="Auto Accept Confirmation Prompts")
-    current_logging_level: EnumProperty(
+    auto_accept_confirm_prompt: BoolProperty(name="Auto Accept Confirmation Prompts")  # type: ignore
+    current_logging_level: EnumProperty(  # type: ignore
         name="Current Logging Level",
         description="Current Logging Level",
         items=[("op1", "Debug", ""), ("op2", "None", "")],
@@ -61,8 +60,6 @@ class DEADLINE_CLOUD_AddonPreferences(AddonPreferences):
         split.operator("ops.dlcloud_add_to_default_farm", icon="FILE_REFRESH")
         row = box.row()
         row.prop(self, "user_identities")
-        row = box.row()
-        row.prop(self, "deadline_cloud_endpoint_url")
 
         box = layout.box()
         box.label(text="Farm Settings:")
