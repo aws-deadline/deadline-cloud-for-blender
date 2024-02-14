@@ -1,3 +1,5 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+
 import logging
 from logging.handlers import RotatingFileHandler
 from pathlib import Path

@@ -1,3 +1,5 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+
 """
 This file contains the AddonPreferences for the deadline submitter ui.
 """

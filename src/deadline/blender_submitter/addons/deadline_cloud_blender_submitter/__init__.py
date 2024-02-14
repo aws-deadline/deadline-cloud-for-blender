@@ -1,3 +1,5 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+
 """
 Registration of Deadline Cloud Submitter Addon + activate logger
 """
@@ -11,7 +13,7 @@ bl_info = {
     "name": "Deadline Cloud Submitter Addon",
     "description": "Deadline Cloud Submitter",
     "author": "AWS Thinkbox",
-    "version": (0, 5, 3),
+    "version": (0, 0, "g3fb66a2.d20240214"),
     "blender": (3, 5, 0),
     "category": "Render",
 }

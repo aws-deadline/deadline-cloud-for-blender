@@ -19,6 +19,8 @@ __pycache__/
 *.py[cod]
 .coverage
 .tox
+.run
+.exe
 
 # virtualenv
 .venv

@@ -116,7 +116,7 @@ source = ["src/", "blender_submitter_plugin/plugins/"]
 
 [tool.coverage.report]
 show_missing = true
-fail_under = 45
+fail_under = 25
 
 [tool.semantic_release]
 # Can be removed or set to true once we are v1

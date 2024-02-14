@@ -1,3 +1,5 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+
 """Functions to fill Blender job templates.
 
 This file should not have a dependency on `bpy`, so it can be unit-tested.

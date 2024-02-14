@@ -1,9 +1,13 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+
 """Test the Deadline Cloud Blender Submitter."""
 
 import sys
 from pathlib import Path
 
 import pytest
+
+from deadline.client.exceptions import DeadlineOperationError
 
 # Ensure the submitter can be imported.
 SUBMITTER_DIR = (
@@ -15,10 +19,7 @@ SUBMITTER_DIR = (
     / "deadline_cloud_blender_submitter"
 )
 sys.path.append(str(SUBMITTER_DIR))
-
 import template_filling
-from deadline.client.exceptions import DeadlineOperationError
-
 
 @pytest.fixture
 def submitter_settings():

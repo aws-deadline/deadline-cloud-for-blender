@@ -377,10 +377,12 @@ class SceneSettingsWidget(QWidget):
         # Frame range validation
         # E.g.: 1-4,6,8,9-12
         # Note: ?: in regex groups all together as one result
-        regex = QRegularExpression(r"\d+"  # unlimited numbers
-                                   r"(?:-\d+)?"  # optional dash (-) and one or more digits
-                                   r"(?:,(\s)?\d+"  # new parts split by commas (,) , allow 1 space for readability
-                                   r"(?:-\d+)?)*")  # can be repeated endlessly
+        regex = QRegularExpression(
+            r"\d+"  # unlimited numbers
+            r"(?:-\d+)?"  # optional dash (-) and one or more digits
+            r"(?:,(\s)?\d+"  # new parts split by commas (,) , allow 1 space for readability
+            r"(?:-\d+)?)*"
+        )  # can be repeated endlessly
         validator = QRegularExpressionValidator(regex, self.frame_override_txt)
         self.frame_override_txt.setValidator(validator)
 
