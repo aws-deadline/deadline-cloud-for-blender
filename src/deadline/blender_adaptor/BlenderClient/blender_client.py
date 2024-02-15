@@ -20,8 +20,8 @@ except (ImportError, ModuleNotFoundError):
 
 
 class BlenderClient(HTTPClientInterface):
-    def __init__(self, socket_path: str) -> None:
-        super().__init__(socket_path=socket_path)
+    def __init__(self, server_path: str) -> None:
+        super().__init__(server_path=server_path)
         self.actions.update({"render_engine": self.set_renderer})
 
     def set_renderer(self, renderer: dict):
@@ -36,21 +36,21 @@ class BlenderClient(HTTPClientInterface):
 
 
 def main():
-    socket_path = os.environ.get("BLENDER_ADAPTOR_SOCKET_PATH")
-    if not socket_path:
+    server_path = os.environ.get("BLENDER_ADAPTOR_SERVER")
+    if not server_path:
         raise OSError(
             "BlenderClient cannot connect to the Adaptor because the environment variable "
-            "BLENDER_ADAPTOR_SOCKET_PATH does not exist"
+            "BLENDER_ADAPTOR_SERVER_PATH does not exist"
         )
 
-    if not os.path.exists(socket_path):
+    if not os.path.exists(server_path):
         raise OSError(
-            "BlenderClient cannot connect to the Adaptor because the socket at the path defined by "
-            "the environment variable BLENDER_ADAPTOR_SOCKET_PATH does not exist. Got: "
-            f"{os.environ['BLENDER_ADAPTOR_SOCKET_PATH']}"
+            "BlenderClient cannot connect to the Adaptor because the server at the path defined by "
+            "the environment variable BLENDER_ADAPTOR_SERVER_PATH does not exist. Got: "
+            f"{os.environ['BLENDER_ADAPTOR_SERVER_PATH']}"
         )
 
-    client = BlenderClient(socket_path)
+    client = BlenderClient(server_path)
     client.poll()
 
 

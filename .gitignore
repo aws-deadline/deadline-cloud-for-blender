@@ -13,14 +13,18 @@ devcontainer/*.env
 # build artifacts
 dist/
 build/
+dependency_bundle/
 
 *.egg-info/
 __pycache__/
 *.py[cod]
 .coverage
 .tox
+
+# misc extensions that might pop up
 .run
 .exe
+.zip
 
 # virtualenv
 .venv

@@ -45,9 +45,9 @@ class CustomBuildHook(BuildHookInterface):
       "_version.py",
     ]
     destinations = [
-      "src/openjobio",
-      "src/openjobio_adaptor_runtime",
-      "src/openjobio_adaptor_runtime_client",
+      "src/openjd",
+      "src/openjd_adaptor_runtime",
+      "src/openjd_adaptor_runtime_client",
     ]
     [[tool.hatch.build.hooks.custom.copy_map]]
     sources = [
@@ -55,9 +55,9 @@ class CustomBuildHook(BuildHookInterface):
       "something_else_the_tests_need.ini",
     ]
     destinations = [
-      "test/openjobio",
-      "test/openjobio_adaptor_runtime",
-      "test/openjobio_adaptor_runtime_client",
+      "test/openjd",
+      "test/openjd_adaptor_runtime",
+      "test/openjd_adaptor_runtime_client",
     ]
     ```
     """

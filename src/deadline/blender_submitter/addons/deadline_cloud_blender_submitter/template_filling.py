@@ -391,21 +391,27 @@ def get_parameter_values(
             + f"{', '.join(overlap)}"
         )
 
-    # If we're overriding the adaptor with wheels, remove deadline_cloud_for_Blender from the RezPackages
+    # If we're overriding the adaptor with wheels, remove the adaptor from the Packages
     if settings.include_adaptor_wheels:
-        # Find the RezPackages parameter definition in the queue params.
-        rez_param = None
+        rez_param = {}
+        conda_param = {}
+        # Find the Packages parameter definition in the queue params.
         for param in queue_params:
             if param["name"] == "RezPackages":
                 rez_param = param
-                break
+            if param["name"] == "CondaPackages":
+                conda_param = param
 
-        # Remove the deadline_cloud_for_blender rez package.
+        # Remove the deadline_cloud_for_blender/blender-openjd rez package.
         if rez_param:
             rez_param["value"] = " ".join(
                 pkg
                 for pkg in rez_param["value"].split()
                 if not pkg.startswith("deadline_cloud_for_blender")
+            )
+        if conda_param:
+            conda_param["value"] = " ".join(
+                pkg for pkg in conda_param["value"].split() if not pkg.startswith("blender-openjd")
             )
 
     params.extend({"name": param["name"], "value": param["value"]} for param in queue_params)

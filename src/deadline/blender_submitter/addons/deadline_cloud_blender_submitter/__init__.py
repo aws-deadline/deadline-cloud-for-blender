@@ -13,7 +13,7 @@ bl_info = {
     "name": "Deadline Cloud Submitter Addon",
     "description": "Deadline Cloud Submitter",
     "author": "AWS Thinkbox",
-    "version": (0, 0, "g08028b7.d20240214"),
+    "version": (0, 0, "g4aec8fd.d20240215"),
     "blender": (3, 5, 0),
     "category": "Render",
 }

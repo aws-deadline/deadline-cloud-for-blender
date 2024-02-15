@@ -9,7 +9,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any
 
-SUPPORTED_PYTHON_VERSIONS = ["3.7", "3.8", "3.9", "3.10", "3.11"]
+SUPPORTED_PYTHON_VERSIONS = ["3.10", "3.11"]
 SUPPORTED_PLATFORMS = ["win_amd64", "manylinux2014_x86_64", "macosx_10_9_x86_64"]
 NATIVE_DEPENDENCIES = ["xxhash"]
 
@@ -21,10 +21,13 @@ def _get_project_dict() -> dict[str, Any]:
             subprocess.run(toml_install_pip_args, check=True)
             sys.path.insert(0, toml_env)
             import toml
+        mode = "r"
     else:
-        import libtoml as toml
+        import tomllib as toml
 
-    with open("pyproject.toml") as pyproject_toml:
+        mode = "rb"
+
+    with open("pyproject.toml", mode) as pyproject_toml:
         return toml.load(pyproject_toml)
 
 
@@ -35,8 +38,8 @@ def _get_dependencies(pyproject_dict: dict[str, Any]) -> list[str]:
         raise Exception("pyproject.toml is missing dependencies section")
 
     dependencies = pyproject_dict["project"]["dependencies"]
-    deps_noopenjobio = filter(lambda dep: not dep.startswith("openjobio"), dependencies)
-    return list(map(lambda dep: dep.replace(" ", ""), deps_noopenjobio))
+    deps_noopenjd = filter(lambda dep: not dep.startswith("openjd"), dependencies)
+    return list(map(lambda dep: dep.replace(" ", ""), deps_noopenjd))
 
 
 def _get_package_version_regex(package: str) -> re.Pattern:
@@ -127,10 +130,10 @@ def _zip_bundle(base_env: Path, zip_path: Path) -> None:
 def _copy_zip_to_destination(zip_path: Path) -> None:
     dependency_bundle_dir = Path.cwd() / "dependency_bundle"
     dependency_bundle_dir.mkdir(exist_ok=True)
-    zip_desntination = dependency_bundle_dir / zip_path.name
-    if zip_desntination.exists():
-        zip_desntination.unlink()
-    shutil.copy(str(zip_path), str(zip_desntination))
+    zip_destination = dependency_bundle_dir / zip_path.name
+    if zip_destination.exists():
+        zip_destination.unlink()
+    shutil.copy(str(zip_path), str(zip_destination))
 
 
 def build_deps_bundle() -> None:

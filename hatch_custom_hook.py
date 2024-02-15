@@ -39,11 +39,13 @@ class HatchCustomBuildHook(BuildHookInterface):
         with open(os.path.join(self.root, "_version.py")) as fp:
             exec(fp.read(), __ver__)
         ver_tuple = __ver__["version_tuple"]
-        ver_tuple = ver_tuple[:3]  # Cut off the commit hash part
+        major, minor, patch = ver_tuple[:3]  # Cut off the commit hash part
+        try:
+            int(patch)
+        except ValueError:
+            patch = f'"{patch}"'
         addon_init_file = os.path.join(self.root, self.config["blender_addon_init"])
         print(f"Updating version in blender addon: {addon_init_file}")
-        print(addon_init_file)
-        print(ver_tuple)
         with open(addon_init_file, "rt") as rf:
             lines = rf.readlines()
         new_lines = list()
@@ -51,7 +53,7 @@ class HatchCustomBuildHook(BuildHookInterface):
             if '"version":' not in line:
                 new_lines.append(line)
                 continue
-            new_lines.append(f'    "version": {ver_tuple},\n'.format())
+            new_lines.append(f'    "version": ({major}, {minor}, {patch}),\n'.format())
         with open(addon_init_file, "wt") as wf:
             wf.writelines(new_lines)
 

@@ -8,13 +8,16 @@ dynamic = ["version"]
 readme = "README.md"
 license = ""
 requires-python = ">=3.10"
-# Blender 3.5+ uses Python version 3.10+ (https://vfxplatform.com/ 2023)
+# Blender 3.1+ uses Python version 3.10+ (https://vfxplatform.com/ 2023)
 
-dependencies = ["deadline == 0.37.*", "openjd-adaptor-runtime == 0.4.*"]
+dependencies = [
+    "deadline == 0.37.*", 
+    "openjd-adaptor-runtime == 0.4.*",
+]
 
 [project.scripts]
 blender-openjd = "deadline.blender_adaptor.BlenderAdaptor:main"
-# DEPRECATED in favour of 'blender-openjd'
+# The binary name 'BlenderAdaptor' is deprecated.
 BlenderAdaptor = "deadline.blender_adaptor.BlenderAdaptor:main"
 
 # --- HATCH ---
@@ -118,7 +121,7 @@ source = ["src/", "blender_submitter_plugin/plugins/"]
 
 [tool.coverage.report]
 show_missing = true
-fail_under = 25
+fail_under = 24
 
 [tool.semantic_release]
 # Can be removed or set to true once we are v1

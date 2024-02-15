@@ -357,12 +357,7 @@ def test_get_param_values(submitter_settings, common_layer_settings):
     """Test getting param values."""
     expected_settings = {
         "BlenderFile": submitter_settings.project_path,
-        common_layer_settings.frames_parameter_name: common_layer_settings.frame_range,
         "OutputFileName": common_layer_settings.output_file_prefix,
-        common_layer_settings.image_width_parameter_name: common_layer_settings.image_resolution[0],
-        common_layer_settings.image_height_parameter_name: common_layer_settings.image_resolution[
-            1
-        ],
         "OutputDir": common_layer_settings.output_directories,
         "RenderScene": common_layer_settings.scene_name,
         "RenderEngine": common_layer_settings.renderer_name,

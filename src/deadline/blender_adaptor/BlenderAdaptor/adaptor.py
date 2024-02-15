@@ -120,26 +120,26 @@ class BlenderAdaptor(Adaptor[AdaptorConfiguration]):
         """
         self._is_rendering = value
 
-    def _wait_for_socket(self) -> str:
+    def _wait_for_server(self) -> str:
         """
-        Performs a busy wait for the socket path that the adaptor server is running on, then
+        Performs a busy wait for the server path that the adaptor server is running on, then
         returns it.
 
         Raises:
             RuntimeError: If the server does not finish initializing
 
         Returns:
-            str: The socket path the adaptor server is running on.
+            str: The server path the adaptor server is running on.
         """
         is_not_timed_out = self._get_timer(self._SERVER_START_TIMEOUT_SECONDS)
-        while (self._server is None or self._server.socket_path is None) and is_not_timed_out():
+        while (self._server is None or self._server.server_path is None) and is_not_timed_out():
             time.sleep(0.01)
 
-        if self._server is not None and self._server.socket_path is not None:
-            return self._server.socket_path
+        if self._server is not None and self._server.server_path is not None:
+            return self._server.server_path
 
         raise RuntimeError(
-            "Could not find a socket path because the server did not finish initializing"
+            "Could not find a server path because the server did not finish initializing"
         )
 
     def _start_blender_server(self) -> None:
@@ -153,14 +153,14 @@ class BlenderAdaptor(Adaptor[AdaptorConfiguration]):
     def _start_blender_server_thread(self) -> None:
         """
         Starts the Blender adaptor server in a thread.
-        Sets the environment variable "BLENDER_ADAPTOR_SOCKET_PATH" to the socket the server is running
+        Sets the environment variable "BLENDER_ADAPTOR_SERVER_PATH" to the path the server is running
         on after the server has finished starting.
         """
         self._server_thread = threading.Thread(
             target=self._start_blender_server, name="BlenderAdaptorServerThread"
         )
         self._server_thread.start()
-        os.environ["BLENDER_ADAPTOR_SOCKET_PATH"] = self._wait_for_socket()
+        os.environ["BLENDER_ADAPTOR_SERVER_PATH"] = self._wait_for_server()
 
     def _get_regex_callbacks(self) -> list[RegexCallback]:
         """
