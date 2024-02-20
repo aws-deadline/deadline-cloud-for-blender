@@ -31,31 +31,6 @@ class HatchCustomBuildHook(BuildHookInterface):
                 os.path.join(self.root, "_version.py"),
                 os.path.join(self.root, destination),
             )
-        # Update version in Blender addon
-        self._update_addon_version()
-
-    def _update_addon_version(self):
-        __ver__ = {}
-        with open(os.path.join(self.root, "_version.py")) as fp:
-            exec(fp.read(), __ver__)
-        ver_tuple = __ver__["version_tuple"]
-        major, minor, patch = ver_tuple[:3]  # Cut off the commit hash part
-        try:
-            int(patch)
-        except ValueError:
-            patch = f'"{patch}"'
-        addon_init_file = os.path.join(self.root, self.config["blender_addon_init"])
-        print(f"Updating version in blender addon: {addon_init_file}")
-        with open(addon_init_file, "rt") as rf:
-            lines = rf.readlines()
-        new_lines = list()
-        for line in lines:
-            if '"version":' not in line:
-                new_lines.append(line)
-                continue
-            new_lines.append(f'    "version": ({major}, {minor}, {patch}),\n'.format())
-        with open(addon_init_file, "wt") as wf:
-            wf.writelines(new_lines)
 
     def clean(self, versions: list[str]) -> None:
         self._validate_config()

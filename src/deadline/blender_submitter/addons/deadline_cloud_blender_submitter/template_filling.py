@@ -253,7 +253,7 @@ def fill_job_template(
             for param in override_environment["parameterDefinitions"]
             if param["name"] == "OverrideAdaptorName"
         ][0]
-        override_adaptor_name_param["default"] = "BlenderAdaptor"
+        override_adaptor_name_param["default"] = "openjd-blender"
 
         # There are no parameter conflicts between these two templates, so this works
         job_template["parameterDefinitions"].extend(override_environment["parameterDefinitions"])
@@ -372,13 +372,9 @@ def get_parameter_values(
     if layer_settings.frames_parameter_name:
         param_dict[layer_settings.frames_parameter_name] = layer_settings.frame_range
     if layer_settings.image_width_parameter_name:
-        param_dict[layer_settings.image_width_parameter_name] = (
-            layer_settings.image_resolution[0],
-        )
+        param_dict[layer_settings.image_width_parameter_name] = layer_settings.image_resolution[0]
     if layer_settings.image_height_parameter_name:
-        param_dict[layer_settings.image_height_parameter_name] = (
-            layer_settings.image_resolution[1],
-        )
+        param_dict[layer_settings.image_height_parameter_name] = layer_settings.image_resolution[1]
 
     # Format the parameter values as a list of dicts, each with a "name" and a "value" key.
     params = [{"name": k, "value": v} for k, v in param_dict.items()]

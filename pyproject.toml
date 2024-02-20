@@ -11,7 +11,7 @@ requires-python = ">=3.10"
 # Blender 3.1+ uses Python version 3.10+ (https://vfxplatform.com/ 2023)
 
 dependencies = [
-    "deadline == 0.37.*", 
+    "deadline == 0.38.*", 
     "openjd-adaptor-runtime == 0.4.*",
 ]
 
@@ -42,6 +42,7 @@ blender_addon_init = "src/deadline/blender_submitter/addons/deadline_cloud_blend
 destinations = [
   "src/deadline/blender_adaptor",
   "src/deadline/blender_submitter",
+  "src/deadline/blender_submitter/addons/deadline_cloud_blender_submitter",
 ]
 
 [tool.hatch.build.targets.sdist]
@@ -104,20 +105,17 @@ filterwarnings = ["ignore::DeprecationWarning"]
 source_pkgs = [
   "deadline/blender_adaptor",
   "deadline/blender_submitter",
-  "blender_submitter_plugin/plugins",
 ]
 branch = true
 parallel = true
 omit = [
   "**/__main__.py",
   "**/_version.py",
-  "*/deadline/blender_submitter/ui/*",
-  "*/deadline/blender_submitter/shelf.py",
 ]
 
 
 [tool.coverage.paths]
-source = ["src/", "blender_submitter_plugin/plugins/"]
+source = ["src/"]
 
 [tool.coverage.report]
 show_missing = true

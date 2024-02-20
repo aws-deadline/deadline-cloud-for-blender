@@ -11,9 +11,11 @@ devcontainer/*.env
 *_version.py
 
 # build artifacts
-dist/
 build/
 dependency_bundle/
+dist/
+plugin_env/
+wheels/
 
 *.egg-info/
 __pycache__/

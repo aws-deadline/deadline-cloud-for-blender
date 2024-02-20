@@ -1,45 +1,32 @@
 <component>
     <name>blender_integrated_submitter</name>
-    <description>Integrated submitter for Blender</description>
+    <description>Deadline Cloud for Blender 3.6</description>
 	<detailedDescription>Blender plugin for submitting work to Deadline</detailedDescription>
     <canBeEdited>1</canBeEdited>
     <selected>0</selected>
     <show>1</show>
     <parameterList>
-        <directoryParameter>
-            <name>blenderaddondir</name>
-            <description>Blender Add-ons Directory</description>
-            <explanation>Please specify the add-ons directory of your Blender installation. This directory is used to install the Deadline Submitter as a Blender add-on.</explanation>
-            <value></value>
-            <default></default>
-            <allowEmptyValue>0</allowEmptyValue>
-            <ask>yes</ask>
-            <cliOptionName>blenderAddonDir</cliOptionName>
-            <mustBeWritable>yes</mustBeWritable>
-            <mustExist>0</mustExist>
-            <width>40</width>
-        </directoryParameter>
         <stringParameter name="blender_integrated_submitter_summary" ask="0" cliOptionShow="0">
-            <value>Blender Submitter
-- Install the integrated Blender submitter files to the Blender Add-ons directory
-- Install Blender Submitter dependencies to the Blender Modules directory</value>
+            <value>Deadlien Cloud for Blender 3.6
+- Compatible with Blender 3.6
+- Install the integrated Blender submitter files to the installation directory</value>
         </stringParameter>
     </parameterList>
     <folderList>
         <folder>
-            <description>Program Files</description>
-            <destination>${blender_installdir}</destination>
+            <description>Blender Add-on directory</description>
+            <destination>${blender_addondir}</destination>
             <name>blender</name>
             <platforms>all</platforms>
             <distributionFileList>
                 <distributionDirectory allowWildcards="1">
-                    <origin>components/deadline-cloud-for-blender/src/*</origin>
+                    <origin>components/deadline-cloud-for-blender/src/deadline/blender_submitter/addons/*</origin>
                     <excludeFiles>*/install_builder</excludeFiles>
                 </distributionDirectory>
             </distributionFileList>
         </folder>
         <folder>
-            <description>Dependency Files</description>
+            <description>Blender dependency files</description>
             <destination>${installdir}/tmp/blender_deps</destination>
             <name>blenderdeps</name>
             <platforms>all</platforms>
@@ -54,8 +41,9 @@
         <setInstallerVariable name="all_components" value="${all_components} blender_integrated_submitter"/>
     </initializationActionList>
     <readyToInstallActionList>
-        <setInstallerVariable name="blender_installdir" value="${blenderaddondir}"/>
-        <setInstallerVariable name="blender_moduledir" value="${blenderaddondir}/../modules"/>
+        <setInstallerVariable name="blender_installdir" value="${installdir}/Submitters/Blender/python"/>
+        <setInstallerVariable name="blender_addondir" value="${blender_installdir}/python/addons"/>
+        <setInstallerVariable name="blender_moduledir" value="${blender_installdir}/python/modules"/>
         <if>
             <conditionRuleList>
                 <platformTest type="windows"/>

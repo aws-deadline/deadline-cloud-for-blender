@@ -113,10 +113,11 @@ class SceneSettingsWidget(QWidget):
         self.frame_override_txt.setValidator(validator)
 
         if self.dev_options:
+            qt_pos_index += 1
             self.include_adaptor_wheels = QCheckBox(
                 "Developer Option: Include Adaptor Wheels", self
             )
-            layout.addWidget(self.include_adaptor_wheels, 5, 0)
+            layout.addWidget(self.include_adaptor_wheels, qt_pos_index, 0)
 
         layout.addItem(QSpacerItem(0, 0, QSizePolicy.Minimum, QSizePolicy.Expanding), 10, 0)
 

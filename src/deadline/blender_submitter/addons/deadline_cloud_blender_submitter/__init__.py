@@ -8,12 +8,13 @@ import logging
 import bpy  # noqa
 from bpy.types import Operator
 from deadline_cloud_blender_submitter import logutil
+from deadline_cloud_blender_submitter._version import version_tuple as adaptor_version_tuple
 
 bl_info = {
-    "name": "Deadline Cloud Submitter Addon",
-    "description": "Deadline Cloud Submitter",
+    "name": "Deadline Cloud for Blender Addon",
+    "description": "Deadline Cloud for Blender",
     "author": "AWS Thinkbox",
-    "version": (0, 0, "g4aec8fd.d20240215"),
+    "version": adaptor_version_tuple,
     "blender": (3, 5, 0),
     "category": "Render",
 }

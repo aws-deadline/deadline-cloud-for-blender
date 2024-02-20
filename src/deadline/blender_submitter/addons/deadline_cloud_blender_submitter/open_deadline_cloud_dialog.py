@@ -12,8 +12,7 @@ from deadline_cloud_blender_submitter import blender_utils as bu
 from deadline_cloud_blender_submitter import sanity_checks as sc
 from deadline_cloud_blender_submitter import scene_settings_widget as ssw
 from deadline_cloud_blender_submitter import template_filling as tf
-
-from ._version import version_tuple as adaptor_version_tuple
+from deadline_cloud_blender_submitter._version import version_tuple as adaptor_version_tuple
 
 from PySide2.QtCore import Qt
 
@@ -61,7 +60,7 @@ def create_deadline_dialog(parent=None) -> SubmitJobToDeadlineDialog:
     )
 
     # https://docs.blender.org/api/current/bpy.app.html#bpy.app.version
-    blender_version: tuple[int, int] = bpy.app.version[:2]
+    blender_version = ".".join(map(str, bpy.app.version[:2]))
     adaptor_version = ".".join(str(v) for v in adaptor_version_tuple[:2])
     # Need Blender and the Blender OpenJD application interface adaptor
     rez_packages = f"blender-{blender_version} deadline_cloud_for_blender"

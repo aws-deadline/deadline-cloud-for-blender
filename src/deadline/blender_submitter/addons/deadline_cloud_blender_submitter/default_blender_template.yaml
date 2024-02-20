@@ -102,7 +102,7 @@ steps:
             output_format: {{Param.OutputFormat}}
       actions:
         onEnter:
-          command: BlenderAdaptor
+          command: blender-openjd
           args:
             - daemon
             - start
@@ -113,7 +113,7 @@ steps:
           cancelation:
             mode: NOTIFY_THEN_TERMINATE
         onExit:
-          command: BlenderAdaptor
+          command: blender-openjd
           args:
             - daemon
             - stop
@@ -130,7 +130,7 @@ steps:
           frame: {{Task.Param.Frame}}
     actions:
       onRun:
-        command: BlenderAdaptor
+        command: blender-openjd
         args:
           - daemon
           - run

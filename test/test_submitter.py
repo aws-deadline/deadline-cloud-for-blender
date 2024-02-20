@@ -216,7 +216,7 @@ def test_fill_job_template(submitter_settings, layers):
                             ],
                             "actions": {
                                 "onEnter": {
-                                    "command": "BlenderAdaptor",
+                                    "command": "blender-openjd",
                                     "args": [
                                         "daemon",
                                         "start",
@@ -228,7 +228,7 @@ def test_fill_job_template(submitter_settings, layers):
                                     "cancelation": {"mode": "NOTIFY_THEN_TERMINATE"},
                                 },
                                 "onExit": {
-                                    "command": "BlenderAdaptor",
+                                    "command": "blender-openjd",
                                     "args": [
                                         "daemon",
                                         "stop",
@@ -252,7 +252,7 @@ def test_fill_job_template(submitter_settings, layers):
                     ],
                     "actions": {
                         "onRun": {
-                            "command": "BlenderAdaptor",
+                            "command": "blender-openjd",
                             "args": [
                                 "daemon",
                                 "run",
@@ -289,7 +289,7 @@ def test_fill_job_template(submitter_settings, layers):
                             ],
                             "actions": {
                                 "onEnter": {
-                                    "command": "BlenderAdaptor",
+                                    "command": "blender-openjd",
                                     "args": [
                                         "daemon",
                                         "start",
@@ -301,7 +301,7 @@ def test_fill_job_template(submitter_settings, layers):
                                     "cancelation": {"mode": "NOTIFY_THEN_TERMINATE"},
                                 },
                                 "onExit": {
-                                    "command": "BlenderAdaptor",
+                                    "command": "blender-openjd",
                                     "args": [
                                         "daemon",
                                         "stop",
@@ -325,7 +325,7 @@ def test_fill_job_template(submitter_settings, layers):
                     ],
                     "actions": {
                         "onRun": {
-                            "command": "BlenderAdaptor",
+                            "command": "blender-openjd",
                             "args": [
                                 "daemon",
                                 "run",

@@ -84,10 +84,6 @@ Build a wheel with `hatch build` and install it as a normal Python package.
 
 ## Development notes
 
-### Caveat: camera parameter definition
-
-Each task in Deadline Cloud is parametrized by (1) the frame to render and (2) a camera. The list of cameras to render is defined in the generated job `template.yaml` file under `steps > parameterSpace > taskParameterDefinitions > Camera > range`. Additionally, the same range of cameras is written to `parameter_values.json` under `Camera`. _Only the first of these ranges is used._ The range in `parameter_values.json` is redundant information.
-
 ### Blender addon version
 
 The Blender addon version is set during the build process via a custom hatch hook.
