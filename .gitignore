@@ -1,10 +1,41 @@
-/dist
+# Test outputs
+devfiles/adaptor_test/out/
+devfiles/submission_test_files/suzanne_cameras_and_viewlayers/out
+
+devcontainer/config
+devcontainer/*.env
+# example env is the only .env file to include
+!example.env
+
+# Hatch version temp file
+*_version.py
+
+# build artifacts
+build/
+dependency_bundle/
+dist/
+plugin_env/
+wheels/
+
 *.egg-info/
 __pycache__/
+*.py[cod]
 .coverage
 .tox
+
+# misc extensions that might pop up
+.run
+.exe
+.zip
+
+# virtualenv
 .venv
-/htmlcov
+venv/
+
+# IDE
 .vscode
-*_version.py
-dependency_bundle
+.idea/
+
+# macOS
+.DS_STORE
+

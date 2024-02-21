@@ -1,0 +1,60 @@
+{
+  "parameterValues": [
+    {
+      "name": "BlenderFile",
+      "value": "\\Files\\Monkay.blend"
+    },
+    {
+      "name": "RenderEngine",
+      "value": "cycles"
+    },
+    {
+      "name": "Frames",
+      "value": "1-2"
+    },
+    {
+      "name": "RenderScene",
+      "value": "Scene"
+    },
+    {
+      "name": "RenderLayer",
+      "value": "ViewLayer"
+    },
+    {
+      "name": "OutputDir",
+      "value": "\\Files"
+    },
+    {
+      "name": "OutputFileName",
+      "value": "Monkay_####"
+    },
+    {
+      "name": "OutputFormat",
+      "value": "PNG"
+    },
+    {
+      "name": "Camera",
+      "value": "Camera"
+    },
+    {
+      "name": "Description",
+      "value": "Monkey param file render test"
+    },
+    {
+      "name": "deadline:targetTaskRunStatus",
+      "value": "READY"
+    },
+    {
+      "name": "deadline:maxFailedTasksCount",
+      "value": 20
+    },
+    {
+      "name": "deadline:maxRetriesPerTask",
+      "value": 5
+    },
+    {
+      "name": "deadline:priority",
+      "value": 50
+    }
+  ]
+}

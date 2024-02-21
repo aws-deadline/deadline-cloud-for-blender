@@ -1,0 +1,19 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+        "frame": {
+            "type": "number"
+        },
+        "frame-range": {
+            "type": "string"
+        },
+        "camera": {
+            "type": "string"
+        }
+    },
+    "required": [
+        "frame",
+        "camera"
+    ]
+}

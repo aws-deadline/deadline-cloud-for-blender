@@ -1,0 +1,8 @@
+# Foreground
+python -m blender_adaptor.BlenderAdaptor run --init-data file:///code/adaptortest/initData.json --run-data file:///code/adaptortest/runData.json
+
+
+# Daemonized
+python -m blender_adaptor.BlenderAdaptor daemon start --init-data file:///code/adaptortest/initData.json --connection-file /code/adaptortest/connection.json
+python -m blender_adaptor.BlenderAdaptor daemon run --run-data file:///code/adaptortest/runData.json --connection-file /code/adaptortest/connection.json
+python -m blender_adaptor.BlenderAdaptor daemon stop --connection-file /code/adaptortest/connection.json

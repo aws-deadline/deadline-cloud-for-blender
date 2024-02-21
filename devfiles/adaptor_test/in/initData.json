@@ -1,0 +1,9 @@
+{
+  "scene_file": "/code/devfiles/adaptor_test/in/Monkay.blend",
+  "render_engine": "cycles",
+  "render_scene": "Scene",
+  "render_layer": "ViewLayer",
+  "output_dir": "/code/devfiles/adaptor_test/out",
+  "output_file_name": "myoutput.####",
+  "output_format": "png"
+}

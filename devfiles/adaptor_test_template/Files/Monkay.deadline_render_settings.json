@@ -1,0 +1,15 @@
+{
+ "name": "Monkay",
+ "renderer_name": "cycles",
+ "scene_name": "Scene",
+ "scene_name_parameter_name": "RenderScene",
+ "description": "",
+ "override_frame_range": false,
+ "frame_list": "1-3",
+ "input_filenames": [],
+ "input_directories": [],
+ "output_directories": [],
+ "render_layer_selection": "All Renderable Layers",
+ "camera_selection": "All Renderable Cameras",
+ "include_adaptor_wheels": false
+}

@@ -1,0 +1,38 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+        "scene_file": {
+            "type": "string"
+        },
+        "render_engine": {
+            "enum": [
+                "eevee",
+                "workbench",
+                "cycles"
+            ]
+        },
+        "render_scene": {
+            "type": "string"
+        },
+        "view_layer": {
+            "type": "string"
+        },
+        "output_dir": {
+            "type": "string"
+        },
+        "output_file_name": {
+            "type": "string"
+        },
+        "output_format": {
+            "type": "string"
+        },
+        "strict_error_checking": {
+            "type": "boolean"
+        }
+    },
+    "required": [
+        "scene_file",
+        "render_engine"
+    ]
+}

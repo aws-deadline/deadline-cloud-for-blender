@@ -1,0 +1,9 @@
+{
+  "scene_file": "G:\\My Drive\\BlenderRender\\Test2\\FIles\\Monkay.blend",
+  "render_engine": "cycles",
+  "render_scene": "Scene",
+  "render_layer": "ViewLayer",
+  "output_dir": "G:\\My Drive\\BlenderRender\\Test2\\FIles",
+  "output_file_name": "myoutput.####",
+  "output_format": "png"
+}
