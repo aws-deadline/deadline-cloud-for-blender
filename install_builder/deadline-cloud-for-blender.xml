@@ -42,8 +42,8 @@
     </initializationActionList>
     <readyToInstallActionList>
         <setInstallerVariable name="blender_installdir" value="${installdir}/Submitters/Blender/python"/>
-        <setInstallerVariable name="blender_addondir" value="${blender_installdir}/python/addons"/>
-        <setInstallerVariable name="blender_moduledir" value="${blender_installdir}/python/modules"/>
+        <setInstallerVariable name="blender_addondir" value="${blender_installdir}/addons"/>
+        <setInstallerVariable name="blender_moduledir" value="${blender_installdir}/modules"/>
         <if>
             <conditionRuleList>
                 <platformTest type="windows"/>
@@ -82,6 +82,14 @@
         </if>
     </readyToInstallActionList>
     <postInstallationActionList>
+        <if>
+            <conditionRuleList>
+                <fileExists path="${blender_moduledir}" negate="1" />
+            </conditionRuleList>
+            <actionList>
+                <createDirectory path="${blender_moduledir}" />
+            </actionList>
+        </if>
         <unzip>
             <destinationDirectory>${blender_moduledir}</destinationDirectory>
             <zipFile>${installdir}/tmp/blender_deps/dependency_bundle/deadline_cloud_for_blender_submitter-deps-${blender_deps_platform}.zip</zipFile>
