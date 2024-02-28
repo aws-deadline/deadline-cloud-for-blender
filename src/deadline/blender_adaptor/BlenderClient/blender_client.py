@@ -11,15 +11,15 @@ import bpy
 # The blender Adaptor adds the `openjd` namespace directory to PYTHONPATH,
 # so that importing just the adaptor_runtime_client should work.
 try:
-    from adaptor_runtime_client import HTTPClientInterface
+    from adaptor_runtime_client import ClientInterface
     from blender_adaptor.BlenderClient.render_handlers import get_render_handler
 except (ImportError, ModuleNotFoundError):
-    from openjd.adaptor_runtime_client import HTTPClientInterface
+    from openjd.adaptor_runtime_client import ClientInterface
 
     from deadline.blender_adaptor.BlenderClient.render_handlers import get_render_handler
 
 
-class BlenderClient(HTTPClientInterface):
+class BlenderClient(ClientInterface):
     def __init__(self, server_path: str) -> None:
         super().__init__(server_path=server_path)
         self.actions.update({"render_engine": self.set_renderer})
@@ -36,7 +36,7 @@ class BlenderClient(HTTPClientInterface):
 
 
 def main():
-    server_path = os.environ.get("BLENDER_ADAPTOR_SERVER")
+    server_path = os.environ.get("BLENDER_ADAPTOR_SERVER_PATH")
     if not server_path:
         raise OSError(
             "BlenderClient cannot connect to the Adaptor because the environment variable "

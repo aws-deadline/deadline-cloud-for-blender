@@ -11,7 +11,7 @@ from deadline.client.exceptions import DeadlineOperationError
 
 # Ensure the submitter can be imported.
 SUBMITTER_DIR = (
-    Path(__file__).parent.parent
+    Path(__file__).parent.parent.parent.parent
     / "src"
     / "deadline"
     / "blender_submitter"
