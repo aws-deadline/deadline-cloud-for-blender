@@ -8,13 +8,16 @@ import logging
 import bpy  # noqa
 from bpy.types import Operator
 from deadline_cloud_blender_submitter import logutil
-from deadline_cloud_blender_submitter._version import version_tuple as adaptor_version_tuple
 
+# NOTE: Variables are NOT allowed to be in bl_info since
+#       blender parses the __init__.py for this variable
+#       and is not aware of any additional context.
+#       ref: https://developer.blender.org/docs/handbook/addons/addon_meta_info/
 bl_info = {
     "name": "Deadline Cloud for Blender Addon",
     "description": "Deadline Cloud for Blender",
     "author": "AWS Thinkbox",
-    "version": adaptor_version_tuple,
+    "version": (0, 1, 1),
     "blender": (3, 5, 0),
     "category": "Render",
 }
@@ -41,7 +44,6 @@ class DEADLINE_CLOUD_OT_open_dialog(Operator):
         See the bpy Operator docs: https://docs.blender.org/api/current/bpy.types.Operator.html
         """
         try:
-            import blender_stylesheet
             from deadline_cloud_blender_submitter.open_deadline_cloud_dialog import (
                 create_deadline_dialog,
             )
@@ -54,7 +56,13 @@ class DEADLINE_CLOUD_OT_open_dialog(Operator):
         if not self.app:
             self.app = QtWidgets.QApplication(["Deadline Cloud Submitter"])
 
-        blender_stylesheet.setup()
+        try:
+            # optionally use the blender_stylesheet if it exists
+            import blender_stylesheet
+
+            blender_stylesheet.setup()
+        except ImportError:
+            _logger.info("blender_stylesheet package is not available. Skipping")
 
         _logger.info("Initializing Deadline Cloud Blender Submitter UI")
         try:
