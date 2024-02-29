@@ -10,7 +10,7 @@ import threading
 import time
 from typing import Callable
 
-from openjd.adaptor_runtime.adaptors import Adaptor, AdaptorDataValidators
+from openjd.adaptor_runtime.adaptors import Adaptor, AdaptorDataValidators, SemanticVersion
 from openjd.adaptor_runtime.adaptors.configuration import AdaptorConfiguration
 from openjd.adaptor_runtime.app_handlers import RegexCallback, RegexHandler
 from openjd.adaptor_runtime.application_ipc import ActionsQueue, AdaptorServer
@@ -72,6 +72,10 @@ class BlenderAdaptor(Adaptor[AdaptorConfiguration]):
     # If a thread raises an exception we will update this to raise in the main thread
     _exc_info: Exception | None = None
     _performing_cleanup = False
+
+    @property
+    def integration_data_interface_version(self) -> SemanticVersion:
+        return SemanticVersion(major=0, minor=1)
 
     @staticmethod
     def _get_timer(timeout: int | float) -> Callable[[], bool]:
