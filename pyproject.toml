@@ -12,7 +12,7 @@ requires-python = ">=3.10"
 
 dependencies = [
     "deadline == 0.38.*", 
-    "openjd-adaptor-runtime == 0.4.*",
+    "openjd-adaptor-runtime == 0.5.*",
 ]
 
 [project.scripts]
