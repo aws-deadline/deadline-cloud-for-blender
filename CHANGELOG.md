@@ -8,7 +8,6 @@
 * remove variables from bl_info (#53) ([`4d0cda6`](https://github.com/casillas2/deadline-cloud-for-blender/commit/4d0cda637d6f66604c86f341ab33d605e70ecdf3))
 * adaptor client changes for windows (#47) ([`b69a0df`](https://github.com/casillas2/deadline-cloud-for-blender/commit/b69a0df940e5eab6631079dbb271e8b18aba4d1f))
 
-# CHANGELOG
 
 ## v0.1.1 (2024-02-22)
 
