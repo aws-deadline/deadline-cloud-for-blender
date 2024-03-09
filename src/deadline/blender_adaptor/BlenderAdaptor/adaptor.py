@@ -178,8 +178,8 @@ class BlenderAdaptor(Adaptor[AdaptorConfiguration]):
         # Completion message is emitted by default_blender_handler.py::start_render
         completed_regexes = [re.compile("BlenderClient: Finished Rendering Frame [0-9]+")]
         progress_regexes = [
-            re.compile(r"^Fra:[\d+\s].*Sample\s(\d+)\/(\d+)$"),  # Cycles
-            re.compile(r"^Fra:[\d+\s].*Rendering\s(\d+)\s/\s(\d+)\ssamples$"),  # Eevee
+            re.compile(r"^Fra:.*Sample\s(\d+)\/(\d+)$"),  # Cycles
+            re.compile(r"^Fra:.*Rendering\s(\d+)\s/\s(\d+)\ssamples$"),  # Eevee
             # Workbench renderer has no progress output
         ]
         error_regexes = [re.compile(".*Exception:.*|.*Error:.*|.*Warning.*")]
