@@ -1,4 +1,4 @@
-# Amazon Deadline Cloud for Blender Development
+# AWS Deadline Cloud for Blender Development
 
 ### Installation
 
