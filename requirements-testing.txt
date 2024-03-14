@@ -1,4 +1,4 @@
-black == 23.*
+black == 24.*
 coverage[toml] == 7.*
 deadline-cloud-test-fixtures == 0.5.*
 moto[s3,sts] == 4.*
