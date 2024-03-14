@@ -1,13 +1,13 @@
 <component>
     <name>blender_integrated_submitter</name>
     <description>Deadline Cloud for Blender 3.6</description>
-	<detailedDescription>Blender plugin for submitting work to Deadline</detailedDescription>
+	<detailedDescription>Blender plugin for submitting jobs to AWS Deadline Cloud</detailedDescription>
     <canBeEdited>1</canBeEdited>
     <selected>0</selected>
     <show>1</show>
     <parameterList>
         <stringParameter name="blender_integrated_submitter_summary" ask="0" cliOptionShow="0">
-            <value>Deadlien Cloud for Blender 3.6
+            <value>Deadline Cloud for Blender 3.6
 - Compatible with Blender 3.6
 - Install the integrated Blender submitter files to the installation directory</value>
         </stringParameter>

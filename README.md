@@ -1,4 +1,4 @@
-# Amazon Deadline Cloud for Blender
+# AWS Deadline Cloud for Blender
 
 This package has two active branches:
 
