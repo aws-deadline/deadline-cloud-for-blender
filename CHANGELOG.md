@@ -1,3 +1,8 @@
+## 0.2.1 (2024-03-15)
+
+### Chores
+* update deps deadline-cloud 0.40 (#60) ([`cebd1c4`](https://github.com/casillas2/deadline-cloud-for-blender/commit/ced54bfef7bfbcc9743e0f2660942528b326fb6a))
+
 ## 0.2.0 (2024-03-08)
 
 ### BREAKING CHANGES
