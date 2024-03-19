@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 import bpy
+from deadline.client import api
 from deadline.client.job_bundle._yaml import deadline_yaml_dump
 from deadline.client.job_bundle.submission import AssetReferences
 from deadline.client.ui.dialogs.submit_job_to_deadline_dialog import SubmitJobToDeadlineDialog
@@ -15,6 +16,8 @@ from deadline_cloud_blender_submitter import template_filling as tf
 from deadline_cloud_blender_submitter._version import version_tuple as adaptor_version_tuple
 
 from PySide2.QtCore import Qt
+
+from ._version import version
 
 
 def create_deadline_dialog(parent=None) -> SubmitJobToDeadlineDialog:
@@ -30,6 +33,14 @@ def create_deadline_dialog(parent=None) -> SubmitJobToDeadlineDialog:
         raise RuntimeError(
             "The Blender scene is not saved to disk. Please save it before opening the submitter dialog."
         )
+
+    # Initialize telemetry client, opt-out is respected
+    api.get_deadline_cloud_library_telemetry_client().update_common_details(
+        {
+            "deadline-cloud-for-blender-submitter-version": version,
+            "blender-version": bpy.app.version_string,
+        }
+    )
 
     # Initialize render settings with default values.
     settings = tf.BlenderSubmitterUISettings()
