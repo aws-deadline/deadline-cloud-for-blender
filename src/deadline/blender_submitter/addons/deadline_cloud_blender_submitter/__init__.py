@@ -14,9 +14,9 @@ from deadline_cloud_blender_submitter import logutil
 #       and is not aware of any additional context.
 #       ref: https://developer.blender.org/docs/handbook/addons/addon_meta_info/
 bl_info = {
-    "name": "Deadline Cloud for Blender Addon",
-    "description": "Deadline Cloud for Blender",
-    "author": "AWS Thinkbox",
+    "name": "Deadline Cloud for Blender",
+    "description": "Submit to AWS Deadline Cloud",
+    "author": "AWS",
     "version": (0, 1, 1),
     "blender": (3, 5, 0),
     "category": "Render",
@@ -94,7 +94,9 @@ class DEADLINE_CLOUD_OT_open_dialog(Operator):
 def deadline_cloud_dialog_topbar_btn(self, context):
     """Deadline Cloud Dialog button."""
     self.layout.separator()
-    self.layout.operator(DEADLINE_CLOUD_OT_open_dialog.bl_idname, text="Deadline Cloud Dialog")
+    self.layout.operator(
+        DEADLINE_CLOUD_OT_open_dialog.bl_idname, text="Submit to AWS Deadline Cloud"
+    )
 
 
 def register():
