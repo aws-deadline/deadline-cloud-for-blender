@@ -22,7 +22,7 @@ def create_deadline_dialog(parent=None) -> SubmitJobToDeadlineDialog:
 
     Initialize job settings with default values or values from the scene. Build and return a dialogue widget with these settings.
 
-    This function is called every time the `Render > Deadline Cloud Dialog` window is clicked; there is no persistence except for the sticky settings.
+    This function is called every time the `Render > Submit to AWS Deadline Cloud` window is clicked; there is no persistence except for the sticky settings.
     """
 
     # The scene must be saved before opening the submit dialog.
