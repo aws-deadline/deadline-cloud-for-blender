@@ -22,6 +22,7 @@ except (ImportError, ModuleNotFoundError):
 class BlenderClient(ClientInterface):
     def __init__(self, server_path: str) -> None:
         super().__init__(server_path=server_path)
+        print(f"BlenderClient: Blender Version {bpy.app.version_string}")
         self.actions.update({"render_engine": self.set_renderer})
 
     def set_renderer(self, renderer: dict):
