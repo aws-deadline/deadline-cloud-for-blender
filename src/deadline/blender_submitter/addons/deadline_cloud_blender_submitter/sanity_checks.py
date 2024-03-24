@@ -6,7 +6,7 @@ Sanity checks done on submit or export bundle
 from typing import Union
 
 import bpy
-from PySide2 import QtWidgets
+from qtpy import QtWidgets
 
 from deadline_cloud_blender_submitter import blender_utils
 from deadline_cloud_blender_submitter import scene_settings_widget as ssw
