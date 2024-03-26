@@ -80,11 +80,13 @@ def _download_native_dependencies(working_directory: Path, base_env: Path) -> li
     native_dependency_paths = []
     for version in SUPPORTED_PYTHON_VERSIONS:
         for platform in SUPPORTED_PLATFORMS:
+            platform_specific_versioned_native_deps = ["pywin32==306"] if platform == "win_amd64" else []
             native_dependency_path = (
                 working_directory / "native" / f"{version.replace('.', '_')}_{platform}"
             )
             native_dependency_paths.append(native_dependency_path)
             native_dependency_path.mkdir(parents=True)
+
             native_dependency_pip_args = [
                 "pip",
                 "install",
@@ -95,7 +97,7 @@ def _download_native_dependencies(working_directory: Path, base_env: Path) -> li
                 "--python-version",
                 version,
                 "--only-binary=:all:",
-                *versioned_native_dependencies,
+                *(versioned_native_dependencies + platform_specific_versioned_native_deps),
             ]
             subprocess.run(native_dependency_pip_args, check=True)
     return native_dependency_paths
