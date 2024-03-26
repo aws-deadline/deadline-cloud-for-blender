@@ -1,3 +1,14 @@
+## 0.2.2 (2024-03-26)
+
+
+### Features
+* swap to qtpy (#75) ([`b5c0c3a`](https://github.com/casillas2/deadline-cloud-for-blender/commit/b5c0c3ad09729b63a0431f07a9c2ffa68b7f27f3))
+* Adds telemetry events to submitter and adaptor (#63) ([`8f0fb2d`](https://github.com/casillas2/deadline-cloud-for-blender/commit/8f0fb2d85f2c9054eaceb384df1cd4711ec76ed6))
+
+### Bug Fixes
+* include the adaptor deps in the package (#74) ([`ae09907`](https://github.com/casillas2/deadline-cloud-for-blender/commit/ae0990753d0f31dbf8cfd4805191b44661458c9e))
+* include deadline-cloud in the adaptor packaging script (#73) ([`9de3146`](https://github.com/casillas2/deadline-cloud-for-blender/commit/9de31469a1485901d40a0993cbee36838c8774fa))
+
 ## 0.2.1 (2024-03-15)
 
 ### Chores
