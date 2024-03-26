@@ -10,9 +10,9 @@ import os
 from deadline.client.ui import block_signals
 from deadline_cloud_blender_submitter import blender_utils
 from deadline_cloud_blender_submitter.template_filling import BlenderSubmitterUISettings
-from PySide2.QtCore import QRegularExpression, QSize, Qt
-from PySide2.QtGui import QRegularExpressionValidator
-from PySide2.QtWidgets import (
+from qtpy.QtCore import QRegularExpression, QSize, Qt  # type: ignore
+from qtpy.QtGui import QRegularExpressionValidator  # type: ignore
+from qtpy.QtWidgets import (  # type: ignore
     QCheckBox,
     QComboBox,
     QFileDialog,
@@ -247,7 +247,6 @@ class FileSearchLineEdit(QWidget):
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setMargin(0)
         layout.addWidget(self.text_line)
         layout.addWidget(self.button)
 

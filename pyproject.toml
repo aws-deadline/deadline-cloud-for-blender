@@ -6,12 +6,12 @@ build-backend = "hatchling.build"
 name = "deadline-cloud-for-blender"
 dynamic = ["version"]
 readme = "README.md"
-license = ""
+license = "Apache-2.0"
 requires-python = ">=3.10"
 # Blender 3.1+ uses Python version 3.10+ (https://vfxplatform.com/ 2023)
 
 dependencies = [
-    "deadline == 0.44.*", 
+    "deadline == 0.45.*", 
     "openjd-adaptor-runtime == 0.6.*",
 ]
 
@@ -65,17 +65,19 @@ namespace_packages = true
 explicit_package_bases = true
 mypy_path = "src"
 
-# [[tool.mypy.overrides]]
-# module = ["bpy.*","PySide2.*"]
+[[tool.mypy.overrides]]
+module = ["bpy.*", "qtpy.*"]
 
 # --- RUFF / BLACK ---
 
 [tool.ruff]
-ignore = ["E501"]
 line-length = 100
 
-[tool.ruff.isort]
-known-first-party = ["deadline_worker_agent"]
+[tool.ruff.lint]
+ignore = ["E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["deadline"]
 
 [tool.black]
 line-length = 100

@@ -15,7 +15,7 @@ from deadline_cloud_blender_submitter import scene_settings_widget as ssw
 from deadline_cloud_blender_submitter import template_filling as tf
 from deadline_cloud_blender_submitter._version import version_tuple as adaptor_version_tuple
 
-from PySide2.QtCore import Qt
+from qtpy.QtCore import Qt  # type: ignore
 
 from ._version import version
 
