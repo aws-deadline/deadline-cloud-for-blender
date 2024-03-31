@@ -35,12 +35,6 @@ build = "hatch build"
 PIP_INDEX_URL=""
 SKIP_BOOTSTRAP_TEST_RESOURCES="True"
 
-[envs.integ.scripts]
-test = "pytest --no-cov {args:test/*/integ}"
-
-[envs.e2e.scripts]
-test = "pytest --no-cov {args:test/*/e2e}"
-
 [envs.release]
 detached = true
 
