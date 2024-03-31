@@ -89,7 +89,7 @@ class DEADLINE_CLOUD_OT_open_dialog(Operator):
         # self.widget.setWindowFlags(self.widget.windowFlags() | QtCore.Qt.Tool)
         _logger.debug(flag_info)
 
-        self.widget.show()
+        self.widget.exec_()
         self.report({"INFO"}, "OK!")
         return {"FINISHED"}
 
