@@ -24,7 +24,6 @@ lint = [
 python = ["3.10", "3.11", "3.12"]
 
 [envs.default.env-vars]
-PIP_INDEX_URL="https://aws:{env:CODEARTIFACT_AUTH_TOKEN}@{env:CODEARTIFACT_DOMAIN}-{env:CODEARTIFACT_ACCOUNT_ID}.d.codeartifact.{env:CODEARTIFACT_REGION}.amazonaws.com/pypi/{env:CODEARTIFACT_REPOSITORY}/simple/"
 SKIP_BOOTSTRAP_TEST_RESOURCES="True"
 DEADLINE_ENABLE_DEVELOPER_OPTIONS="True"
 
@@ -32,7 +31,6 @@ DEADLINE_ENABLE_DEVELOPER_OPTIONS="True"
 build = "hatch build"
 
 [envs.codebuild.env-vars]
-PIP_INDEX_URL=""
 SKIP_BOOTSTRAP_TEST_RESOURCES="True"
 
 [envs.release]
