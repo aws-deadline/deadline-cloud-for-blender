@@ -1,8 +1,8 @@
+# AWS Deadline Cloud for Blender
+
 [![pypi](https://img.shields.io/pypi/v/deadline-cloud-for-blender.svg?style=flat)](https://pypi.python.org/pypi/deadline-cloud-for-blender)
 [![python](https://img.shields.io/pypi/pyversions/deadline-cloud-for-blender.svg?style=flat)](https://pypi.python.org/pypi/deadline-cloud-for-blender)
 [![license](https://img.shields.io/pypi/l/deadline-cloud-for-blender.svg?style=flat)](https://github.com/aws-deadline/deadline-cloud-for-blender/blob/mainline/LICENSE)
-
-# AWS Deadline Cloud for Blender
 
 AWS Deadline Cloud for Blender is a python package that allows users to create [AWS Deadline Cloud][deadline-cloud] jobs from within Blender. Using the [Open Job Description (OpenJD) Adaptor Runtime][openjd-adaptor-runtime] this package also provides a command line application that adapts Blender's command line interface to support the [OpenJD specification][openjd].
 
