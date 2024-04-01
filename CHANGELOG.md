@@ -1,3 +1,14 @@
+## 0.3.0 (2024-04-01)
+
+### BREAKING CHANGES
+* public release (#80) ([`e5af3b7`](https://github.com/aws-deadline/deadline-cloud-for-blender/commit/e5af3b71f90b80f2b932220ffe6a1ce044542528))
+
+
+### Bug Fixes
+* Prevents the submission dialog from locking Blender on Linux (#81) ([`7730b11`](https://github.com/aws-deadline/deadline-cloud-for-blender/commit/7730b11cf32e0de9756e5c16ee4c349a96e62774))
+* include the adaptor deps in the package (#79) ([`fe6f0af`](https://github.com/aws-deadline/deadline-cloud-for-blender/commit/fe6f0af9726d10e1bac4c9ad3d3f8500be249e61))
+* incorrect package name in create adaptor script (#78) ([`7b92e91`](https://github.com/aws-deadline/deadline-cloud-for-blender/commit/7b92e91fa1edc6c2974f80971afe93194d745797))
+
 ## 0.2.2 (2024-03-26)
 
 
