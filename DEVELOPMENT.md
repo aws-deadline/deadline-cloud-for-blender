@@ -1,8 +1,45 @@
 # AWS Deadline Cloud for Blender Development
 
-### Installation
+This package has two active branches:
 
-#### Install for Production
+- `mainline` -- For active development. This branch is not intended to be consumed by other packages. Any commit to this branch may break APIs, dependencies, and so on, and thus break any consumer without notice.
+- `release` -- The official release of the package intended for consumers. Any breaking releases will be accompanied with an increase to this package's interface version.
+
+The deadline.blender_adaptor package is an adaptor that renders blender scenes through the blender executable. It uses the Open Job Description adaptor_runtime and supports job stickiness.
+
+## Build / Test / Release
+
+### Build the package
+
+```bash
+hatch run build
+```
+
+### Run tests
+
+```bash
+hatch run test
+```
+
+### Run linting
+
+```bash
+hatch run lint
+```
+
+### Run formatting
+
+```bash
+hatch run fmt
+```
+
+### Run tests for all supported Python versions
+
+```bash
+hatch run all:test
+```
+
+### Installation
 
 ##### Submitter Installer
 
