@@ -15,7 +15,7 @@ jobs:
       contents: read
     strategy:
       matrix:
-        python-version: ['3.10', '3.11']
+        python-version: ['3.9', '3.10', '3.11', '3.12']
         os: [ubuntu-latest, windows-latest, macOS-latest]
     env:
       PYTHON: ${{ matrix.python-version }}
@@ -37,7 +37,7 @@ jobs:
     - name: Install Hatch
       shell: bash
       run: |
-        pip install --upgrade hatch
+        pip install --upgrade -r requirements-development.txt
 
     - name: Run Linting
       run: hatch -v run lint

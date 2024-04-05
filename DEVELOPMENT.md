@@ -61,29 +61,34 @@ hatch run all:test
 
 ##### Manual Installation
 
-1. Install `deadline[gui]` and `blender-qt-stylesheet` packages to `~/DeadlineCloudSubmitter/Submitters/Blender/python/modules`.
-  - For Windows: `pip install deadline[gui] blender-qt-stylesheet -t %USERPROFILE%\DeadlineCloudSubmitter\Submitters\Blender\python\modules`
-  - For Unix: `pip install deadline[gui] blender-qt-stylesheet -t ~/DeadlineCloudSubmitter/Submitters/Blender/python/modules`
+These instructions make the following assumptions:
+  * You have a [git clone of this repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository#cloning-a-repository)
+  * You have `pip` available in your terminal
 
-  Currently, Python 3.10 is the Python version used by the latest Blender release.
+1. Set-up development environment:
+    - `pip install --upgrade -r requirements-development.txt`
+1. Install addon in Blender
+    - run `hatch build` in your local git repository
+    - `cp -r src/deadline/blender_submitter/addons/ ~/DeadlineCloudSubmitter/Submitters/Blender/python/addons`
+1. Install addon dependencies:
+    - For Blender 3.6-4.0 (uses python 3.10):
+        - Windows: `pip install --python-version 3.10 --only-binary=:all: "deadline[gui]" blender-qt-stylesheet -t %USERPROFILE%\DeadlineCloudSubmitter\Submitters\Blender\python\modules`
+        - Linux/macOS: `pip install --python-version 3.10 --only-binary=:all: "deadline[gui]" blender-qt-stylesheet -t ~/DeadlineCloudSubmitter/Submitters/Blender/python/modules`
+    - For Blender 4.1 (uses python 3.11):
+        - Windows: `pip install --python-version 3.11 --only-binary=:all: "deadline[gui]" blender-qt-stylesheet -t %USERPROFILE%\DeadlineCloudSubmitter\Submitters\Blender\python\modules`
+        - Linux/macOS: `pip install --python-version 3.11 --only-binary=:all: "deadline[gui]" blender-qt-stylesheet -t ~/DeadlineCloudSubmitter/Submitters/Blender/python/modules`
+1. Add a script directory in Blender by "Edit" > "Preferences" > "File Paths" > "Script Directories"
+    * Windows: `%USERPROFILE%\DeadlineCloudSubmitter\Submitters\Blender\python`
+    * Linux/macOS: `~/DeadlineCloudSubmitter/Submitters/Blender/python`
 
-2. Install addon in Blender
+    Or run this script from Blender
 
-  Copy the contents of `src/deadline/blender_submitter/addons` to `~/DeadlineCloudSubmitter/Submitters/Blender/python/addons`
-
-3. Add a script directory in Blender by "Edit" > "Preferences" > "File Paths" > "Script Directories"
-  * Windows: `%USERPROFILE%\DeadlineCloudSubmitter\Submitters\Blender\python`
-  * Linux: `~/DeadlineCloudSubmitter/Submitters/Blender/python`
-
-  Or run this script from Blender
-
-  ```
-  import bpy
-  import os
-  bpy.ops.preferences.script_directory_add(directory=os.path.expanduser(os.path.normpath('~/DeadlineCloudSubmitter/Submitters/Blender/python')))
-  ```
-
-4. Restart Blender - changes to the script directory won't take effect until Blender has been restarted.
+    ```
+    import bpy
+    from os.path import expanduser, normpath
+    bpy.ops.preferences.script_directory_add(directory=expanduser(normpath('~/DeadlineCloudSubmitter/Submitters/Blender/python')))
+    ```
+1. Restart Blender - changes to the script directory won't take effect until Blender has been restarted.
 
 #### Usage
 
