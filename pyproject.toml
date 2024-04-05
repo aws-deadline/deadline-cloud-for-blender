@@ -7,7 +7,7 @@ name = "deadline-cloud-for-blender"
 dynamic = ["version"]
 readme = "README.md"
 license = "Apache-2.0"
-requires-python = ">=3.10"
+requires-python = ">=3.9"
 description = "AWS Deadline Cloud for Blender"
 authors = [
   {name = "Amazon Web Services"},
@@ -17,6 +17,7 @@ classifiers = [
   "Development Status :: 5 - Production/Stable",
   "Programming Language :: Python",
   "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
@@ -27,8 +28,8 @@ classifiers = [
   "Intended Audience :: Developers",
   "Intended Audience :: End Users/Desktop",
 ]
-# Blender 3.1+ uses Python version 3.10+ (https://vfxplatform.com/ 2023)
-
+# Blender 3.1-4.0 uses Python version 3.10
+# Blender 4.1+ uses Python version 3.11
 
 dependencies = [
     "deadline == 0.47.*", 
