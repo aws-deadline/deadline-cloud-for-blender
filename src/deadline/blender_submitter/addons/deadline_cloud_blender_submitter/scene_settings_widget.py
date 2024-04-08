@@ -50,7 +50,6 @@ class SceneSettingsWidget(QWidget):
 
     def _build_ui(self):
         """Set up the UI."""
-
         layout = QGridLayout(self)
 
         qt_pos_index = 0
@@ -228,7 +227,7 @@ class SceneSettingsWidget(QWidget):
 
     def activate_frame_override_changed(self, state):
         """Set the activated/deactivated status of the Frame override text box."""
-        self.frame_override_txt.setEnabled(state == Qt.Checked)
+        self.frame_override_txt.setEnabled(Qt.CheckState(state) == Qt.Checked)
 
 
 class FileSearchLineEdit(QWidget):
