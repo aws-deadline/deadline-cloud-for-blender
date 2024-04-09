@@ -49,6 +49,7 @@ def create_deadline_dialog(parent=None) -> SubmitJobToDeadlineDialog:
     settings.name = bu.get_scene_name()
     settings.project_path = bpy.context.blend_data.filepath
     settings.output_path = os.path.dirname(bpy.context.blend_data.filepath)
+    settings.frame_list = bu.get_frames()
 
     # Load and set sticky settings, if any.
     settings.load_sticky_settings(settings.project_path)
