@@ -148,7 +148,7 @@ def _create_bundle(
     # Add selected layers to the list of layers to render.
     layers: list[tf.Layer] = []
     if settings.view_layer_selection == ssw.COMBO_DEFAULT_ALL_RENDERABLE_LAYERS:
-        for layer in bu.get_view_layers(settings.scene_name):
+        for layer in bu.get_renderable_view_layers(settings.scene_name):
             layers.append(tf.Layer(layer, common_layer_settings))
     else:
         layers.append(tf.Layer(settings.view_layer_selection, common_layer_settings))
