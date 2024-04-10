@@ -45,7 +45,7 @@ class BlenderSubmitterUISettings:
     # Whether to override the frame range.
     override_frame_range: bool = field(default=False, metadata={"sticky": True})
     # The frame range to use if override_frame_range_check is True.
-    frame_list: str = field(default="1-3", metadata={"sticky": True})
+    frame_list: str = field(default="1", metadata={"sticky": True})
 
     # Paths and files.
     project_path: str = field(default="")
