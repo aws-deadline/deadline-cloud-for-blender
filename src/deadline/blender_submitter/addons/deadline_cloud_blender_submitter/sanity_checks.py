@@ -36,7 +36,7 @@ def run_sanity_checks(settings):
         )
 
     renderable_cameras = blender_utils.get_renderable_cameras(settings.scene_name)
-    renderable_layers = blender_utils.get_view_layers(settings.scene_name)
+    renderable_layers = blender_utils.get_renderable_view_layers(settings.scene_name)
 
     # Ensure there is at least one renderable camera.
     if len(renderable_cameras) == 0:

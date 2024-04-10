@@ -175,7 +175,7 @@ class SceneSettingsWidget(QWidget):
             self.layers_box.addItem(
                 COMBO_DEFAULT_ALL_RENDERABLE_LAYERS, COMBO_DEFAULT_ALL_RENDERABLE_LAYERS
             )
-            for layer in blender_utils.get_view_layers(scene):
+            for layer in blender_utils.get_renderable_view_layers(scene):
                 self.layers_box.addItem(layer, layer)
 
             # Re-select the layer if possible

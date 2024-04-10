@@ -13,14 +13,15 @@ import bpy
 _logger = logging.getLogger(__name__)
 
 
-def get_view_layers(saved_scene_name) -> list[str]:
-    """Get the view layers associated with a scene.
+def get_renderable_view_layers(saved_scene_name) -> list[str]:
+    """Get the view layers associated with a scene that are selected to use
+    during rendering.
 
     Args:
         saved_scene_name: The name of the scene.
     """
     scene_name = bpy.data.scenes[saved_scene_name].name
-    layers = [layer.name for layer in bpy.data.scenes[scene_name].view_layers]
+    layers = [layer.name for layer in bpy.data.scenes[scene_name].view_layers if layer.use]
     return layers
 
 
