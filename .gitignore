@@ -1,6 +1,8 @@
 # Test outputs
 devfiles/adaptor_test/out/
 devfiles/submission_test_files/suzanne_cameras_and_viewlayers/out
+**/test_job_bundle/
+**/blender-test-job-bundle-results.txt
 
 devcontainer/config
 devcontainer/*.env

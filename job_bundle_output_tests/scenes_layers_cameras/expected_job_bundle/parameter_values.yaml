@@ -1,0 +1,25 @@
+parameterValues:
+- name: BlenderFile
+  value: /normalized/job/bundle/dir/scenes_layers_cameras.blend
+- name: OutputFileName
+  value: image_###.png
+- name: OutputDir
+  value: /normalized/job/bundle/dir
+- name: RenderScene
+  value: Scene_1
+- name: RenderEngine
+  value: cycles
+- name: Frames
+  value: 1-1
+- name: ResolutionX
+  value: 1920
+- name: ResolutionY
+  value: 1080
+- name: deadline:targetTaskRunStatus
+  value: READY
+- name: deadline:maxFailedTasksCount
+  value: 20
+- name: deadline:maxRetriesPerTask
+  value: 5
+- name: deadline:priority
+  value: 50

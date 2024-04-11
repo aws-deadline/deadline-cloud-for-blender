@@ -37,6 +37,7 @@ To send us a pull request, please:
 3. Ensure local tests pass.
 4. Commit to your fork using clear commit messages.
 5. Send us a pull request, answering any default questions in the pull request interface.
+    - This will include running the [job bundle tests](https://github.com/aws-deadline/deadline-cloud-for-blender/blob/release/docs/job_bundle_tests.md) and copying the output into your PR
 6. Pay attention to any automated CI failures reported in the pull request, and stay involved in the conversation.
 
 GitHub provides additional documentation on [forking a repository](https://help.github.com/articles/fork-a-repo/) and

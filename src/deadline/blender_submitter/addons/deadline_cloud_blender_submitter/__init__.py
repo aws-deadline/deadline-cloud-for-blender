@@ -7,11 +7,22 @@ import logging
 from pathlib import Path
 import subprocess
 import sys
-
+import os
+from enum import IntEnum
 import bpy  # noqa
 from bpy.types import Operator
+from bpy.props import IntProperty
 
 from deadline_cloud_blender_submitter import logutil
+from deadline_cloud_blender_submitter.job_bundle_output_test_runner import (
+    run_blender_render_submitter_job_bundle_output_test,
+)
+
+
+class OperatorMode(IntEnum):
+    USER_SUBMISSION = 1
+    JOB_BUNDLE_TESTS = 2
+
 
 # NOTE: Variables are NOT allowed to be in bl_info since
 #       blender parses this __init__.py source for this variable
@@ -41,6 +52,8 @@ class DEADLINE_CLOUD_OT_open_dialog(Operator):
     bl_label = "AWS Deadline Cloud"
     bl_options = {"REGISTER"}
 
+    mode: IntProperty()  # type: ignore
+
     # Execution after the window was closed with ok button.
     def execute(self, context):
         """Execute the operator.
@@ -66,6 +79,11 @@ class DEADLINE_CLOUD_OT_open_dialog(Operator):
             blender_stylesheet.setup()
         except ImportError:
             _logger.info("blender_stylesheet package is not available. Skipping")
+
+        if self.mode == OperatorMode.JOB_BUNDLE_TESTS:
+            run_blender_render_submitter_job_bundle_output_test()
+            self.report({"INFO"}, "OK!")
+            return {"FINISHED"}
 
         _logger.info("Initializing Deadline Cloud Blender Submitter UI")
         try:
@@ -149,9 +167,17 @@ class DEADLINE_CLOUD_OT_open_dialog(Operator):
 def deadline_cloud_dialog_topbar_btn(self, context):
     """Deadline Cloud Dialog button."""
     self.layout.separator()
-    self.layout.operator(
+    operator_props = self.layout.operator(
         DEADLINE_CLOUD_OT_open_dialog.bl_idname, text="Submit to AWS Deadline Cloud"
     )
+    operator_props.mode = OperatorMode.USER_SUBMISSION
+
+
+def job_bundle_output_tests_topbar_btn(self, context):
+    operator_props = self.layout.operator(
+        DEADLINE_CLOUD_OT_open_dialog.bl_idname, text="Run Job Bundle Output Tests"
+    )
+    operator_props.mode = OperatorMode.JOB_BUNDLE_TESTS
 
 
 def register():
@@ -169,6 +195,10 @@ def register():
         )
         addon_keymaps.append((km, kmi))
 
+    # Show the job bundle output tests button if in dev mode
+    if os.environ.get("DEADLINE_ENABLE_DEVELOPER_OPTIONS", "").upper() == "TRUE":
+        bpy.types.TOPBAR_MT_render.append(job_bundle_output_tests_topbar_btn)
+
 
 def unregister():
     """Unregister the addon from the Blender UI."""
@@ -177,6 +207,7 @@ def unregister():
     addon_keymaps.clear()
     bpy.utils.unregister_class(DEADLINE_CLOUD_OT_open_dialog)
     bpy.types.TOPBAR_MT_render.remove(deadline_cloud_dialog_topbar_btn)
+    bpy.types.TOPBAR_MT_render.remove(job_bundle_output_tests_topbar_btn)
 
 
 if __name__ == "__main__":

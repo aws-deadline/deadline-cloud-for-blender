@@ -1,0 +1,8 @@
+assetReferences:
+  inputs:
+    directories: []
+    filenames:
+    - /normalized/job/bundle/dir/scenes_layers_cameras.blend
+  outputs:
+    directories: []
+  referencedPaths: []

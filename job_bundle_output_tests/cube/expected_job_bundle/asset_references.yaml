@@ -1,0 +1,9 @@
+assetReferences:
+  inputs:
+    directories: []
+    filenames:
+    - /normalized/job/bundle/dir/cube.blend
+    - /normalized/job/bundle/dir/deadline_logo_48x48.png
+  outputs:
+    directories: []
+  referencedPaths: []

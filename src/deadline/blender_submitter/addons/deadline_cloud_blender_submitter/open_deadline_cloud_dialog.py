@@ -59,10 +59,7 @@ def create_deadline_dialog(parent=None) -> SubmitJobToDeadlineDialog:
 
     # Set auto-detected attachments.
     files = bu.find_files(settings.project_path)
-    auto_detected_attachments = AssetReferences(
-        input_filenames=set(str(f) for f in files),
-        # input_directories=set(str(f.parent) for f in files),
-    )
+    auto_detected_attachments = AssetReferences(input_filenames=set(str(f) for f in files))
 
     # Set regular attachments.
     attachments = AssetReferences(
