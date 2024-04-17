@@ -1,3 +1,13 @@
+## 0.4.0 (2024-04-17)
+
+### BREAKING CHANGES
+* exclude view layers if not used for rendering (#92) ([`fe29282`](https://github.com/aws-deadline/deadline-cloud-for-blender/commit/fe29282bb5fe041ff0a9508054ebfaa0410b0aad))
+* set frame override and remove job_settings.py (#91) ([`7a350bb`](https://github.com/aws-deadline/deadline-cloud-for-blender/commit/7a350bbb60c8340a235ba5fbbd1268df800428c1))
+
+
+### Bug Fixes
+* override frame range checkbox (#90) ([`a900d7c`](https://github.com/aws-deadline/deadline-cloud-for-blender/commit/a900d7cff01ef51510f16f427416026a8b431ec8))
+
 ## 0.3.0 (2024-04-01)
 
 ### BREAKING CHANGES
