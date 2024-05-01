@@ -1,3 +1,9 @@
+## 0.4.1 (2024-05-01)
+
+### Dependencies
+* Update deadline requirement from ==0.47.* to ==0.48.* (#100) ([`d41cb26`](https://github.com/aws-deadline/deadline-cloud-for-blender/commit/d41cb26a5f0495ae2666cb50701494f6da9c8430))
+
+
 ## 0.4.0 (2024-04-17)
 
 ### BREAKING CHANGES
