@@ -242,18 +242,12 @@ def fill_job_template(
                 + f"Actual: {wheels_path_package_names}"
             )
 
-        override_adaptor_wheels_param = [
-            param
-            for param in override_environment["parameterDefinitions"]
-            if param["name"] == "OverrideAdaptorWheels"
-        ][0]
-        override_adaptor_wheels_param["default"] = str(wheels_path)
         override_adaptor_name_param = [
             param
             for param in override_environment["parameterDefinitions"]
             if param["name"] == "OverrideAdaptorName"
         ][0]
-        override_adaptor_name_param["default"] = "openjd-blender"
+        override_adaptor_name_param["default"] = "blender-openjd"
 
         # There are no parameter conflicts between these two templates, so this works
         job_template["parameterDefinitions"].extend(override_environment["parameterDefinitions"])
@@ -389,6 +383,8 @@ def get_parameter_values(
 
     # If we're overriding the adaptor with wheels, remove the adaptor from the Packages
     if settings.include_adaptor_wheels:
+        wheels_path = str(Path(__file__).parent.parent.parent.parent / "wheels")
+        params.append({"name": "OverrideAdaptorWheels", "value": wheels_path})
         rez_param = {}
         conda_param = {}
         # Find the Packages parameter definition in the queue params.
