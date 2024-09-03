@@ -1,3 +1,10 @@
+## 0.4.2 (2024-09-03)
+
+
+
+### Bug Fixes
+* correct adaptor override developer option (#117) ([`b8be198`](https://github.com/aws-deadline/deadline-cloud-for-blender/commit/b8be1989dfd745cfc04adde35a70b836da0591b5))
+
 ## 0.4.1 (2024-05-01)
 
 ### Dependencies
