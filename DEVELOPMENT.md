@@ -74,7 +74,7 @@ These instructions make the following assumptions:
     - For Blender 3.6-4.0 (uses python 3.10):
         - Windows: `pip install --python-version 3.10 --only-binary=:all: "deadline[gui]" blender-qt-stylesheet -t %USERPROFILE%\DeadlineCloudSubmitter\Submitters\Blender\python\modules`
         - Linux/macOS: `pip install --python-version 3.10 --only-binary=:all: "deadline[gui]" blender-qt-stylesheet -t ~/DeadlineCloudSubmitter/Submitters/Blender/python/modules`
-    - For Blender 4.1 (uses python 3.11):
+    - For Blender 4.1-4.2 (uses python 3.11):
         - Windows: `pip install --python-version 3.11 --only-binary=:all: "deadline[gui]" blender-qt-stylesheet -t %USERPROFILE%\DeadlineCloudSubmitter\Submitters\Blender\python\modules`
         - Linux/macOS: `pip install --python-version 3.11 --only-binary=:all: "deadline[gui]" blender-qt-stylesheet -t ~/DeadlineCloudSubmitter/Submitters/Blender/python/modules`
 1. Add a script directory in Blender by "Edit" > "Preferences" > "File Paths" > "Script Directories"
