@@ -403,7 +403,9 @@ def get_parameter_values(
             )
         if conda_param:
             conda_param["value"] = " ".join(
-                pkg for pkg in conda_param["value"].split() if not pkg.startswith("blender-openjd")
+                pkg
+                for pkg in conda_param["value"].split()
+                if not pkg.startswith("deadline-cloud-for-blender")
             )
 
     params.extend({"name": param["name"], "value": param["value"]} for param in queue_params)
