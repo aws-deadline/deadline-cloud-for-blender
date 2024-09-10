@@ -25,6 +25,11 @@ This library requires:
 
 This package provides a Blender plugin that creates jobs for AWS Deadline Cloud using the [AWS Deadline Cloud client library][deadline-cloud-client]. Based on the loaded scene it determines the files required, allows the user to specify render options, and builds an [OpenJD template][openjd] that defines the workflow.
 
+### Getting Started
+
+If you have installed the submitter using the Deadline Cloud submitter installer you can follow the instructions in the [DEVELOPMENT](https://github.com/aws-deadline/deadline-cloud-for-blender/blob/mainline/DEVELOPMENT.md#submitter-installer) file for the manual steps needed after running the installer.
+
+If you are setting up the submitter for a developer workflow or manual installation you can follow the instructions in the [DEVELOPMENT](https://github.com/aws-deadline/deadline-cloud-for-blender/blob/mainline/DEVELOPMENT.md#manual-installation) file.
 ## Adaptor
 
 The Blender Adaptor implements the [OpenJD][openjd-adaptor-runtime] interface that allows render workloads to launch Blender and feed it commands. This gives the following benefits:
