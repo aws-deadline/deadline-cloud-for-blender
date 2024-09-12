@@ -27,7 +27,7 @@ This package provides a Blender plugin that creates jobs for AWS Deadline Cloud 
 
 ### Getting Started
 
-If you have installed the submitter using the Deadline Cloud submitter installer you can follow the instructions in the [DEVELOPMENT](https://github.com/aws-deadline/deadline-cloud-for-blender/blob/mainline/DEVELOPMENT.md#submitter-installer) file for the manual steps needed after running the installer.
+If you have installed the submitter using the Deadline Cloud submitter installer you can follow the guide to [Setup Deadline Cloud submitters](https://docs.aws.amazon.com/deadline-cloud/latest/userguide/submitter.html#load-dca-plugin) for the manual steps needed after installation.
 
 If you are setting up the submitter for a developer workflow or manual installation you can follow the instructions in the [DEVELOPMENT](https://github.com/aws-deadline/deadline-cloud-for-blender/blob/mainline/DEVELOPMENT.md#manual-installation) file.
 ## Adaptor

@@ -39,27 +39,7 @@ hatch run fmt
 hatch run all:test
 ```
 
-### Installation
-
-##### Submitter Installer
-
-1. Run the submitter installer and ensure you select Blender
-
-2. Add a script directory in Blender by "Edit" > "Preferences" > "File Paths" > "Script Directories"
-  * Windows: `%USERPROFILE%\DeadlineCloudSubmitter\Submitters\Blender\python`
-  * Linux: `~/DeadlineCloudSubmitter/Submitters/Blender/python`
-
-  Or run this script from Blender
-
-  ```
-  import bpy
-  import os
-  bpy.ops.preferences.script_directory_add(directory=os.path.expanduser(os.path.normpath('~/DeadlineCloudSubmitter/Submitters/Blender/python')))
-  ```
-
-3. Restart Blender - changes to the script directory won't take effect until Blender has been restarted.
-
-##### Manual Installation
+### Manual Installation
 
 These instructions make the following assumptions:
   * You have a [git clone of this repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository#cloning-a-repository)
@@ -98,7 +78,7 @@ You can enable this in "Edit" menu > "Preferences" menu item > "addons" tab.
 
 ## Deadline Cloud for Blender Adaptor
 
-The deadline-cloud-for-blender Adaptor supports Linux and macOS.
+The deadline-cloud-for-blender Adaptor supports Linux, macOS and Windows.
 
 ### Installation
 
