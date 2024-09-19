@@ -1,0 +1,16 @@
+inputs:
+  semver:
+    required: true
+    type: string
+
+runs:
+  using: composite
+  steps:
+  - name: Update plugin Version
+    shell: bash
+    run: |
+      major=$(printf ${{inputs.semver}} | cut -d '.' -f1)
+      minor=$(printf ${{inputs.semver}} | cut -d '.' -f2)
+      patch=$(printf ${{inputs.semver}} | cut -d '.' -f3)
+      sed -i "s/\"version\": ([0-9]*, [0-9]*, [0-9]*)/\"version\": ($major, $minor, $patch)/" ./src/deadline/blender_submitter/addons/deadline_cloud_blender_submitter/__init__.py
+      git add ./src/deadline/blender_submitter/addons/deadline_cloud_blender_submitter/__init__.py
