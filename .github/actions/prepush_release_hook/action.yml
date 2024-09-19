@@ -1,0 +1,18 @@
+inputs:
+  semver:
+    required: true
+    type: string
+  tag:
+    required: true
+    type: string
+
+runs:
+  using: composite
+  steps:
+  - name: Zip submitter plugin
+    shell: bash
+    run: |
+      mkdir dist_extras
+      cd src/deadline/blender_submitter/addons
+      zip -r  ../../../../dist_extras/blender_submitter_plugin_${{inputs.semver}}.zip .
+      cd ../../../../
