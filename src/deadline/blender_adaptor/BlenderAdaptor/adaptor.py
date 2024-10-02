@@ -10,7 +10,6 @@ import threading
 import time
 from typing import Callable
 
-from deadline.client.api import get_deadline_cloud_library_telemetry_client, TelemetryClient
 from openjd.adaptor_runtime._version import version as openjd_adaptor_version
 from openjd.adaptor_runtime.adaptors import Adaptor, AdaptorDataValidators, SemanticVersion
 from openjd.adaptor_runtime.adaptors.configuration import AdaptorConfiguration
@@ -18,6 +17,8 @@ from openjd.adaptor_runtime.app_handlers import RegexCallback, RegexHandler
 from openjd.adaptor_runtime.application_ipc import ActionsQueue, AdaptorServer
 from openjd.adaptor_runtime.process import LoggingSubprocess
 from openjd.adaptor_runtime_client import Action
+
+from deadline.client.api import TelemetryClient, get_deadline_cloud_library_telemetry_client
 
 from .._version import version as adaptor_version
 
@@ -27,8 +28,6 @@ _logger = logging.getLogger(__name__)
 class BlenderNotRunningError(Exception):
     """Error that is raised when attempting
     to use Blender while it is not running"""
-
-    pass
 
 
 # Actions which must be queued before any others.
@@ -294,8 +293,7 @@ class BlenderAdaptor(Adaptor[AdaptorConfiguration]):
             os.environ["PYTHONPATH"] = python_path_addition
 
         if self.init_data["render_engine"] == "cycles":
-            _logger.warn("Missing configuration for cycles render engine.")
-            pass
+            _logger.warning("Missing configuration for cycles render engine.")
 
         self._blender_client = LoggingSubprocess(
             args=[
@@ -303,6 +301,7 @@ class BlenderAdaptor(Adaptor[AdaptorConfiguration]):
                 "--background",
                 "--python",
                 self.blender_client_path,
+                "--python-use-system-env",
             ],
             stdout_handler=regexhandler,
             stderr_handler=regexhandler,
