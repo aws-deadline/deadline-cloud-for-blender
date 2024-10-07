@@ -80,7 +80,7 @@ class DEADLINE_CLOUD_OT_open_dialog(Operator):
         # Option 0: Default behaviour: window will always stay on top of other windows.
         # self.widget.setWindowFlags(self.widget.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
         # Option 1: go into background when focus is lost, keep a taskbar entry.
-        self.widget.setWindowFlags(self.widget.windowFlags() & ~QtCore.Qt.WindowStaysOnTopHint)  # type: ignore
+        self.widget.setWindowFlags(self.widget.windowFlags() & ~QtCore.Qt.WindowStaysOnTopHint | QtCore.Qt.WindowCloseButtonHint)  # type: ignore
         # Option 2: tool window.
         # Setting the window to be a tool window has the desired effect of making it stay on top
         # of the Blender window only. But the disadvantage that, without a presence in the menu bar,
