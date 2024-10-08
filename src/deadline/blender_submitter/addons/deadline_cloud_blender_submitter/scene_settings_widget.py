@@ -8,8 +8,8 @@ import logging
 import os
 
 from deadline.client.ui import block_signals
-from deadline_cloud_blender_submitter import blender_utils
-from deadline_cloud_blender_submitter.template_filling import BlenderSubmitterUISettings
+from . import blender_utils
+from .template_filling import BlenderSubmitterUISettings
 from qtpy.QtCore import QRegularExpression, QSize, Qt  # type: ignore
 from qtpy.QtGui import QRegularExpressionValidator  # type: ignore
 from qtpy.QtWidgets import (  # type: ignore

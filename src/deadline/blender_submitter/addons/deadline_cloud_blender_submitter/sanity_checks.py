@@ -8,8 +8,8 @@ from typing import Union
 import bpy
 from qtpy import QtWidgets
 
-from deadline_cloud_blender_submitter import blender_utils
-from deadline_cloud_blender_submitter import scene_settings_widget as ssw
+from . import blender_utils
+from . import scene_settings_widget as ssw
 
 
 def run_sanity_checks(settings):

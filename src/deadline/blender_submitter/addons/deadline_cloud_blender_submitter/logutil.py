@@ -3,6 +3,7 @@
 import logging
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
+from typing import Optional
 
 try:
     from deadline.client import config
@@ -15,7 +16,7 @@ _DEFAULT_FORMATTER = logging.Formatter(
 
 
 def add_file_handler(
-    file: Path | None = None,
+    file: Optional[Path] = None,
     logger: logging.Logger = logging.getLogger(),
     fmt: logging.Formatter = _DEFAULT_FORMATTER,
     level=logging.DEBUG,

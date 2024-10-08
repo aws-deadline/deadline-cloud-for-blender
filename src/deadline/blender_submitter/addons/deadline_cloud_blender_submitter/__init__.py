@@ -11,7 +11,7 @@ import sys
 import bpy  # noqa
 from bpy.types import Operator
 
-from deadline_cloud_blender_submitter import logutil
+from . import logutil
 
 # NOTE: Variables are NOT allowed to be in bl_info since
 #       blender parses this __init__.py source for this variable
