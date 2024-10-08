@@ -9,11 +9,11 @@ from deadline.client import api
 from deadline.client.job_bundle._yaml import deadline_yaml_dump
 from deadline.client.job_bundle.submission import AssetReferences
 from deadline.client.ui.dialogs.submit_job_to_deadline_dialog import SubmitJobToDeadlineDialog
-from deadline_cloud_blender_submitter import blender_utils as bu
-from deadline_cloud_blender_submitter import sanity_checks as sc
-from deadline_cloud_blender_submitter import scene_settings_widget as ssw
-from deadline_cloud_blender_submitter import template_filling as tf
-from deadline_cloud_blender_submitter._version import version_tuple as adaptor_version_tuple
+from . import blender_utils as bu
+from . import sanity_checks as sc
+from . import scene_settings_widget as ssw
+from . import template_filling as tf
+from ._version import version_tuple as adaptor_version_tuple
 
 from qtpy.QtCore import Qt  # type: ignore
 
@@ -54,15 +54,11 @@ def create_deadline_dialog(parent=None) -> SubmitJobToDeadlineDialog:
     # Load and set sticky settings, if any.
     settings.load_sticky_settings(settings.project_path)
 
-    settings.current_layer_selectable_cameras = settings.camera_selection
-    settings.all_layer_selectable_cameras = settings.camera_selection
+    settings.current_layer_selectable_cameras = [settings.camera_selection]
+    settings.all_layer_selectable_cameras = [settings.camera_selection]
 
     # Set auto-detected attachments.
-    files = bu.find_files(settings.project_path)
-    auto_detected_attachments = AssetReferences(
-        input_filenames=set(str(f) for f in files),
-        # input_directories=set(str(f.parent) for f in files),
-    )
+    auto_detected_attachments = _get_auto_detected_assets(settings.project_path)
 
     # Set regular attachments.
     attachments = AssetReferences(
@@ -176,6 +172,21 @@ def _create_bundle(
     settings.input_filenames = sorted(attachments.input_filenames)
     scene_filename = settings.project_path
     settings.save_sticky_settings(scene_filename)
+
+
+def _get_auto_detected_assets(project_path: str) -> AssetReferences:
+    files = bu.find_files(project_path)
+
+    # Sort auto-detected attachments to classify files and directories correctly.
+    input_filenames = set()
+    input_directories = set()
+    for f in files:
+        if f.is_dir():
+            input_directories.add(str(f))
+        else:
+            input_filenames.add(str(f))
+
+    return AssetReferences(input_filenames=input_filenames, input_directories=input_directories)
 
 
 if __name__ == "__main__":

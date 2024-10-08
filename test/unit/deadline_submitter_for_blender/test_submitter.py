@@ -6,6 +6,11 @@ import sys
 from pathlib import Path
 
 import pytest
+from unittest.mock import Mock, patch
+
+from deadline.blender_submitter.addons.deadline_cloud_blender_submitter.open_deadline_cloud_dialog import (
+    _get_auto_detected_assets,
+)
 
 from deadline.client.exceptions import DeadlineOperationError
 
@@ -407,3 +412,30 @@ def test_get_param_values(submitter_settings, common_layer_settings):
         submitter_settings, common_layer_settings, queue_params=queue_params
     )
     assert filled[-1]["value"] == "some_other_package another_package"
+
+
+def test_sort_auto_detected_assets():
+    """Test that auto-detected assets are properly classified."""
+    expected_input_filenames = set(["file_1.blend", "file_2.abc"])
+    expected_input_dirs = set(["dir_1", "dir_2"])
+
+    # WHEN find_files returns a mix of files and directories, classify them before adding them to the dialog.
+    with (
+        patch(
+            "deadline.blender_submitter.addons.deadline_cloud_blender_submitter.open_deadline_cloud_dialog.bu.find_files",
+            Mock(
+                return_value=[
+                    Path("dir_1"),
+                    Path("file_1.blend"),
+                    Path("dir_2"),
+                    Path("file_2.abc"),
+                ]
+            ),
+        ),
+        patch.object(Path, "is_dir", side_effect=[True, False, True, False]),
+    ):
+
+        auto_detected_assets = _get_auto_detected_assets("test_project_path.blend")
+
+        assert auto_detected_assets.input_filenames == expected_input_filenames
+        assert auto_detected_assets.input_directories == expected_input_dirs
