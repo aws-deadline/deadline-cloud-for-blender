@@ -1,3 +1,12 @@
+## 0.4.3 (2024-10-11)
+
+
+
+### Bug Fixes
+* Classify auto-detected assets correctly ([`31f9229`](https://github.com/aws-deadline/deadline-cloud-for-blender/commit/31f92296ff795c41daee37648add5ab97ea3860d))
+* Enable close button  on the submitter dialog in Blender 4.2 (#127) ([`c9582ea`](https://github.com/aws-deadline/deadline-cloud-for-blender/commit/c9582eaa46fa09b9829b3bae2ec390436bf022b7))
+* Use python-use-system-env to have Blender check PYTHONPATH. (#125) ([`c73bbe2`](https://github.com/aws-deadline/deadline-cloud-for-blender/commit/c73bbe2058fb2e61e80d8577164bc229790a6e0d))
+
 ## 0.4.2 (2024-09-03)
 
 
