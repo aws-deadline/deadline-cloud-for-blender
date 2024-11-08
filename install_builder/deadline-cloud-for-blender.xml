@@ -1,14 +1,14 @@
 <component>
-    <name>blender_integrated_submitter</name>
-    <description>Deadline Cloud for Blender 3.6</description>
-	<detailedDescription>Blender plugin for submitting jobs to AWS Deadline Cloud</detailedDescription>
+    <name>deadline_cloud_for_blender</name>
+    <description>Deadline Cloud for Blender 3.6-4.2</description>
+    <detailedDescription>Blender plugin for submitting jobs to AWS Deadline Cloud</detailedDescription>
     <canBeEdited>1</canBeEdited>
     <selected>0</selected>
     <show>1</show>
     <parameterList>
-        <stringParameter name="blender_integrated_submitter_summary" ask="0" cliOptionShow="0">
-            <value>Deadline Cloud for Blender 3.6
-- Compatible with Blender 3.6
+        <stringParameter name="deadline_cloud_for_blender_summary" ask="0" cliOptionShow="0">
+            <value>Deadline Cloud for Blender 3.6-4.2
+- Compatible with Blender 3.6 to 4.2
 - Install the integrated Blender submitter files to the installation directory</value>
         </stringParameter>
     </parameterList>
@@ -38,46 +38,46 @@
         </folder>
     </folderList>
     <initializationActionList>
-        <setInstallerVariable name="all_components" value="${all_components} blender_integrated_submitter"/>
+        <setInstallerVariable name="all_components" value="${all_components} deadline_cloud_for_blender" />
     </initializationActionList>
     <readyToInstallActionList>
-        <setInstallerVariable name="blender_installdir" value="${installdir}/Submitters/Blender/python"/>
-        <setInstallerVariable name="blender_addondir" value="${blender_installdir}/addons"/>
-        <setInstallerVariable name="blender_moduledir" value="${blender_installdir}/modules"/>
+        <setInstallerVariable name="blender_installdir" value="${installdir}/Submitters/Blender/python" />
+        <setInstallerVariable name="blender_addondir" value="${blender_installdir}/addons" />
+        <setInstallerVariable name="blender_moduledir" value="${blender_installdir}/modules" />
         <if>
             <conditionRuleList>
-                <platformTest type="windows"/>
+                <platformTest type="windows" />
             </conditionRuleList>
             <actionList>
-                <setInstallerVariable name="blender_deps_platform" value="windows"/>
+                <setInstallerVariable name="blender_deps_platform" value="windows" />
             </actionList>
         </if>
         <if>
             <conditionRuleList>
-                <platformTest type="linux"/>
+                <platformTest type="linux" />
             </conditionRuleList>
             <actionList>
-                <setInstallerVariable name="blender_deps_platform" value="linux"/>
-            </actionList>
-        </if>
-        <if>
-            <conditionRuleEvaluationLogic>and</conditionRuleEvaluationLogic>
-            <conditionRuleList>
-                <platformTest type="osx"/>
-                <platformTest type="osx-intel"/>
-            </conditionRuleList>
-            <actionList>
-                <setInstallerVariable name="blender_deps_platform" value="macos-intel"/>
+                <setInstallerVariable name="blender_deps_platform" value="linux" />
             </actionList>
         </if>
         <if>
             <conditionRuleEvaluationLogic>and</conditionRuleEvaluationLogic>
             <conditionRuleList>
-                <platformTest type="osx"/>
-                <platformTest negate="1" type="osx-intel"/>
+                <platformTest type="osx" />
+                <platformTest type="osx-intel" />
             </conditionRuleList>
             <actionList>
-                <setInstallerVariable name="blender_deps_platform" value="macos-arm64"/>
+                <setInstallerVariable name="blender_deps_platform" value="macos-intel" />
+            </actionList>
+        </if>
+        <if>
+            <conditionRuleEvaluationLogic>and</conditionRuleEvaluationLogic>
+            <conditionRuleList>
+                <platformTest type="osx" />
+                <platformTest negate="1" type="osx-intel" />
+            </conditionRuleList>
+            <actionList>
+                <setInstallerVariable name="blender_deps_platform" value="macos-arm64" />
             </actionList>
         </if>
     </readyToInstallActionList>
