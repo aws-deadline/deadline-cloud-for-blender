@@ -5,19 +5,19 @@ from pathlib import Path
 from typing import Any, Optional
 
 import bpy
+from qtpy.QtCore import Qt  # type: ignore
+
 from deadline.client import api
 from deadline.client.job_bundle._yaml import deadline_yaml_dump
 from deadline.client.job_bundle.submission import AssetReferences
 from deadline.client.ui.dialogs.submit_job_to_deadline_dialog import SubmitJobToDeadlineDialog
+
 from . import blender_utils as bu
 from . import sanity_checks as sc
 from . import scene_settings_widget as ssw
 from . import template_filling as tf
-from ._version import version_tuple as adaptor_version_tuple
-
-from qtpy.QtCore import Qt  # type: ignore
-
 from ._version import version
+from ._version import version_tuple as adaptor_version_tuple
 
 
 def create_deadline_dialog(parent=None) -> SubmitJobToDeadlineDialog:
@@ -48,8 +48,17 @@ def create_deadline_dialog(parent=None) -> SubmitJobToDeadlineDialog:
     # Set settings dependent on scene.
     settings.name = bu.get_scene_name()
     settings.project_path = bpy.context.blend_data.filepath
-    settings.output_path = os.path.dirname(bpy.context.blend_data.filepath)
     settings.frame_list = bu.get_frames()
+
+    # For the output path, first check for a value in the Scene settings
+    if os.path.dirname(bpy.context.scene.render.filepath):
+        settings.output_path = os.path.dirname(bpy.context.scene.render.filepath)
+    # If none, use the one in Preferences
+    elif bpy.context.preferences.filepaths.render_output_directory:
+        settings.output_path = bpy.context.preferences.filepaths.render_output_directory
+    # If neither of these are set, use the job bundle directory by default
+    else:
+        settings.output_path = os.path.dirname(bpy.context.blend_data.filepath)
 
     # Load and set sticky settings, if any.
     settings.load_sticky_settings(settings.project_path)
@@ -118,6 +127,9 @@ def _create_bundle(
         requirements: The host requirements. There are only passed if the user has specified custom host requirements in the UI. If "all available worker hosts" are selected, this is None.
         purpose: The purpose of the job bundle.
     """
+    # Make sure the output path used for submission is absolute
+    settings.output_path = bpy.path.abspath(settings.output_path)
+
     # Run sanity checks on submission
     sc.run_sanity_checks(settings)
 
