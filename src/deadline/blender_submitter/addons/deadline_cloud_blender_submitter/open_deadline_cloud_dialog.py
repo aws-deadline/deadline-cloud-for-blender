@@ -60,6 +60,9 @@ def create_deadline_dialog(parent=None) -> SubmitJobToDeadlineDialog:
     else:
         settings.output_path = os.path.dirname(bpy.context.blend_data.filepath)
 
+    if bpy.path.basename(bpy.context.scene.render.filepath):
+        settings.output_file_prefix = bpy.path.basename(bpy.context.scene.render.filepath)
+
     # Load and set sticky settings, if any.
     settings.load_sticky_settings(settings.project_path)
 
@@ -140,7 +143,7 @@ def _create_bundle(
         frame_range=bu.get_frames(),
         renderable_camera_names=renderable_cameras,
         output_directories=settings.output_path,
-        output_file_prefix="image_###.png",
+        output_file_prefix=settings.output_file_prefix,
         image_resolution=(
             bpy.context.scene.render.resolution_x,
             bpy.context.scene.render.resolution_y,

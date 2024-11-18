@@ -115,6 +115,7 @@ class DefaultBlenderHandler:
             f"{self.output_dir}/{self.view_layer_name}_{camera}_{self.output_file_name}"
         )
         _logger.debug(f"Set output file path to {bpy.context.scene.render.filepath}")
+
         _logger.debug(f"Rendering camera: {camera}")
         # The `animation` flag is required to correctly set the output file name.
         # See: https://docs.blender.org/api/current/bpy.ops.render.html#bpy.ops.render.render

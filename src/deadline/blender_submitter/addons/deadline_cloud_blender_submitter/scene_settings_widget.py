@@ -59,9 +59,14 @@ class SceneSettingsWidget(QWidget):
         self.proj_path_txt.setReadOnly(True)
 
         qt_pos_index += 1
-        self.op_path_txt = FileSearchLineEdit(directory_only=True)
-        layout.addWidget(QLabel("Output Path"), qt_pos_index, 0)
-        layout.addWidget(self.op_path_txt, qt_pos_index, 1)
+        self.op_dir_txt = FileSearchLineEdit(directory_only=True)
+        layout.addWidget(QLabel("Output Directory"), qt_pos_index, 0)
+        layout.addWidget(self.op_dir_txt, qt_pos_index, 1)
+
+        qt_pos_index += 1
+        self.op_file_txt = QLineEdit(self)
+        layout.addWidget(QLabel("Output File Prefix"), qt_pos_index, 0)
+        layout.addWidget(self.op_file_txt, qt_pos_index, 1)
 
         qt_pos_index += 1
         self.scenes_box = QComboBox(self)
@@ -186,7 +191,8 @@ class SceneSettingsWidget(QWidget):
     def _load(self, settings: BlenderSubmitterUISettings):
         """Set the UI to load sticky settings values."""
         self.proj_path_txt.setText(settings.project_path)
-        self.op_path_txt.set_text(settings.output_path)
+        self.op_dir_txt.set_text(settings.output_path)
+        self.op_file_txt.setText(settings.output_file_prefix)
 
         i = self.scenes_box.findData(settings.scene_name)
         if i >= 0:
@@ -214,7 +220,8 @@ class SceneSettingsWidget(QWidget):
     def update_settings(self, settings: BlenderSubmitterUISettings):
         """Update a scene settings object with the latest values."""
         settings.project_path = self.proj_path_txt.text()
-        settings.output_path = self.op_path_txt.get_text()
+        settings.output_path = self.op_dir_txt.get_text()
+        settings.output_file_prefix = self.op_file_txt.text()
         settings.scene_name = self.scenes_box.currentData()
         settings.renderer_name = self.render_engine_box.currentData()
         settings.view_layer_selection = self.layers_box.currentData()
