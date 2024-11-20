@@ -52,7 +52,7 @@ def create_deadline_dialog(parent=None) -> SubmitJobToDeadlineDialog:
 
     # For the output path, first check for a value in the Scene settings
     if os.path.dirname(bpy.context.scene.render.filepath):
-        settings.output_path = os.path.dirname(bpy.context.scene.render.filepath)
+        settings.output_path = os.path.dirname(bpy.path.abspath(bpy.context.scene.render.filepath))
     # If none, use the one in Preferences
     elif bpy.context.preferences.filepaths.render_output_directory:
         settings.output_path = bpy.context.preferences.filepaths.render_output_directory
