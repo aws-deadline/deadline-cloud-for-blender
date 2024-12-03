@@ -1,3 +1,12 @@
+## 0.4.4 (2024-11-21)
+
+
+
+### Bug Fixes
+* Handle '//' in output directories ([`985d5a3`](https://github.com/aws-deadline/deadline-cloud-for-blender/commit/985d5a34568706d952d91d43b5910bf9135072e6))
+* Use user-specified output directories when applicable ([`e6e97ae`](https://github.com/aws-deadline/deadline-cloud-for-blender/commit/e6e97ae058e014d98d9212f1280a53edbe4db646))
+* **adaptor**: eevee render engine rename to BLENDER_EEVEE_NEXT for 4.2 (#139) ([`e848012`](https://github.com/aws-deadline/deadline-cloud-for-blender/commit/e8480129244c3dc597d20ce06685eab38fc66a84))
+
 ## 0.4.3 (2024-10-11)
 
 
