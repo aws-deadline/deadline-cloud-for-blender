@@ -12,7 +12,7 @@ _logger = logging.getLogger(__name__)
 
 
 class DefaultBlenderHandler:
-    RENDER_ENGINE_NAME = "BLENDER_EEVEE"
+    RENDER_ENGINE_NAME = "BLENDER_EEVEE_NEXT" if bpy.app.version >= (4, 2, 0) else "BLENDER_EEVEE"
 
     def __init__(self):
         """Initialize this handler."""
@@ -115,6 +115,7 @@ class DefaultBlenderHandler:
             f"{self.output_dir}/{self.view_layer_name}_{camera}_{self.output_file_name}"
         )
         _logger.debug(f"Set output file path to {bpy.context.scene.render.filepath}")
+
         _logger.debug(f"Rendering camera: {camera}")
         # The `animation` flag is required to correctly set the output file name.
         # See: https://docs.blender.org/api/current/bpy.ops.render.html#bpy.ops.render.render
@@ -146,6 +147,7 @@ class DefaultBlenderHandler:
         """
         self.scene_name = data.get("render_scene")
         bpy.context.window.scene = bpy.data.scenes[self.scene_name]
+        _logger.debug(f"Set render engine: {self.RENDER_ENGINE_NAME}")
         bpy.context.scene.render.engine = self.RENDER_ENGINE_NAME
 
     def set_output_dir(self, data: dict) -> None:

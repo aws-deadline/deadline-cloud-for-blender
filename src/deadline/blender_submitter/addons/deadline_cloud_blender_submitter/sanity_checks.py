@@ -4,6 +4,7 @@
 Sanity checks done on submit or export bundle
 """
 from typing import Union
+from pathlib import Path
 
 import bpy
 from qtpy import QtWidgets
@@ -64,6 +65,19 @@ def run_sanity_checks(settings):
             "Please select a different ViewLayer.".format(settings.view_layer_selection)
         )
 
+    # Ensure the specified output directory exists.
+    # If not, create it
+    output_dir_as_path = Path(settings.output_path)
+    if not (output_dir_as_path.exists()):
+        try:
+            output_dir_as_path.mkdir(parents=True)
+        except Exception as e:
+            raise RuntimeError(f"Could not create {output_dir_as_path}.\n\nError message:\n{e}")
+
+    # Ensure the output file prefix was specified
+    if not settings.output_file_prefix:
+        raise RuntimeError("Please enter a prefix for the output files.")
+
 
 def _prompt_unsaved_changes():
     """
@@ -91,7 +105,7 @@ def _prompt_unsaved_changes():
     if return_value == 0:
         bpy.ops.wm.save_mainfile()
     elif return_value == QtWidgets.QMessageBox.Cancel:
-        raise RuntimeError("Submission cancelled")
+        raise RuntimeError("Submission cancelled.")
 
 
 def _validate_frame_range(frames: str):

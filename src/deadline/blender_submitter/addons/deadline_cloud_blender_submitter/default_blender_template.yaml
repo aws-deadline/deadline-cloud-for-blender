@@ -64,7 +64,7 @@ parameterDefinitions:
     label: Output File Format
   description: Choose the file format to render as.
   default: PNG
-  allowedValues: [TGA, RAWTGA, JPEG, IRIS, IRIZ, PNG, HDR, TIFF, OPEN_EXR, OPEN_EXR_MULTILAYER, CINEON, DPX, DDS, JP2, WEBP]
+  allowedValues: [TARGA, TARGA_RAW, JPEG, IRIS, PNG, HDR, TIFF, OPEN_EXR, OPEN_EXR_MULTILAYER, CINEON, DPX, JPEG2000, WEBP]
 
 - name: StrictErrorChecking
   type: STRING
