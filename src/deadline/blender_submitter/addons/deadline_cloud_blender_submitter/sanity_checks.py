@@ -74,6 +74,10 @@ def run_sanity_checks(settings):
         except Exception as e:
             raise RuntimeError(f"Could not create {output_dir_as_path}.\n\nError message:\n{e}")
 
+    # Ensure the output file prefix was specified
+    if not settings.output_file_prefix:
+        raise RuntimeError("Please enter a prefix for the output files.")
+
 
 def _prompt_unsaved_changes():
     """
