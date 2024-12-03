@@ -271,7 +271,7 @@ class BlenderAdaptor(Adaptor[AdaptorConfiguration]):
         Raises:
             FileNotFoundError: If the blender_client.py file could not be found.
         """
-        blender_exe = "blender"
+        blender_exe = os.environ.get("BLENDER_EXECUTABLE", "blender")
         regexhandler = RegexHandler(self._get_regex_callbacks())
 
         # Add the openjd namespace directory to PYTHONPATH, so that adaptor_runtime_client

@@ -36,7 +36,10 @@ The Blender Adaptor implements the [OpenJD][openjd-adaptor-runtime] interface th
 * a standardized render application interface,
 * sticky rendering, where the application stays open between tasks,
 
-Jobs created by the submitter use this adaptor by default.
+Jobs created by the submitter use this adaptor by default, and require that both the installed adaptor
+and the Blender executable be available on the PATH of the user that will be running your jobs.
+
+Or you can set the `BLENDER_EXECUTABLE` to point to the Blender executable.
 
 ### Getting Started
 
@@ -54,13 +57,13 @@ For more information on the commands the OpenJD adaptor runtime provides, see [h
 
 ## Versioning
 
-This package's version follows [Semantic Versioning 2.0](https://semver.org/), but is still considered to be in its 
+This package's version follows [Semantic Versioning 2.0](https://semver.org/), but is still considered to be in its
 initial development, thus backwards incompatible versions are denoted by minor version bumps. To help illustrate how
 versions will increment during this initial development stage, they are described below:
 
-1. The MAJOR version is currently 0, indicating initial development. 
-2. The MINOR version is currently incremented when backwards incompatible changes are introduced to the public API. 
-3. The PATCH version is currently incremented when bug fixes or backwards compatible changes are introduced to the public API. 
+1. The MAJOR version is currently 0, indicating initial development.
+2. The MINOR version is currently incremented when backwards incompatible changes are introduced to the public API.
+3. The PATCH version is currently incremented when bug fixes or backwards compatible changes are introduced to the public API.
 
 ## Security
 
