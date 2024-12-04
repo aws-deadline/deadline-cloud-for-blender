@@ -1,3 +1,12 @@
+## 0.4.5 (2024-12-04)
+
+
+### Features
+* **adaptor**: Add BLENDER_EXECUTABLE environment variable (#156) ([`234c086`](https://github.com/aws-deadline/deadline-cloud-for-blender/commit/234c086d3b2626902aba76268f15f3c5e906953d))
+
+### Bug Fixes
+* Apply output file prefixes to submitter GUI ([`876348a`](https://github.com/aws-deadline/deadline-cloud-for-blender/commit/876348ac5eb8aec11b784dfe83e7ca46570c4793))
+
 ## 0.4.4 (2024-11-21)
 
 
