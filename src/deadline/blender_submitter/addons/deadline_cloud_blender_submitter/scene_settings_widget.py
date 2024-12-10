@@ -10,6 +10,7 @@ import os
 from deadline.client.ui import block_signals
 from . import blender_utils
 from .template_filling import BlenderSubmitterUISettings
+from . import ocio_utils as ocio
 from qtpy.QtCore import QRegularExpression, QSize, Qt  # type: ignore
 from qtpy.QtGui import QRegularExpressionValidator  # type: ignore
 from qtpy.QtWidgets import (  # type: ignore
@@ -224,6 +225,7 @@ class SceneSettingsWidget(QWidget):
         settings.output_file_prefix = self.op_file_txt.text()
         settings.scene_name = self.scenes_box.currentData()
         settings.renderer_name = self.render_engine_box.currentData()
+        settings.ocio_config_path = ocio.get_ocio_path()
         settings.view_layer_selection = self.layers_box.currentData()
         settings.camera_selection = self.cameras_box.currentData()
         settings.override_frame_range = self.frame_override_check.isChecked()

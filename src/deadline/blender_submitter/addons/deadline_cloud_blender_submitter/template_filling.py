@@ -55,6 +55,9 @@ class BlenderSubmitterUISettings:
     input_directories: list[str] = field(default_factory=list, metadata={"sticky": True})
     output_directories: list[str] = field(default_factory=list, metadata={"sticky": True})
 
+    # OCIO config file is specified here.
+    ocio_config_path: str = field(default="")
+
     # Layers settings.
     view_layer_selection: str = field(default="ViewLayer", metadata={"sticky": True})
 
@@ -207,6 +210,10 @@ def fill_job_template(
         }
     )
 
+    # If an OCIO config file is set, we will have to add a job parameter and environment for it.
+    if settings.ocio_config_path:
+        _add_ocio_template_data(job_template)
+
     # For each layer, create a step based on the default step template.
     steps = []
     default_step_template = job_template["steps"][0]
@@ -259,6 +266,26 @@ def fill_job_template(
         job_template["jobEnvironments"].append(override_environment["environment"])
 
     return job_template
+
+
+def _add_ocio_template_data(job_template: dict):
+    job_template["parameterDefinitions"].append(
+        {
+            "name": "OCIOConfigPath",
+            "type": "PATH",
+            "objectType": "FILE",
+            "dataFlow": "IN",
+            "description": "The colour management info to render with.",
+        }
+    )
+
+    if "jobEnvironments" not in job_template:
+        job_template["jobEnvironments"] = []
+
+    # Insert at index 0 so that OCIO is set before Blender runs
+    job_template["jobEnvironments"].insert(
+        0, {"name": "Set OCIO Path", "variables": {"OCIO": "{{Param.OCIOConfigPath}}"}}
+    )
 
 
 def _fill_step_template(
@@ -381,6 +408,10 @@ def get_parameter_values(
             "The following queue parameters conflict with the Blender job parameters:\n"
             + f"{', '.join(overlap)}"
         )
+
+    # If specified, add the parameter value for OCIO here
+    if settings.ocio_config_path:
+        params.append({"name": "OCIOConfigPath", "value": settings.ocio_config_path})
 
     # If we're overriding the adaptor with wheels, remove the adaptor from the Packages
     if settings.include_adaptor_wheels:

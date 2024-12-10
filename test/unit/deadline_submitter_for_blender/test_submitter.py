@@ -12,6 +12,7 @@ from deadline.blender_submitter.addons.deadline_cloud_blender_submitter.open_dea
     _get_auto_detected_assets,
 )
 
+
 from deadline.client.exceptions import DeadlineOperationError
 
 # Ensure the submitter can be imported.
@@ -410,6 +411,29 @@ def test_get_param_values(submitter_settings, common_layer_settings):
         submitter_settings, common_layer_settings, queue_params=queue_params
     )
     assert filled[-1]["value"] == "some_other_package another_package"
+
+
+def test_add_ocio_template_data(submitter_settings, common_layer_settings, layers):
+    """
+    Certain information should only be added to the template if an OCIO environment variable is set.
+    There should be an extra job environment and corresponding parameter.
+    """
+
+    expected_ocio_env = {"name": "Set OCIO Path", "variables": {"OCIO": "{{Param.OCIOConfigPath}}"}}
+    expected_ocio_param = {"name": "OCIOConfigPath", "value": "my_ocio_config.ocio"}
+
+    # GIVEN
+    submitter_settings.ocio_config_path = "my_ocio_config.ocio"
+
+    # WHEN
+    filled_template = template_filling.fill_job_template(
+        submitter_settings, layers, host_requirements=None
+    )
+    params = template_filling.get_parameter_values(submitter_settings, common_layer_settings, [])
+
+    # THEN
+    assert expected_ocio_env in filled_template["jobEnvironments"]
+    assert expected_ocio_param in params
 
 
 def test_sort_auto_detected_assets():

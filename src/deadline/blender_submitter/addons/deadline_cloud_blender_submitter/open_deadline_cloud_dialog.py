@@ -16,6 +16,7 @@ from . import blender_utils as bu
 from . import sanity_checks as sc
 from . import scene_settings_widget as ssw
 from . import template_filling as tf
+from . import ocio_utils as ocio
 from ._version import version
 from ._version import version_tuple as adaptor_version_tuple
 
@@ -71,6 +72,12 @@ def create_deadline_dialog(parent=None) -> SubmitJobToDeadlineDialog:
 
     # Set auto-detected attachments.
     auto_detected_attachments = _get_auto_detected_assets(settings.project_path)
+
+    # If the user has an OCIO config file set, we will have to upload any directories referenced by that file as job attachments.
+    if ocio.get_ocio_path():
+        ocio_config = ocio.get_ocio_config(ocio.get_ocio_path())
+        for path in ocio.get_ocio_referenced_dirs(ocio_config):
+            auto_detected_attachments.input_directories.add(str(path))
 
     # Set regular attachments.
     attachments = AssetReferences(

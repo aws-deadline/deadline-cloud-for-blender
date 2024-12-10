@@ -91,7 +91,7 @@ explicit_package_bases = true
 mypy_path = "src"
 
 [[tool.mypy.overrides]]
-module = ["bpy.*", "qtpy.*"]
+module = ["bpy.*", "qtpy.*", "PyOpenColorIO.*"]
 
 # --- RUFF / BLACK ---
 
