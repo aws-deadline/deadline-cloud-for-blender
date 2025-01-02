@@ -1,11 +1,6 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 
-"""Functions to fill Blender job templates.
-
-This file should not have a dependency on `bpy`, so it can be unit-tested.
-This implies that it should not import modules under `deadline_cloud_blender_submitter`,
-since that module imports `bpy` in `__init__.py`.
-"""
+"""Functions to fill Blender job templates."""
 
 from __future__ import annotations
 
@@ -38,6 +33,8 @@ class BlenderSubmitterUISettings:
     submitter_name: str = field(default="Blender")
     renderer_name: str = field(default="cycles", metadata={"sticky": True})
     scene_name: str = field(default="Scene", metadata={"sticky": True})
+    enable_gpu: bool = field(default=False, metadata={"sticky": True})
+    gpu_device: str = field(default="None", metadata={"sticky": True})
 
     ui_group_label: str = field(default="Blender Settings")
 
@@ -389,6 +386,7 @@ def get_parameter_values(
         "OutputDir": layer_settings.output_directories,
         "RenderScene": layer_settings.scene_name,
         "RenderEngine": layer_settings.renderer_name,
+        "GPUDevice": settings.gpu_device,
     }
 
     if layer_settings.frames_parameter_name:

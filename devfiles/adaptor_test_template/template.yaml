@@ -75,6 +75,13 @@ parameterDefinitions:
 - name: Description
   type: STRING
   default: "This is a description"
+- name: GPUDevice
+  type: STRING
+  userInterface:
+    control: LINE_EDIT
+    label: GPU Device
+  description: Choose the GPU device type to render with when using the cycles engine.
+  default: CUDA
 
 - name: StrictErrorChecking
   type: STRING

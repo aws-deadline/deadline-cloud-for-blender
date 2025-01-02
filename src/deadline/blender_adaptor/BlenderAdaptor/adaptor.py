@@ -31,7 +31,7 @@ class BlenderNotRunningError(Exception):
 
 
 # Actions which must be queued before any others.
-_FIRST_BLENDER_ACTIONS = ["scene_file"]
+_FIRST_BLENDER_ACTIONS = ["scene_file", "gpu_device"]
 
 # Order of execution is important.
 _BLENDER_INIT_KEYS = [

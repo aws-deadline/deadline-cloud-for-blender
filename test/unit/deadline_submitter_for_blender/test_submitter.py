@@ -87,7 +87,7 @@ def test_fill_job_template(submitter_settings, layers):
                         {"label": "All Files", "patterns": ["*"]},
                     ],
                 },
-                "description": "Choose the Blender scene file you want to render.",
+                "description": "The Blender scene file you want to render.",
             },
             {
                 "name": "RenderEngine",
@@ -110,7 +110,7 @@ def test_fill_job_template(submitter_settings, layers):
                 "name": "ViewLayer",
                 "type": "STRING",
                 "userInterface": {"control": "LINE_EDIT", "label": "view_layer"},
-                "description": "Choose the layer to render.",
+                "description": "The layer to render.",
                 "default": "ViewLayer",
             },
             {
@@ -130,20 +130,20 @@ def test_fill_job_template(submitter_settings, layers):
                 "objectType": "DIRECTORY",
                 "dataFlow": "OUT",
                 "userInterface": {"control": "CHOOSE_DIRECTORY", "label": "Output Directory"},
-                "description": "Choose the render output directory.",
+                "description": "The render output directory.",
             },
             {
                 "name": "OutputFileName",
                 "type": "STRING",
                 "userInterface": {"control": "LINE_EDIT", "label": "Output File Name"},
                 "default": "output_####",
-                "description": "Enter the output filename (without extension).",
+                "description": "The output filename (without extension).",
             },
             {
                 "name": "OutputFormat",
                 "type": "STRING",
                 "userInterface": {"control": "DROPDOWN_LIST", "label": "Output File Format"},
-                "description": "Choose the file format to render as.",
+                "description": "The file format to render as.",
                 "default": "PNG",
                 "allowedValues": [
                     "TARGA",
@@ -160,6 +160,16 @@ def test_fill_job_template(submitter_settings, layers):
                     "JPEG2000",
                     "WEBP",
                 ],
+            },
+            {
+                "name": "GPUDevice",
+                "type": "STRING",
+                "userInterface": {
+                    "control": "LINE_EDIT",
+                    "label": "GPU Device",
+                },
+                "description": "The GPU device type to render with when using the cycles engine.",
+                "default": "NONE",
             },
             {
                 "name": "StrictErrorChecking",
@@ -215,7 +225,7 @@ def test_fill_job_template(submitter_settings, layers):
                                     "name": "initData",
                                     "filename": "init-data.yaml",
                                     "type": "TEXT",
-                                    "data": "scene_file: {{Param.BlenderFile}}\nrender_engine: {{Param.RenderEngine}}\nrender_scene: {{Param.RenderScene}}\nview_layer: layer_1\noutput_dir: {{Param.OutputDir}}\noutput_file_name: {{Param.OutputFileName}}\noutput_format: {{Param.OutputFormat}}\nrenderer: dummy_renderer\noutput_file_prefix: {{Param.OutputFilePrefix}}\nimage_width: {{Param.ImageWidth}}\nimage_height: {{Param.ImageHeight}}",
+                                    "data": "scene_file: {{Param.BlenderFile}}\nrender_engine: {{Param.RenderEngine}}\ngpu_device: {{Param.GPUDevice}}\nrender_scene: {{Param.RenderScene}}\nview_layer: layer_1\noutput_dir: {{Param.OutputDir}}\noutput_file_name: {{Param.OutputFileName}}\noutput_format: {{Param.OutputFormat}}\nrenderer: dummy_renderer\noutput_file_prefix: {{Param.OutputFilePrefix}}\nimage_width: {{Param.ImageWidth}}\nimage_height: {{Param.ImageHeight}}",
                                 }
                             ],
                             "actions": {
@@ -288,7 +298,7 @@ def test_fill_job_template(submitter_settings, layers):
                                     "name": "initData",
                                     "filename": "init-data.yaml",
                                     "type": "TEXT",
-                                    "data": "scene_file: {{Param.BlenderFile}}\nrender_engine: {{Param.RenderEngine}}\nrender_scene: {{Param.RenderScene}}\nview_layer: layer_2\noutput_dir: {{Param.OutputDir}}\noutput_file_name: {{Param.OutputFileName}}\noutput_format: {{Param.OutputFormat}}\nrenderer: dummy_renderer\noutput_file_prefix: {{Param.OutputFilePrefix}}\nimage_width: {{Param.ImageWidth}}\nimage_height: {{Param.ImageHeight}}",
+                                    "data": "scene_file: {{Param.BlenderFile}}\nrender_engine: {{Param.RenderEngine}}\ngpu_device: {{Param.GPUDevice}}\nrender_scene: {{Param.RenderScene}}\nview_layer: layer_2\noutput_dir: {{Param.OutputDir}}\noutput_file_name: {{Param.OutputFileName}}\noutput_format: {{Param.OutputFormat}}\nrenderer: dummy_renderer\noutput_file_prefix: {{Param.OutputFilePrefix}}\nimage_width: {{Param.ImageWidth}}\nimage_height: {{Param.ImageHeight}}",
                                 }
                             ],
                             "actions": {
@@ -345,6 +355,8 @@ def test_fill_job_template(submitter_settings, layers):
             },
         ],
     }
+
+    # Mock the Blender API call to retrieve the user's render device
     filled = template_filling.fill_job_template(submitter_settings, layers, host_requirements=None)
     assert filled == expected
 
@@ -365,23 +377,30 @@ def test_get_param_values(submitter_settings, common_layer_settings):
         "OutputDir": common_layer_settings.output_directories,
         "RenderScene": common_layer_settings.scene_name,
         "RenderEngine": common_layer_settings.renderer_name,
+        "GPUDevice": submitter_settings.gpu_device,
     }
     expected = [{"name": k, "value": v} for k, v in expected_settings.items()]
 
-    filled = template_filling.get_parameter_values(
-        submitter_settings, common_layer_settings, queue_params=[]
-    )
-    assert filled == expected
+    # Patching this scene setting causes GPUDevice to use the default value
+    with patch("bpy.context.scene.cycles.device", "CPU"):
+        filled = template_filling.get_parameter_values(
+            submitter_settings, common_layer_settings, queue_params=[]
+        )
+        assert filled == expected
 
+
+def test_conflicting_queue_params_error(submitter_settings, common_layer_settings):
     # If queue params are passed, their keys should not conflict with existing keys. Expect an error if they do.
     queue_params = [
         {"name": "RenderScene", "value": common_layer_settings.scene_name + "_some_value"}
     ]
     with pytest.raises(DeadlineOperationError):
-        filled = template_filling.get_parameter_values(
+        template_filling.get_parameter_values(
             submitter_settings, common_layer_settings, queue_params=queue_params
         )
 
+
+def test_get_queue_params(submitter_settings, common_layer_settings):
     # If queue params are passed, and they don't conflict with existing keys, they should be added.
     queue_params = [{"name": "SomeParam", "value": "some_value"}]
     filled = template_filling.get_parameter_values(
@@ -389,27 +408,36 @@ def test_get_param_values(submitter_settings, common_layer_settings):
     )
     assert filled[-1] == queue_params[0]
 
-    # Test RezPackages resolution.
-    # WHEN queue params include "deadline_cloud_for_blender"
+
+@pytest.mark.parametrize(
+    "queue_param_name,package_name",
+    [
+        pytest.param("RezPackages", "deadline_cloud_for_blender"),
+        pytest.param("CondaPackages", "blender-openjd"),
+    ],
+)
+def test_use_adaptor_wheels(
+    submitter_settings, common_layer_settings, queue_param_name, package_name
+):
+    """
+    Tests that default packages are excluded from CondaPackages and RezPackages if `include_adaptor_wheels` is true.
+    """
+
+    # GIVEN
     queue_params = [
         {
-            "name": "RezPackages",
-            "value": "some_other_package deadline_cloud_for_blender another_package",
+            "name": queue_param_name,
+            "value": f"some_other_package {package_name} another_package",
         }
     ]
 
-    # IF `settings.include_adaptor_wheels` is False > keep "deadline_cloud_for_blender" in the final template
-    submitter_settings.include_adaptor_wheels = False
-    filled = template_filling.get_parameter_values(
-        submitter_settings, common_layer_settings, queue_params=queue_params
-    )
-    assert filled[-1]["value"] == "some_other_package deadline_cloud_for_blender another_package"
-
-    # IF `settings.include_adaptor_wheels` is True > remove "deadline_cloud_for_blender"
+    # WHEN
     submitter_settings.include_adaptor_wheels = True
     filled = template_filling.get_parameter_values(
         submitter_settings, common_layer_settings, queue_params=queue_params
     )
+
+    # THEN
     assert filled[-1]["value"] == "some_other_package another_package"
 
 

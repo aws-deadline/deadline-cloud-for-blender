@@ -12,6 +12,9 @@
                 "cycles"
             ]
         },
+        "gpu_device": {
+            "type": "string"
+        },
         "render_scene": {
             "type": "string"
         },

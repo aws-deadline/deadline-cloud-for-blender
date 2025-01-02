@@ -21,6 +21,7 @@ class DefaultBlenderHandler:
         # These cross-reference the Action instances created and queued in the Blender adaptor.
         self.action_dict = {
             "scene_file": self.set_scene_file,
+            "gpu_device": self.set_gpu_device,
             "render_scene": self.set_render_scene,
             "view_layer": self.set_view_layer,
             "camera": self.set_camera,
@@ -218,3 +219,10 @@ class DefaultBlenderHandler:
         if not os.path.isfile(file_path):
             raise FileNotFoundError(f"The scene file '{file_path}' does not exist")
         bpy.ops.wm.open_mainfile(filepath=file_path)
+
+    def set_gpu_device(self, data: dict) -> None:
+        """
+        Only implemented in the Cycles handler.
+        """
+
+        pass

@@ -64,6 +64,14 @@ def create_deadline_dialog(parent=None) -> SubmitJobToDeadlineDialog:
     if bpy.path.basename(bpy.context.scene.render.filepath):
         settings.output_file_prefix = bpy.path.basename(bpy.context.scene.render.filepath)
 
+    # Read the user's preferences to set GPU settings.
+    settings.enable_gpu = bpy.context.scene.cycles.device == "GPU"
+
+    if bpy.context.preferences.addons["cycles"].preferences.compute_device_type != "NONE":
+        settings.gpu_device = bpy.context.preferences.addons[
+            "cycles"
+        ].preferences.compute_device_type
+
     # Load and set sticky settings, if any.
     settings.load_sticky_settings(settings.project_path)
 
