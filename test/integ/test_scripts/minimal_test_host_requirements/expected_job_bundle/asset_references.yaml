@@ -1,0 +1,8 @@
+assetReferences:
+  inputs:
+    directories: []
+    filenames:
+    - deadline-cloud-for-blender/test/integ/scenes/test.blend
+  outputs:
+    directories: []
+  referencedPaths: []

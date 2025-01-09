@@ -1,0 +1,25 @@
+parameterValues:
+- name: BlenderFile
+  value: deadline-cloud-for-blender/test/integ/scenes/test.blend
+- name: OutputFileName
+  value: image_####.png
+- name: OutputDir
+  value: output
+- name: RenderScene
+  value: Scene
+- name: RenderEngine
+  value: cycles
+- name: Frames
+  value: 3-5
+- name: ResolutionX
+  value: 640
+- name: ResolutionY
+  value: 480
+- name: deadline:targetTaskRunStatus
+  value: READY
+- name: deadline:maxFailedTasksCount
+  value: 20
+- name: deadline:maxRetriesPerTask
+  value: 5
+- name: deadline:priority
+  value: 50
