@@ -1,3 +1,12 @@
+## 0.5.0 (2025-01-13)
+
+
+### Features
+* Enable GPU rendering from submitter ([`7a4f8bc`](https://github.com/aws-deadline/deadline-cloud-for-blender/commit/7a4f8bc28f55059b77a6f6d31baa39766fe56c98))
+
+### Bug Fixes
+* Add OCIO configuration support in SMF ([`3da609b`](https://github.com/aws-deadline/deadline-cloud-for-blender/commit/3da609b425cb9eab827b87fc0ff5b1179d6e7854))
+
 ## 0.4.5 (2024-12-04)
 
 
