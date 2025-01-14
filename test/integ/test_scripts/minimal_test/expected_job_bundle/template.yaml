@@ -16,7 +16,7 @@ parameterDefinitions:
     - label: All Files
       patterns:
       - '*'
-  description: Choose the Blender scene file you want to render.
+  description: The Blender scene file you want to render.
 - name: RenderEngine
   type: STRING
   default: cycles
@@ -37,7 +37,7 @@ parameterDefinitions:
   userInterface:
     control: LINE_EDIT
     label: view_layer
-  description: Choose the layer to render.
+  description: The layer to render.
   default: ViewLayer
 - name: Frames
   type: STRING
@@ -54,20 +54,20 @@ parameterDefinitions:
   userInterface:
     control: CHOOSE_DIRECTORY
     label: Output Directory
-  description: Choose the render output directory.
+  description: The render output directory.
 - name: OutputFileName
   type: STRING
   userInterface:
     control: LINE_EDIT
     label: Output File Name
   default: output_####
-  description: Enter the output filename (without extension).
+  description: The output filename (without extension).
 - name: OutputFormat
   type: STRING
   userInterface:
     control: DROPDOWN_LIST
     label: Output File Format
-  description: Choose the file format to render as.
+  description: The file format to render as.
   default: PNG
   allowedValues:
   - TARGA
@@ -83,6 +83,13 @@ parameterDefinitions:
   - DPX
   - JPEG2000
   - WEBP
+- name: GPUDevice
+  type: STRING
+  userInterface:
+    label: GPU Device
+    control: LINE_EDIT
+  description: The GPU device type to render with when using the cycles engine.
+  default: NONE
 - name: StrictErrorChecking
   type: STRING
   userInterface:
@@ -133,6 +140,7 @@ steps:
         data: |-
           scene_file: {{Param.BlenderFile}}
           render_engine: {{Param.RenderEngine}}
+          gpu_device: {{Param.GPUDevice}}
           render_scene: {{Param.RenderScene}}
           view_layer: ViewLayer
           output_dir: {{Param.OutputDir}}
@@ -203,6 +211,7 @@ steps:
         data: |-
           scene_file: {{Param.BlenderFile}}
           render_engine: {{Param.RenderEngine}}
+          gpu_device: {{Param.GPUDevice}}
           render_scene: {{Param.RenderScene}}
           view_layer: ViewLayer_001
           output_dir: {{Param.OutputDir}}

@@ -51,6 +51,7 @@ def test_minimal_scene_submitter(
             {"name": "OutputDir", "value": str(output_path)},
             {"name": "RenderScene", "value": "Scene"},
             {"name": "RenderEngine", "value": "cycles"},
+            {"name": "GPUDevice", "value": "NONE"},
             {"name": "Frames", "value": "1-2"},
             {"name": "ResolutionX", "value": 640},
             {"name": "ResolutionY", "value": 480},
