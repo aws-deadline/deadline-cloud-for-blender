@@ -1,3 +1,9 @@
+## 0.5.1 (2025-01-14)
+
+### Bug Fixes
+* Fixes published release artifacts
+
+
 ## 0.5.0 (2025-01-13)
 
 
