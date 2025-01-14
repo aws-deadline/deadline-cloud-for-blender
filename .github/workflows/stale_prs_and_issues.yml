@@ -1,0 +1,30 @@
+name: 'Check stale issues/PRs.'
+on: 
+  schedule:
+    # Run every hour on the hour
+    - cron: '0 * * * *'
+
+jobs:
+  stale-review-stage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/stale@v9
+        with:
+          debug-only: false
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+          days-before-stale: 5
+          days-before-close: 10
+
+          stale-issue-message: 'Greetings! It looks like this issue hasn’t been active in more than five days. We encourage you to check if this is still an issue in the latest release. In the absence of more information, we will be closing this issue soon. If you find that this is still a problem, please feel free to provide a comment or upvote with a reaction on the initial post to prevent automatic closure. If the issue is already closed, please feel free to open a new one.'
+          stale-pr-message: 'This pull request is in the review stage. It has been 5 days with no response to feedback provided by the maintainers. Please comment with an update to indicate work you are still working on the pull request. Thanks!'
+
+          stale-issue-label: closing-soon
+          stale-pr-label: no-pr-activity
+
+          labels-to-add-when-unstale: waiting-on-maintainers
+          labels-to-remove-when-unstale: response-requested,closing-soon,no-pr-activity  
+          only-labels: response-requested
+
+          close-issue-label: closed-for-staleness
+          close-pr-label: closed-for-staleness 
