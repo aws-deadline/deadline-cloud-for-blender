@@ -46,8 +46,8 @@ class BlenderSubmitterUISettings:
 
     # Paths and files.
     project_path: str = field(default="")
-    output_path: str = field(default="")
-    output_file_prefix: str = field(default="output_####")
+    output_path: str = field(default="", metadata={"sticky": True})
+    output_file_prefix: str = field(default="output_####", metadata={"sticky": True})
     input_filenames: list[str] = field(default_factory=list, metadata={"sticky": True})
     input_directories: list[str] = field(default_factory=list, metadata={"sticky": True})
     output_directories: list[str] = field(default_factory=list, metadata={"sticky": True})
