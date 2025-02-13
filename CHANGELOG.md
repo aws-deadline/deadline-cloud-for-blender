@@ -1,3 +1,10 @@
+## 0.5.2 (2025-02-13)
+
+
+### Features
+* output directory and output file prefix are remembered when submitting the same scene (#188) ([`1db21c6`](https://github.com/aws-deadline/deadline-cloud-for-blender/commit/1db21c6617dc3b44f6149df707642b42956fb061))
+
+
 ## 0.5.1 (2025-01-14)
 
 ### Bug Fixes
