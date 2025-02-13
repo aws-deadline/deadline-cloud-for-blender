@@ -25,7 +25,7 @@ def main(job_history_dir: str, output_dir: str):
 
     bpy.context.scene.frame_start = 1
     bpy.context.scene.frame_end = 2
-    bpy.context.scene.render.filepath = str(Path(output_dir) / "image_####.png")
+    bpy.context.scene.render.filepath = str(Path(output_dir) / "image_####")
     bpy.context.scene.render.engine = "CYCLES"
     bpy.context.scene.render.resolution_x = 640
     bpy.context.scene.render.resolution_y = 480

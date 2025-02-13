@@ -199,17 +199,17 @@ def _create_bundle_internal(
     )
 
     # Add selected layers to the list of layers to render.
-    layers: list[tf.Layer] = []
+    layer_names: list[str] = []
     if settings.view_layer_selection == ssw.COMBO_DEFAULT_ALL_RENDERABLE_LAYERS:
         for layer in bu.get_renderable_view_layers(settings.scene_name):
-            layers.append(tf.Layer(layer, common_layer_settings))
+            layer_names.append(layer)
     else:
-        layers.append(tf.Layer(settings.view_layer_selection, common_layer_settings))
+        layer_names.append(settings.view_layer_selection)
 
     if settings.override_frame_range:
         common_layer_settings.frame_range = settings.frame_list
 
-    job_template = tf.fill_job_template(settings, layers, requirements)
+    job_template = tf.fill_job_template(settings, layer_names, common_layer_settings, requirements)
     parameter_values = tf.get_parameter_values(settings, common_layer_settings, queue_parameters)
 
     # Write the job bundle files.

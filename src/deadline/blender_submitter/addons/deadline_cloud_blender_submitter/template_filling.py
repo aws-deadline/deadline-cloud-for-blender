@@ -152,17 +152,10 @@ class CommonLayerSettings:
     scene_name: str
 
 
-@dataclass
-class Layer:
-    """A unique rendering layer."""
-
-    name: str
-    common: CommonLayerSettings
-
-
 def fill_job_template(
     settings: BlenderSubmitterUISettings,
-    view_layers: list[Layer],
+    view_layer_names: list[str],
+    common_layer_settings: CommonLayerSettings,
     host_requirements: Optional[dict],
 ):
     """Create and return a filled-in job template."""
@@ -175,19 +168,15 @@ def fill_job_template(
     if settings.description:
         job_template["description"] = settings.description
 
-    # Use the first layer in the list as an example layer.
-    # Aside from the `name` parameter, all parameters should be the same for all layers.
-    layer_settings = view_layers[0].common
-
     # Add resolution parameters.
     job_template["parameterDefinitions"].append(
         {
-            "name": layer_settings.image_width_parameter_name,
+            "name": common_layer_settings.image_width_parameter_name,
             "type": "INT",
             "userInterface": {
                 "control": "SPIN_BOX",
                 "label": "Image Width",
-                "groupLabel": layer_settings.ui_group_label,
+                "groupLabel": common_layer_settings.ui_group_label,
             },
             "minValue": 1,
             "description": "The image width.",
@@ -195,12 +184,12 @@ def fill_job_template(
     )
     job_template["parameterDefinitions"].append(
         {
-            "name": layer_settings.image_height_parameter_name,
+            "name": common_layer_settings.image_height_parameter_name,
             "type": "INT",
             "userInterface": {
                 "control": "SPIN_BOX",
                 "label": "Image Height",
-                "groupLabel": layer_settings.ui_group_label,
+                "groupLabel": common_layer_settings.ui_group_label,
             },
             "minValue": 1,
             "description": "The image height.",
@@ -214,9 +203,11 @@ def fill_job_template(
     # For each layer, create a step based on the default step template.
     steps = []
     default_step_template = job_template["steps"][0]
-    for layer in view_layers:
-        step = _fill_step_template(layer, default_step_template, settings, host_requirements)
-        _logger.info(f"Generated step definition for layer {layer.name}")
+    for layer in view_layer_names:
+        step = _fill_step_template(
+            layer, default_step_template, settings, common_layer_settings, host_requirements
+        )
+        _logger.info(f"Generated step definition for scene {settings.scene_name}")
         steps.append(step)
     job_template["steps"] = steps
 
@@ -286,9 +277,10 @@ def _add_ocio_template_data(job_template: dict):
 
 
 def _fill_step_template(
-    layer: Layer,
+    view_layer_name: str,
     default_step_template: dict,
     settings: BlenderSubmitterUISettings,
+    common_layer_settings: CommonLayerSettings,
     host_requirements: Optional[dict],
 ):
     """Return a defined step.
@@ -308,7 +300,7 @@ def _fill_step_template(
     step = deepcopy(default_step_template)
 
     # Update the step name.
-    step["name"] = layer.name
+    step["name"] = view_layer_name
 
     def decode(bad_yaml: str) -> dict:
         """Some yaml inside the template cannot be parsed because it contains unescaped characters like {}. This function parses it manually.
@@ -332,16 +324,16 @@ def _fill_step_template(
     # init_data["data"] is a string of key/values separated by newlines.
     # Parse it and update the values, then re-serialize it.
     updated_init_data = {
-        "renderer": layer.common.renderer_name,
-        "view_layer": layer.name,
+        "renderer": common_layer_settings.renderer_name,
+        "view_layer": view_layer_name,
         "output_file_prefix": "{{{{Param.{}}}}}".format(
-            layer.common.output_file_prefix_parameter_name or "OutputFilePrefix"
+            common_layer_settings.output_file_prefix_parameter_name or "OutputFilePrefix"
         ),
         "image_width": "{{{{Param.{}}}}}".format(
-            layer.common.image_width_parameter_name or "ImageWidth"
+            common_layer_settings.image_width_parameter_name or "ImageWidth"
         ),
         "image_height": "{{{{Param.{}}}}}".format(
-            layer.common.image_height_parameter_name or "ImageHeight"
+            common_layer_settings.image_height_parameter_name or "ImageHeight"
         ),
     }
     init_data = step["stepEnvironments"][0]["script"]["embeddedFiles"][0]
@@ -351,14 +343,16 @@ def _fill_step_template(
 
     # Update the 'Param.Frames' reference in the Frame task parameter.
     param_defs = step["parameterSpace"]["taskParameterDefinitions"]
-    if layer.common.frames_parameter_name:
-        param_defs[0]["range"] = "{{{{Param.{}}}}}".format(layer.common.frames_parameter_name)
+    if common_layer_settings.frames_parameter_name:
+        param_defs[0]["range"] = "{{{{Param.{}}}}}".format(
+            common_layer_settings.frames_parameter_name
+        )
 
     # Create a parameter space dimension for the selected cameras.
     # Should be a list of strings, even if only one camera is selected.
     # NOTE this string var cross-references the constant defined in `scene_settings_widget.py`. Duplicated to avoid importing that file.
     if settings.camera_selection == "All Renderable Cameras":
-        cameras = layer.common.renderable_camera_names
+        cameras = common_layer_settings.renderable_camera_names
     else:
         cameras = [settings.camera_selection]
     param_defs.append({"name": "Camera", "type": "STRING", "range": cameras})
@@ -368,7 +362,9 @@ def _fill_step_template(
     # If host requirements are provided, inject them into the step template.
     if host_requirements:
         step["hostRequirements"] = host_requirements
-        _logger.debug(f"Injected host requirements into step {layer.name}: {host_requirements}")
+        _logger.debug(
+            f"Injected host requirements into step {view_layer_name}: {host_requirements}"
+        )
 
     return step
 

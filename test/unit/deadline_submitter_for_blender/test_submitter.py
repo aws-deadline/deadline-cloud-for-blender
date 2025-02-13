@@ -56,15 +56,10 @@ def common_layer_settings():
     return settings
 
 
-@pytest.fixture
-def layers(common_layer_settings):
-    return [
-        template_filling.Layer("layer_1", common_layer_settings),
-        template_filling.Layer("layer_2", common_layer_settings),
-    ]
+LAYER_NAMES = ["layer_1", "layer_2"]
 
 
-def test_fill_job_template(submitter_settings, layers):
+def test_fill_job_template(submitter_settings, common_layer_settings):
     """Test filling the job template."""
 
     # NOTE This is not the most elegant way to test this; brittle to changes in the template.
@@ -356,14 +351,15 @@ def test_fill_job_template(submitter_settings, layers):
         ],
     }
 
-    # Mock the Blender API call to retrieve the user's render device
-    filled = template_filling.fill_job_template(submitter_settings, layers, host_requirements=None)
+    filled = template_filling.fill_job_template(
+        submitter_settings, LAYER_NAMES, common_layer_settings, host_requirements=None
+    )
     assert filled == expected
 
     # Adding host requirements to the call adds them to each step.
     host_reqs = {"GPU": "1"}
     filled = template_filling.fill_job_template(
-        submitter_settings, layers, host_requirements=host_reqs
+        submitter_settings, LAYER_NAMES, common_layer_settings, host_requirements=host_reqs
     )
     for step in filled["steps"]:
         assert step["hostRequirements"] == host_reqs
@@ -441,7 +437,7 @@ def test_use_adaptor_wheels(
     assert filled[-1]["value"] == "some_other_package another_package"
 
 
-def test_add_ocio_template_data(submitter_settings, common_layer_settings, layers):
+def test_add_ocio_template_data(submitter_settings, common_layer_settings):
     """
     Certain information should only be added to the template if an OCIO environment variable is set.
     There should be an extra job environment and corresponding parameter.
@@ -455,7 +451,7 @@ def test_add_ocio_template_data(submitter_settings, common_layer_settings, layer
 
     # WHEN
     filled_template = template_filling.fill_job_template(
-        submitter_settings, layers, host_requirements=None
+        submitter_settings, LAYER_NAMES, common_layer_settings, host_requirements=None
     )
     params = template_filling.get_parameter_values(submitter_settings, common_layer_settings, [])
 

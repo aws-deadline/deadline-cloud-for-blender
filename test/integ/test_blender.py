@@ -47,7 +47,7 @@ def test_minimal_scene_submitter(
     expected_parameter_values = {
         "parameterValues": [
             {"name": "BlenderFile", "value": str(scene_location)},
-            {"name": "OutputFileName", "value": "image_####.png"},
+            {"name": "OutputFileName", "value": "image_####"},
             {"name": "OutputDir", "value": str(output_path)},
             {"name": "RenderScene", "value": "Scene"},
             {"name": "RenderEngine", "value": "cycles"},
@@ -100,10 +100,6 @@ def test_minimal_scene_submitter(
         assert actual_asset_reference == expected_asset_references
 
 
-@pytest.mark.xfail(
-    run=True,
-    reason="There's a bug where multiple view layers are rendered when it should only be one.",
-)
 @pytest.mark.adaptor
 def test_minimal_scene_adaptor(script_location: Path, tmp_path: Path) -> None:
     test_file_location = script_location / "minimal_test"
@@ -112,7 +108,7 @@ def test_minimal_scene_adaptor(script_location: Path, tmp_path: Path) -> None:
 
     job_params = {
         "BlenderFile": str(scene_location),
-        "OutputFileName": "image_####.png",
+        "OutputFileName": "image_####",
         "OutputDir": str(output_path),
         "RenderScene": "Scene",
         "RenderEngine": "cycles",

@@ -2,7 +2,7 @@ parameterValues:
 - name: BlenderFile
   value: deadline-cloud-for-blender/test/integ/scenes/test.blend
 - name: OutputFileName
-  value: image_####.png
+  value: image_####
 - name: OutputDir
   value: output
 - name: RenderScene

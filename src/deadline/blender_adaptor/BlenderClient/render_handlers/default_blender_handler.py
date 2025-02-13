@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Optional
 
 import bpy  # type: ignore
 
@@ -37,7 +36,7 @@ class DefaultBlenderHandler:
         self.output_dir = None
         self.output_file_name = None
         self.format = None
-        self.view_layer_name = None
+        self.view_layer_name = ""
 
         _logger.debug(f"Initialized {self.__class__.__name__}")
 
@@ -65,28 +64,17 @@ class DefaultBlenderHandler:
         _logger.debug(f"Fetched camera to render: {camera}")
         return camera
 
-    def _get_layer_to_render(self, data: dict) -> Optional[str]:
-        """Gets the view_layer to render from the provided data.
-
-        If no view_layer is specified in `data`, return None.
+    def _ensure_view_layer(self) -> None:
         """
-        target = data.get("view_layer")
-        if not target:
-            _logger.debug("No view_layer specified in data.")
-            return None
+        Ensure that the view layer is properly set before rendering.
+        """
 
-        # In Blender, set the right scene.
-        scene = bpy.data.scenes[self.scene_name]
-        bpy.context.window.scene = scene
+        if not self.view_layer_name:
+            return
 
-        # Collect all layers that are set to render.
-        enabled = {lyr.name for lyr in scene.view_layers if scene.view_layers[lyr.name].use}
-        if target in enabled:
-            _logger.debug(f"Fetched layer to render: {target}.")
-            return target
-        raise RuntimeError(
-            f"view_layer {target} not found among available layers {sorted(enabled)}"
-        )
+        for layer in bpy.context.window.scene.view_layers:
+            layer.use = layer.name == self.view_layer_name
+            _logger.debug(f"Set layer {layer.name} to render: {layer.use}")
 
     def start_render(self, data: dict) -> None:
         """
@@ -96,31 +84,44 @@ class DefaultBlenderHandler:
             data (dict): The data given from the Adaptor. Keys expected: ['frame', 'camera']
 
         Raises:
-            RuntimeError: If no camera was specified and no renderable camera was found
+            RuntimeError: If no camera was specified, no renderable camera was found, or required settings weren't provided
         """
 
         frame = data.get("frame")
         if frame is None:
             raise RuntimeError("BlenderClient: start_render called without a frame number.")
 
-        bpy.context.scene.frame_start = frame
-        bpy.context.scene.frame_end = frame
+        bpy.context.scene.frame_set(frame)
+        _logger.debug(f"Set frame {frame} to render")
 
         # The camera fetched here is only for logging purposes.
         # The actual camera to render is set in the set_camera function,
         # and should have already been called as an Action.
         camera = self._ensure_camera(data)
 
-        # Add layer and camera info to the output file path.
-        bpy.context.scene.render.filepath = (
-            f"{self.output_dir}/{self.view_layer_name}_{camera}_{self.output_file_name}"
-        )
+        # Add submitter settings to the output filepath.
+        # This includes output directory, view layer, camera, and frame.
+        try:
+            bpy.context.scene.render.filepath = (
+                f"{self.output_dir}/{self.view_layer_name}_{camera}_{self.output_file_name}"
+            )
+        except Exception:
+            _logger.error(
+                f"Could not set the output file path. Please verify that the following are correct:\nOutput directory: {self.output_dir}\nView layer: {self.view_layer_name}\nCamera:{camera}\nOutput file prefix:{self.output_file_name}"
+            )
+            raise
+
+        # This API call replaces the # padding with the proper frame number, necessary since `write_still` is True:
+        bpy.context.scene.render.filepath = bpy.context.scene.render.frame_path(frame=frame)
         _logger.debug(f"Set output file path to {bpy.context.scene.render.filepath}")
 
+        # We also have to reset the correct layer before rendering each time.
+        self._ensure_view_layer()
+
         _logger.debug(f"Rendering camera: {camera}")
-        # The `animation` flag is required to correctly set the output file name.
+        # To render only single layers, we must set `write_still` to True and `animation` to False (default).
         # See: https://docs.blender.org/api/current/bpy.ops.render.html#bpy.ops.render.render
-        bpy.ops.render.render(animation=True, scene=self.scene_name)
+        bpy.ops.render.render(scene=self.scene_name, layer=self.view_layer_name, write_still=True)
 
         # This print statement (including flush) is required for Deadline to pick up successful task completion
         # See the Regex callbacks defined at `BlenderAdaptor/adaptor.py:_get_regex_callbacks`.
@@ -169,7 +170,7 @@ class DefaultBlenderHandler:
         Args:
             data (dict): The data given from the Adaptor. Keys expected: ['output_file_name']
         """
-        output_file_name = data.get("output_file_name")
+        output_file_name = data.get("output_file_name", "")
         _logger.debug(f"Set output file name: {output_file_name}")
         if output_file_name:
             self.output_file_name = output_file_name
@@ -195,16 +196,13 @@ class DefaultBlenderHandler:
         Raises:
             RuntimeError: If the view_layer cannot be found
         """
-        view_layer_name = self._get_layer_to_render(data)
+        view_layer_name = data.get("view_layer")
 
         if view_layer_name is None:
-            return
-
-        for layer in bpy.context.window.scene.view_layers:
-            layer.use = layer.name == view_layer_name
-            _logger.debug(f"Set layer {layer.name} to render: {layer.use}")
+            raise RuntimeError("View layer was not provided in init data")
 
         self.view_layer_name = view_layer_name
+        self._ensure_view_layer()
 
     def set_scene_file(self, data: dict):
         """Opens a Blender scene file.
