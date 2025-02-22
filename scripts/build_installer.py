@@ -4,14 +4,13 @@ import argparse
 import os
 import sys
 import shutil
-import stat
 import subprocess
 import tempfile
 from datetime import datetime
+from pathlib import Path
 from typing import List, NamedTuple
 
 # If the InstallBuilder version is being changed, please ensure the archives are in a "flattened" structure.
-# This is automatically done if the update_install_builder.sh script is used.
 #
 # The InstallBuilder archives listed below must be in a "flattened" file structure, where the
 # actual install files are at the root of the archive. The structure of the root of the archive
@@ -54,8 +53,8 @@ INSTALLER_FILENAMES = {
 
 # This is the directory containing the InstallBuilder root .xml component.
 # All file paths in the InstallBuilder component files are relative to this directory
-INSTALL_BUILDER_PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
-DEFAULT_OUTPUT_ZIP = 'deadline_blender_submitter.zip'
+INSTALL_BUILDER_VERSION = "24.11.1"
+INSTALL_BUILDER_PROJECT_ROOT = Path(os.path.abspath(__file__)).parent.parent / "install_builder"
 INSTALLER_TEMPLATE = 'DeadlineCloudForBlenderSubmitter.xml'
 EVALUATION_VERSION_STRING = "Built with an evaluation version of InstallBuilder"
 
@@ -73,27 +72,14 @@ class DccSubmitter(NamedTuple):
     `lib/constructs/Config.ts` file.
     """
 
-    componentName: str
-    """
-    The component name that corresponds to a subdirectory of 'components' subdir
-    of the InstallBuilder project file's directory. By convention, this should
-    match the submitter's repository name.
-    """
-
     @property
-    def cliArgName(self) -> str:
+    def componentName(self) -> str:
         """
-        The command-line argument name used as input for this script
+        The component name that corresponds to a subdirectory of 'components' subdir
+        of the InstallBuilder project file's directory. By convention, this should
+        match the submitter's repository name.
         """
-        return f"{self.name}-deadline-submitter-artifact-path"
-
-DCC_SUBMITTERS: List[DccSubmitter] = [
-    DccSubmitter(
-       name='blender',
-       componentName='deadline-cloud-for-blender',
-    ),
-]
-"""The DCC submitter component configurations"""
+        return f"deadline-cloud-for-{self.name}"
 
 
 class BadRCError(Exception):
@@ -145,33 +131,17 @@ def download_from_secretsmanager(secret_id, output_path):
 
 def build_installer(
     workdir: str,
-    s3bucket: str,
     license_secret_id: str,
     platform: str,
     local_dev_build: bool
 ):
     
     install_builder_config = INSTALL_BUILDER
-    install_builder_version = "24.11.1"
-
     install_build_path = ""
     if sys.platform.startswith("darwin"):
-        install_build_path = f"/Applications/InstallBuilder Professional {install_builder_version}/"
+        install_build_path = f"/Applications/InstallBuilder Professional {INSTALL_BUILDER_VERSION}/"
     if not install_build_path:
         raise FileNotFoundError(f"Could not find install builder's `builder` executable")
-    
-    # if not local_dev_build:
-    #     install_builder_archive = download_from_s3(s3bucket, install_builder_config['archive'], workdir)
-    # else:
-        # existing_archive = os.path.dirname(INSTALL_BUILDER_PROJECT_ROOT) + f"/git-lfs/dependency-bucket/{install_builder_config['archive']}"
-        # install_builder_archive = os.path.join(workdir, install_builder_config['archive'])
-        # os.makedirs(os.path.dirname(install_builder_archive), exist_ok=True)
-        # if os.path.exists(existing_archive):
-        #     # copy to workdir
-        #     shutil.copy(existing_archive, install_builder_archive)
-        # else:
-        #     raise FileNotFoundError(f"Could not find {existing_archive}")
-    # shutil.unpack_archive(install_builder_archive, workdir)
 
     if license_secret_id and not local_dev_build:
         download_from_secretsmanager(license_secret_id, os.path.join(workdir, 'license.xml'))
@@ -205,30 +175,6 @@ def build_installer(
     return out_dir
 
 
-# def dev_create_dcc_components(workdir: tempfile.TemporaryDirectory):
-#     """
-#     Creates artifacts locally that mimic what happen in codepipeline.
-#     """
-#     # Clone deadline-cloud
-#     deadline_cloud_dir = f"{workdir}/deadline-cloud"
-#     source_folder = os.environ.get("DEADLINE_CLOUD_SOURCE_FOLDER")
-#     if source_folder:
-#         run(f"cp -rf {source_folder} {deadline_cloud_dir}")
-#     else:
-#         repository_owner = os.environ.get(f"DEADLINE_CLOUD_FORK_OWNER", "aws-deadline")
-#         run(f"git clone git@github.com:{repository_owner}/deadline-cloud.git {deadline_cloud_dir}")
-#         branch_override = os.environ.get('DEADLINE_CLOUD_BRANCH_OVERRIDE')
-#         if branch_override:
-#             sys.stdout.write(f"Branch override for deadline-cloud: {branch_override}\n")
-#             run(f"cd {deadline_cloud_dir}; git fetch origin {branch_override} && git checkout {branch_override}")
-#     run(f"cd {deadline_cloud_dir}; pip install hatch")
-#     run(f"cd {deadline_cloud_dir}; hatch run codebuild-installer:build")
-#     os.environ["OUT_FILE"] = f"{workdir}/deadline.zip"
-#     run(f"cd {deadline_cloud_dir}; hatch run codebuild-installer:make_exe")
-
-#     for dcc_submitter in DCC_SUBMITTERS:
-#         dev_create_dcc_component(workdir, dcc_submitter)
-
 def dev_create_dcc_component(workdir: tempfile.TemporaryDirectory, dcc_component: DccSubmitter):
     """
     Creates artifacts locally that mimic what happen in codepipeline.
@@ -260,11 +206,20 @@ def main():
     prod_required_args: List[RequiredArg] = []
 
     parser.add_argument(
+        '--dcc-name',
+        required=True,
+        help='The name of the DCC application this submitter is for.'
+    )
+    parser.add_argument(
+        '--dcc-installer-file',
+        required=True,
+        help="The main installer file for the dcc"
+    )
+
+    parser.add_argument(
         '--local-dev-build',
         action=argparse.BooleanOptionalAction,
-        help=(
-            ''
-        )
+        help=('')
     )
     parser.add_argument(
         '--install-builder-s3-bucket',
@@ -278,30 +233,20 @@ def main():
     )  # Required for non-local-builds
     prod_required_args.append(RequiredArg('--install-builder-license-secret-id', "install_builder_license_secret_id"))
 
-    parser.add_argument(
-        '--bc-artifact-path',
-        help=(
-            'Path to the Deadline Client pyinstaller ZIP archive'
-        )
-    )  # Required for non-local-builds
-    prod_required_args.append(RequiredArg("--bc-artifact-path", "bc_artifact_path"))
-
-    for dcc_submitter in DCC_SUBMITTERS:
-        parser.add_argument(
-            f'--{dcc_submitter.cliArgName}',
-            help=(
-                f'Path to the directory containing the {dcc_submitter.componentName} source code'
-            )
-        )  # Required for non-local-builds
-        prod_required_args.append(RequiredArg(f'--{dcc_submitter.cliArgName}', dcc_submitter.cliArgName.replace("-", "_")))
+    # parser.add_argument(
+    #     f'--dcc-artifact-path',
+    #     help=(
+    #         f'Path to the directory containing the {dcc_submitter.componentName} source code'
+    #     )
+    # )  # Required for non-local-builds
+    # prod_required_args.append(RequiredArg(f'--dcc-artifact-path', "dcc_artifact_path"))
 
     parser.add_argument(
         '--no-cleanup',
         dest='cleanup',
         action='store_false',
         help=(
-            'Leave the build folder produced by pyinstaller. This can be '
-            'useful for debugging.'
+            'Do not delete the build components folder after completion'
         ),
     )
     parser.add_argument(
@@ -317,6 +262,7 @@ def main():
         help='The directory to create the installer in. Default is the current directory.'
     )
     args = parser.parse_args()
+    dcc_submitter = DccSubmitter(name=args.dcc_name)
     if not args.local_dev_build:
         missing_args = []
         for required_arg in prod_required_args:
@@ -342,51 +288,46 @@ def main():
         # The directory structure convention is:
         #
         # <INSTALL_BUILDER_PROJECT_ROOT>/
-        #    +- DeadlineCloudSubmitter.xml (value of INSTALLER_TEMPLATE variable)
+        #    +- <Submitter>.xml (value of INSTALLER_TEMPLATE variable)
         #    +- components/
         #       +- <COMPONENT_NAME>
         #          +- install_builder/
         #             +- <COMPONENT_NAME>.xml
         components_dir = os.path.join(INSTALL_BUILDER_PROJECT_ROOT, 'components')
-        # shutil.rmtree(components_dir, ignore_errors=False)
         os.makedirs(components_dir, exist_ok=True)
         if args.local_dev_build:
-            dev_create_dcc_component(workdir, DCC_SUBMITTERS[0])
+            dev_create_dcc_component(workdir, dcc_submitter)
 
-        ######################
-        #   DCC Submitters   #
-        ######################
-        for dcc_submitter in DCC_SUBMITTERS:
-            src_component_path = (
-                getattr(args, dcc_submitter.cliArgName.replace('-', '_'))
-                if not args.local_dev_build
-                else f"{workdir}/{dcc_submitter.componentName}"
-            )
-            dst_component_path = os.path.join(components_dir, dcc_submitter.componentName)
-            if os.path.exists(dst_component_path):
-                shutil.rmtree(dst_component_path)
-            shutil.copytree(src_component_path, dst_component_path)
+        src_component_path = (
+            getattr(args, dcc_submitter.cliArgName.replace('-', '_'))
+            if not args.local_dev_build
+            else f"{workdir}/{dcc_submitter.componentName}"
+        )
+        dst_component_path = os.path.join(components_dir, dcc_submitter.componentName)
+        if os.path.exists(dst_component_path):
+            shutil.rmtree(dst_component_path)
+        shutil.copytree(src_component_path, dst_component_path)
 
 
         try:
             installer_dir = build_installer(
                 workdir=workdir,
-                s3bucket=args.install_builder_s3_bucket,
                 license_secret_id=args.install_builder_license_secret_id if args.install_builder_license_secret_id != 'NO_LICENSE' else None,
                 platform=args.platform,
                 local_dev_build=args.local_dev_build,
             )
         except Exception as e:
-            # always want to delete the components_dir if build fails
-            shutil.rmtree(components_dir)
+            if args.cleanup:
+                shutil.rmtree(components_dir)
             raise e
 
         installer_filename = INSTALLER_FILENAMES[args.platform]
         installer_path = os.path.join(installer_dir, installer_filename)
-        print(installer_path)
-        missing_mac = sys.platform.startswith("darwin") and not os.path.isdir(installer_path)
-        missing_else = not sys.platform.startswith("darwin") and os.path.isfile(installer_path)
-        if missing_mac or missing_else:
+
+        # .app is a folder on macOS, and a file on other operating systems
+        missing_installer_on_mac = sys.platform.startswith("darwin") and not os.path.isdir(installer_path)
+        missing_installer = not sys.platform.startswith("darwin") and os.path.isfile(installer_path)
+        if missing_installer_on_mac or missing_installer:
             raise FileNotFoundError(
                 f'Expected installer file {installer_filename} not found in {installer_dir}.\n'
                 f'Found:\n\t{os.linesep.join(os.listdir(installer_dir))}'

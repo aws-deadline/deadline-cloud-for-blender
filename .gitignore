@@ -24,9 +24,11 @@ __pycache__/
 .tox
 
 # misc extensions that might pop up
-.run
-.exe
-.zip
+*.run
+*.exe
+*.zip
+*.app
+*.dmg
 
 # virtualenv
 .venv
