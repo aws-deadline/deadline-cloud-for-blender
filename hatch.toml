@@ -28,6 +28,7 @@ python = ["3.9", "3.10", "3.11", "3.12"]
 [envs.default.env-vars]
 SKIP_BOOTSTRAP_TEST_RESOURCES="True"
 DEADLINE_ENABLE_DEVELOPER_OPTIONS="True"
+INSTALLER_PATH="DeadlineCloudForBlenderSubmitter-osx-installer.app"
 
 [envs.codebuild.scripts]
 build = "hatch build"

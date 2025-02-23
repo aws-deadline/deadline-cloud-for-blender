@@ -39,24 +39,25 @@ from typing import List, NamedTuple
 # Update June 2023: InstallBuilder can build installers for all platforms. We only need to run InstallBuilder on one platform,
 # so we're only going to build it on Linux.
 INSTALL_BUILDER = {
-    'archive': f'install_builder/VMware-InstallBuilder-Professional-linux.tar.gz',
-    'command': os.path.join('bin', 'builder'),
+    "archive": "install_builder/VMware-InstallBuilder-Professional-linux.tar.gz",
+    "command": os.path.join("bin", "builder"),
 }
 
 # This is derived from <installerFilename> in DeadlineCloudForBlenderSubmitter.xml
 # See "Supported Platforms" table in https://releases.installbuilder.com/installbuilder/docs/installbuilder-userguide.html
 INSTALLER_FILENAMES = {
-  'windows-x64': 'DeadlineCloudForBlenderSubmitter-windows-x64-installer.exe',
-  'linux-x64': 'DeadlineCloudForBlenderSubmitter-linux-x64-installer.run',
-  'osx': 'DeadlineCloudForBlenderSubmitter-osx-installer.app',
+    "windows-x64": "DeadlineCloudForBlenderSubmitter-windows-x64-installer.exe",
+    "linux-x64": "DeadlineCloudForBlenderSubmitter-linux-x64-installer.run",
+    "osx": "DeadlineCloudForBlenderSubmitter-osx-installer.app",
 }
 
 # This is the directory containing the InstallBuilder root .xml component.
 # All file paths in the InstallBuilder component files are relative to this directory
 INSTALL_BUILDER_VERSION = "24.11.1"
 INSTALL_BUILDER_PROJECT_ROOT = Path(os.path.abspath(__file__)).parent.parent / "install_builder"
-INSTALLER_TEMPLATE = 'DeadlineCloudForBlenderSubmitter.xml'
+INSTALLER_TEMPLATE = "DeadlineCloudForBlenderSubmitter.xml"
 EVALUATION_VERSION_STRING = "Built with an evaluation version of InstallBuilder"
+
 
 class DccSubmitter(NamedTuple):
     """
@@ -85,6 +86,7 @@ class DccSubmitter(NamedTuple):
 class BadRCError(Exception):
     pass
 
+
 class EvaluationBuildError(Exception):
     pass
 
@@ -93,19 +95,19 @@ def run(cmd, cwd=None, env=None, echo=True):
     if echo:
         sys.stdout.write(f"Running cmd: {cmd}\n")
     kwargs = {
-        'shell': True,
-        'stdout': subprocess.PIPE,
-        'stderr': subprocess.PIPE,
+        "shell": True,
+        "stdout": subprocess.PIPE,
+        "stderr": subprocess.PIPE,
     }
     if isinstance(cmd, list):
-        kwargs['shell'] = False
+        kwargs["shell"] = False
     if cwd is not None:
-        kwargs['cwd'] = cwd
+        kwargs["cwd"] = cwd
     if env is not None:
-        kwargs['env'] = env
+        kwargs["env"] = env
     p = subprocess.Popen(cmd, **kwargs)
     stdout, stderr = p.communicate()
-    output = stdout.decode('utf-8') + stderr.decode('utf-8')
+    output = stdout.decode("utf-8") + stderr.decode("utf-8")
     if p.returncode != 0:
         raise BadRCError(f"Bad rc ({p.returncode}) for cmd '{cmd}': {output}")
     return output
@@ -113,50 +115,51 @@ def run(cmd, cwd=None, env=None, echo=True):
 
 def download_from_s3(bucket_name, key, output_folder):
     dest_path = os.path.join(output_folder, os.path.basename(key))
-    print(f'Downloading {key} from s3:\\\\{bucket_name}')
+    print(f"Downloading {key} from s3:\\\\{bucket_name}")
     import boto3
-    s3 = boto3.client('s3')
+
+    s3 = boto3.client("s3")
     s3.download_file(bucket_name, key, dest_path)
     return dest_path
 
 
 def download_from_secretsmanager(secret_id, output_path):
-    print(f'Downloading {secret_id}')
+    print(f"Downloading {secret_id}")
     import boto3
-    sm = boto3.client('secretsmanager')
+
+    sm = boto3.client("secretsmanager")
     response = sm.get_secret_value(SecretId=secret_id)
-    with open(output_path, mode='w') as f:
-        f.write(response.get('SecretString'))
+    with open(output_path, mode="w") as f:
+        f.write(response.get("SecretString"))
 
 
-def build_installer(
-    workdir: str,
-    license_secret_id: str,
-    platform: str,
-    local_dev_build: bool
-):
-    
+def build_installer(workdir: str, license_secret_id: str, platform: str, local_dev_build: bool):
+
     install_builder_config = INSTALL_BUILDER
     install_build_path = ""
     if sys.platform.startswith("darwin"):
         install_build_path = f"/Applications/InstallBuilder Professional {INSTALL_BUILDER_VERSION}/"
     if not install_build_path:
-        raise FileNotFoundError(f"Could not find install builder's `builder` executable")
+        raise FileNotFoundError("Could not find install builder's `builder` executable")
 
     if license_secret_id and not local_dev_build:
-        download_from_secretsmanager(license_secret_id, os.path.join(workdir, 'license.xml'))
+        download_from_secretsmanager(license_secret_id, os.path.join(workdir, "license.xml"))
 
-    install_builder = os.path.join(install_build_path, install_builder_config['command'])
-    out_dir = os.path.join(workdir, 'out')
-    installer_version = os.getenv('INSTALLER_VERSION') if not local_dev_build else "00000000"
+    install_builder = os.path.join(install_build_path, install_builder_config["command"])
+    out_dir = os.path.join(workdir, "out")
+    installer_version = os.getenv("INSTALLER_VERSION") if not local_dev_build else "00000000"
     date = datetime.today().date()
-    output = run([
-        install_builder,
-        'build',
-        os.path.join(INSTALL_BUILDER_PROJECT_ROOT, INSTALLER_TEMPLATE),
-        platform,
-        '--setvars', f'project.outputDirectory={out_dir}', f'project.version={installer_version[:8]}-{date}'
-    ])
+    output = run(
+        [
+            install_builder,
+            "build",
+            os.path.join(INSTALL_BUILDER_PROJECT_ROOT, INSTALLER_TEMPLATE),
+            platform,
+            "--setvars",
+            f"project.outputDirectory={out_dir}",
+            f"project.version={installer_version[:8]}-{date}",
+        ]
+    )
     sys.stdout.write(
         f"{'-'*30}\nBegin Install Builder Output\n{'-'*30}\n"
         f"{output}\n"
@@ -180,58 +183,63 @@ def dev_create_dcc_component(workdir: tempfile.TemporaryDirectory, dcc_component
     Creates artifacts locally that mimic what happen in codepipeline.
     """
     # Clone dcc component
-    repo_dir= f"{workdir}/{dcc_component.componentName}"
+    repo_dir = f"{workdir}/{dcc_component.componentName}"
     source_folder = os.environ.get(f"{dcc_component.name.upper()}_SOURCE_FOLDER")
     if source_folder:
         run(f"cp -rf {source_folder} {repo_dir}")
     else:
-        repository_owner = os.environ.get(f"{dcc_component.name.upper()}_FORK_OWNER", "aws-deadline")
-        run(f"git clone git@github.com:{repository_owner}/{dcc_component.componentName}.git {repo_dir}")
+        repository_owner = os.environ.get(
+            f"{dcc_component.name.upper()}_FORK_OWNER", "aws-deadline"
+        )
+        run(
+            f"git clone git@github.com:{repository_owner}/{dcc_component.componentName}.git {repo_dir}"
+        )
         branch_override = os.environ.get(f"{dcc_component.name.upper()}_BRANCH_OVERRIDE")
         if branch_override:
             sys.stdout.write(f"Branch override for {dcc_component.name}: {branch_override}\n")
-            run(f"cd {repo_dir}; git fetch origin {branch_override} && git checkout {branch_override}")
+            run(
+                f"cd {repo_dir}; git fetch origin {branch_override} && git checkout {branch_override}"
+            )
     run(f"cd {repo_dir}; chmod +x ./depsBundle.sh")
     run(f"cd {repo_dir}; ./depsBundle.sh")
+
 
 class RequiredArg(NamedTuple):
     """
     Structure to represent a required CLI argument. Only used to provide better error messaging
     """
+
     argument: str
     attr: str
+
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     prod_required_args: List[RequiredArg] = []
 
     parser.add_argument(
-        '--dcc-name',
-        required=True,
-        help='The name of the DCC application this submitter is for.'
+        "--dcc-name", required=True, help="The name of the DCC application this submitter is for."
     )
     parser.add_argument(
-        '--dcc-installer-file',
-        required=True,
-        help="The main installer file for the dcc"
+        "--dcc-installer-file", required=True, help="The main installer file for the dcc"
+    )
+
+    parser.add_argument("--local-dev-build", action=argparse.BooleanOptionalAction, help=(""))
+    parser.add_argument(
+        "--install-builder-s3-bucket",
+        help="The name of S3 Bucket that contains Install Builder.",
+    )  # Required for non-local-builds
+    prod_required_args.append(
+        RequiredArg("--install-builder-s3-bucket", "install_builder_s3_bucket")
     )
 
     parser.add_argument(
-        '--local-dev-build',
-        action=argparse.BooleanOptionalAction,
-        help=('')
+        "--install-builder-license-secret-id",
+        help="The ID (ARN or name) of Secret that contains the InstallBuilder license. This can be set to NO_LICENSE to skip downloading the license.",
+    )  # Required for non-local-builds
+    prod_required_args.append(
+        RequiredArg("--install-builder-license-secret-id", "install_builder_license_secret_id")
     )
-    parser.add_argument(
-        '--install-builder-s3-bucket',
-        help='The name of S3 Bucket that contains Install Builder.',
-    )  # Required for non-local-builds
-    prod_required_args.append(RequiredArg('--install-builder-s3-bucket', "install_builder_s3_bucket"))
-
-    parser.add_argument(
-        '--install-builder-license-secret-id',
-        help='The ID (ARN or name) of Secret that contains the InstallBuilder license. This can be set to NO_LICENSE to skip downloading the license.',
-    )  # Required for non-local-builds
-    prod_required_args.append(RequiredArg('--install-builder-license-secret-id', "install_builder_license_secret_id"))
 
     # parser.add_argument(
     #     f'--dcc-artifact-path',
@@ -242,24 +250,22 @@ def main():
     # prod_required_args.append(RequiredArg(f'--dcc-artifact-path', "dcc_artifact_path"))
 
     parser.add_argument(
-        '--no-cleanup',
-        dest='cleanup',
-        action='store_false',
-        help=(
-            'Do not delete the build components folder after completion'
-        ),
+        "--no-cleanup",
+        dest="cleanup",
+        action="store_false",
+        help=("Do not delete the build components folder after completion"),
     )
     parser.add_argument(
-        '--platform',
+        "--platform",
         required=True,
-        help='The platform to build an installer for',
-        choices=('windows-x64', 'linux-x64', 'osx'),
+        help="The platform to build an installer for",
+        choices=("windows-x64", "linux-x64", "osx"),
     )
     parser.add_argument(
-        '--output-dir',
+        "--output-dir",
         required=False,
         default=None,
-        help='The directory to create the installer in. Default is the current directory.'
+        help="The directory to create the installer in. Default is the current directory.",
     )
     args = parser.parse_args()
     dcc_submitter = DccSubmitter(name=args.dcc_name)
@@ -278,11 +284,11 @@ def main():
             parser.error("--local-dev-build cannot be used when running in CodeBuild.")
     with tempfile.TemporaryDirectory() as workdir:
         if not args.local_dev_build:
-            run('pip install --upgrade pip --user')
+            run("pip install --upgrade pip --user")
         else:
-            run('pip install --upgrade pip')
-        print(f'cwd: {os.getcwd()}')
-        print(f'working directory: {workdir}')
+            run("pip install --upgrade pip")
+        print(f"cwd: {os.getcwd()}")
+        print(f"working directory: {workdir}")
 
         # Stage a "components" directory immediately under the install builder project file's directory.
         # The directory structure convention is:
@@ -293,13 +299,13 @@ def main():
         #       +- <COMPONENT_NAME>
         #          +- install_builder/
         #             +- <COMPONENT_NAME>.xml
-        components_dir = os.path.join(INSTALL_BUILDER_PROJECT_ROOT, 'components')
+        components_dir = os.path.join(INSTALL_BUILDER_PROJECT_ROOT, "components")
         os.makedirs(components_dir, exist_ok=True)
         if args.local_dev_build:
             dev_create_dcc_component(workdir, dcc_submitter)
 
         src_component_path = (
-            getattr(args, dcc_submitter.cliArgName.replace('-', '_'))
+            getattr(args, dcc_submitter.cliArgName.replace("-", "_"))
             if not args.local_dev_build
             else f"{workdir}/{dcc_submitter.componentName}"
         )
@@ -308,11 +314,14 @@ def main():
             shutil.rmtree(dst_component_path)
         shutil.copytree(src_component_path, dst_component_path)
 
-
         try:
             installer_dir = build_installer(
                 workdir=workdir,
-                license_secret_id=args.install_builder_license_secret_id if args.install_builder_license_secret_id != 'NO_LICENSE' else None,
+                license_secret_id=(
+                    args.install_builder_license_secret_id
+                    if args.install_builder_license_secret_id != "NO_LICENSE"
+                    else None
+                ),
                 platform=args.platform,
                 local_dev_build=args.local_dev_build,
             )
@@ -325,12 +334,14 @@ def main():
         installer_path = os.path.join(installer_dir, installer_filename)
 
         # .app is a folder on macOS, and a file on other operating systems
-        missing_installer_on_mac = sys.platform.startswith("darwin") and not os.path.isdir(installer_path)
+        missing_installer_on_mac = sys.platform.startswith("darwin") and not os.path.isdir(
+            installer_path
+        )
         missing_installer = not sys.platform.startswith("darwin") and os.path.isfile(installer_path)
         if missing_installer_on_mac or missing_installer:
             raise FileNotFoundError(
-                f'Expected installer file {installer_filename} not found in {installer_dir}.\n'
-                f'Found:\n\t{os.linesep.join(os.listdir(installer_dir))}'
+                f"Expected installer file {installer_filename} not found in {installer_dir}.\n"
+                f"Found:\n\t{os.linesep.join(os.listdir(installer_dir))}"
             )
 
         output_path = installer_filename
@@ -346,5 +357,5 @@ def main():
             print(f"Deleted build directory: {components_dir}")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
