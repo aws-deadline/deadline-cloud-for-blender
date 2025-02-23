@@ -1,5 +1,5 @@
-#!/usr/bin/env python
-"""Script to create platform-specific Deadline submission installers using Bitrock InstallBuilder."""
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+"""Script to create platform-specific Deadline submission installers"""
 import argparse
 import os
 import sys
@@ -8,7 +8,7 @@ import subprocess
 import tempfile
 from datetime import datetime
 from pathlib import Path
-from typing import List, NamedTuple
+from typing import List, NamedTuple, Optional
 
 # If the InstallBuilder version is being changed, please ensure the archives are in a "flattened" structure.
 #
@@ -35,9 +35,6 @@ from typing import List, NamedTuple
 # - Linux: <archive-root>/installbuilder-19.8.0/<files>
 # - Mac: <archive-root>/<files>
 # In this case, the Windows and Linux archives were changed to be "flattened" like the Mac one above.
-#
-# Update June 2023: InstallBuilder can build installers for all platforms. We only need to run InstallBuilder on one platform,
-# so we're only going to build it on Linux.
 INSTALL_BUILDER = {
     "archive": "install_builder/VMware-InstallBuilder-Professional-linux.tar.gz",
     "command": os.path.join("bin", "builder"),
@@ -55,6 +52,7 @@ INSTALLER_FILENAMES = {
 # All file paths in the InstallBuilder component files are relative to this directory
 INSTALL_BUILDER_VERSION = "24.11.1"
 INSTALL_BUILDER_PROJECT_ROOT = Path(os.path.abspath(__file__)).parent.parent / "install_builder"
+INSTALLER_ROOT = Path(os.path.abspath(__file__)).parent.parent / "installer"
 INSTALLER_TEMPLATE = "DeadlineCloudForBlenderSubmitter.xml"
 EVALUATION_VERSION_STRING = "Built with an evaluation version of InstallBuilder"
 
@@ -133,19 +131,28 @@ def download_from_secretsmanager(secret_id, output_path):
         f.write(response.get("SecretString"))
 
 
-def build_installer(workdir: str, license_secret_id: str, platform: str, local_dev_build: bool):
-
+def build_installer(workdir: str, license_secret_id: str, platform: str, local_dev_build: bool, s3bucket: Optional[str]):
+    install_builder_path = ""
     install_builder_config = INSTALL_BUILDER
-    install_build_path = ""
-    if sys.platform.startswith("darwin"):
-        install_build_path = f"/Applications/InstallBuilder Professional {INSTALL_BUILDER_VERSION}/"
-    if not install_build_path:
-        raise FileNotFoundError("Could not find install builder's `builder` executable")
+    if not local_dev_build:
+        install_builder_archive = download_from_s3(s3bucket, install_builder_config['archive'], workdir)
+        shutil.unpack_archive(install_builder_archive, workdir)
+        install_builder_path = workdir
+    else:
+        
+        if sys.platform.startswith("darwin"):
+            install_builder_path = f"/Applications/InstallBuilder Professional {INSTALL_BUILDER_VERSION}/"
+        elif sys.platform.startswith("win32"):
+            install_builder_path = "C:/Program Files/InstallBuilder/"
+        elif sys.platform.startswith("linux"):
+            install_builder_path = f"/opt/installbuilder-{INSTALL_BUILDER_VERSION}/"
+        if not install_builder_path:
+            raise FileNotFoundError("Could not find install builder's `builder` executable")
 
     if license_secret_id and not local_dev_build:
         download_from_secretsmanager(license_secret_id, os.path.join(workdir, "license.xml"))
 
-    install_builder = os.path.join(install_build_path, install_builder_config["command"])
+    install_builder = os.path.join(install_builder_path, install_builder_config["command"])
     out_dir = os.path.join(workdir, "out")
     installer_version = os.getenv("INSTALLER_VERSION") if not local_dev_build else "00000000"
     date = datetime.today().date()
@@ -153,7 +160,7 @@ def build_installer(workdir: str, license_secret_id: str, platform: str, local_d
         [
             install_builder,
             "build",
-            os.path.join(INSTALL_BUILDER_PROJECT_ROOT, INSTALLER_TEMPLATE),
+            os.path.join(INSTALLER_ROOT, INSTALLER_TEMPLATE),
             platform,
             "--setvars",
             f"project.outputDirectory={out_dir}",
@@ -167,6 +174,7 @@ def build_installer(workdir: str, license_secret_id: str, platform: str, local_d
     )
 
     if EVALUATION_VERSION_STRING in output and not local_dev_build:
+        return out_dir
         raise EvaluationBuildError("InstallBuilder was detected using an evaluation version.")
     elif local_dev_build and EVALUATION_VERSION_STRING not in output:
         raise EvaluationBuildError(
@@ -180,26 +188,28 @@ def build_installer(workdir: str, license_secret_id: str, platform: str, local_d
 
 def dev_create_dcc_component(workdir: tempfile.TemporaryDirectory, dcc_component: DccSubmitter):
     """
-    Creates artifacts locally that mimic what happen in codepipeline.
+    Creates artifacts locally
     """
     # Clone dcc component
     repo_dir = f"{workdir}/{dcc_component.componentName}"
-    source_folder = os.environ.get(f"{dcc_component.name.upper()}_SOURCE_FOLDER")
-    if source_folder:
-        run(f"cp -rf {source_folder} {repo_dir}")
-    else:
-        repository_owner = os.environ.get(
-            f"{dcc_component.name.upper()}_FORK_OWNER", "aws-deadline"
-        )
-        run(
-            f"git clone git@github.com:{repository_owner}/{dcc_component.componentName}.git {repo_dir}"
-        )
-        branch_override = os.environ.get(f"{dcc_component.name.upper()}_BRANCH_OVERRIDE")
-        if branch_override:
-            sys.stdout.write(f"Branch override for {dcc_component.name}: {branch_override}\n")
-            run(
-                f"cd {repo_dir}; git fetch origin {branch_override} && git checkout {branch_override}"
-            )
+    source_folder = Path(os.path.abspath(__file__)).parent.parent
+    #source_folder = os.environ.get(f"{dcc_component.name.upper()}_SOURCE_FOLDER")
+    run(f"cp -rf {source_folder} {repo_dir}")
+    # if source_folder:
+    #     run(f"cp -rf {source_folder} {repo_dir}")
+    # else:
+    #     repository_owner = os.environ.get(
+    #         f"{dcc_component.name.upper()}_FORK_OWNER", "aws-deadline"
+    #     )
+    #     run(
+    #         f"git clone git@github.com:{repository_owner}/{dcc_component.componentName}.git {repo_dir}"
+    #     )
+    #     branch_override = os.environ.get(f"{dcc_component.name.upper()}_BRANCH_OVERRIDE")
+    #     if branch_override:
+    #         sys.stdout.write(f"Branch override for {dcc_component.name}: {branch_override}\n")
+    #         run(
+    #             f"cd {repo_dir}; git fetch origin {branch_override} && git checkout {branch_override}"
+    #         )
     run(f"cd {repo_dir}; chmod +x ./depsBundle.sh")
     run(f"cd {repo_dir}; ./depsBundle.sh")
 
@@ -283,10 +293,7 @@ def main():
         if os.environ.get("CODEBUILD_BUILD_ID") is not None:
             parser.error("--local-dev-build cannot be used when running in CodeBuild.")
     with tempfile.TemporaryDirectory() as workdir:
-        if not args.local_dev_build:
-            run("pip install --upgrade pip --user")
-        else:
-            run("pip install --upgrade pip")
+        run("pip install --upgrade pip")
         print(f"cwd: {os.getcwd()}")
         print(f"working directory: {workdir}")
 
@@ -299,16 +306,12 @@ def main():
         #       +- <COMPONENT_NAME>
         #          +- install_builder/
         #             +- <COMPONENT_NAME>.xml
-        components_dir = os.path.join(INSTALL_BUILDER_PROJECT_ROOT, "components")
+        components_dir = os.path.join(INSTALLER_ROOT, "components")
         os.makedirs(components_dir, exist_ok=True)
-        if args.local_dev_build:
-            dev_create_dcc_component(workdir, dcc_submitter)
+        # if args.local_dev_build:
+        dev_create_dcc_component(workdir, dcc_submitter)
 
-        src_component_path = (
-            getattr(args, dcc_submitter.cliArgName.replace("-", "_"))
-            if not args.local_dev_build
-            else f"{workdir}/{dcc_submitter.componentName}"
-        )
+        src_component_path = f"{workdir}/{dcc_submitter.componentName}"
         dst_component_path = os.path.join(components_dir, dcc_submitter.componentName)
         if os.path.exists(dst_component_path):
             shutil.rmtree(dst_component_path)
@@ -324,6 +327,7 @@ def main():
                 ),
                 platform=args.platform,
                 local_dev_build=args.local_dev_build,
+                s3bucket=args.install_builder_s3_bucket
             )
         except Exception as e:
             if args.cleanup:
@@ -336,8 +340,8 @@ def main():
         # .app is a folder on macOS, and a file on other operating systems
         missing_installer_on_mac = sys.platform.startswith("darwin") and not os.path.isdir(
             installer_path
-        )
-        missing_installer = not sys.platform.startswith("darwin") and os.path.isfile(installer_path)
+        ) and args.platform == "macos"
+        missing_installer = not os.path.isfile(installer_path) and not sys.platform.startswith("darwin")
         if missing_installer_on_mac or missing_installer:
             raise FileNotFoundError(
                 f"Expected installer file {installer_filename} not found in {installer_dir}.\n"

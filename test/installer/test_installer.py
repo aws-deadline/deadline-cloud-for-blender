@@ -23,7 +23,7 @@ def installer_path():
     if not os.access(path, os.X_OK) and not platform.system() == "Darwin":
         raise PermissionError(f"Installer at '{path}' is not executable")
 
-    yield path
+    yield Path(path).absolute()
 
 
 @pytest.fixture(scope="function")

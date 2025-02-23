@@ -33,4 +33,5 @@ jobs:
         uses: aws-actions/aws-codebuild-run-build@v1
         with:
           project-name: deadline-cloud-for-blender-LinuxInstaller
+          source-version-override: ${{inputs.branch}}
           hide-cloudwatch-logs: true

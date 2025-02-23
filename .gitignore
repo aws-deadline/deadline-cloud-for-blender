@@ -16,6 +16,7 @@ dependency_bundle/
 dist/
 plugin_env/
 wheels/
+installer/components/
 
 *.egg-info/
 __pycache__/
