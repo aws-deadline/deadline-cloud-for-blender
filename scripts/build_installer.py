@@ -260,7 +260,7 @@ def main():
     )
     parser.add_argument(
         "--install-builder-s3-bucket",
-        help="The name of S3 Bucket that contains Install Builder.",
+        help="The name of S3 Bucket that contains Install Builder. Required for non-local builds.",
     )  # Required for non-local builds
     prod_required_args.append(
         RequiredArg("--install-builder-s3-bucket", "install_builder_s3_bucket")
@@ -284,7 +284,7 @@ def main():
         "--no-cleanup",
         dest="cleanup",
         action="store_false",
-        help=("Do not delete the build components folder after completion"),
+        help=("Do not delete the build components folder after completion."),
     )
     parser.add_argument(
         "--platform",

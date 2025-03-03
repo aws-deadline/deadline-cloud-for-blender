@@ -15,6 +15,13 @@ The deadline.blender_adaptor package is an adaptor that renders blender scenes t
 hatch run build
 ```
 
+### Build the installer
+```bash
+hatch run build-installer --local-dev-build --platform <PLATFORM> [--install-builder-location <LOCATION> --output-dir <DIR>]
+```
+
+Run `hatch run build-installer -h` to see the full list of arguments.
+
 ### Run tests
 
 ```bash
@@ -37,6 +44,11 @@ hatch run fmt
 
 ```bash
 hatch run all:test
+```
+
+### Test a local installer
+```bash
+hatch run test-installer
 ```
 
 ### Run Integration Tests
