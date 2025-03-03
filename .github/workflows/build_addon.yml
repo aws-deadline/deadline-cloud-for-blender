@@ -1,0 +1,30 @@
+name: Build add-on
+run-name: ${{ github.actor }} is building an the Blender Add-on from ${{ github.ref }}
+on:
+  workflow_dispatch:
+    inputs:
+      semver:
+        type: string
+        description: The release version to attach the assets to
+jobs:
+  Build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: |
+          pip install --upgrade hatch
+          hatch -v build
+          python buildAddon.py --version ${{ inputs.semver }}
+      - name: 'Upload artifacts'
+        uses: actions/upload-artifact@v4
+        with:
+          path: dist/deadline-cloud-blender-addon.zip
+          name: deadline-cloud-blender-addon.zip
+      - name: 'Attach artifacts to release'
+        if: inputs.semver != ''
+        run: |
+          gh release upload ${{ inputs.semver }} dist/deadline-cloud-blender-addon.zip --clobber
+          gh release upload ${{ inputs.semver }} dist/index.json --clobber
+        env:
+          GH_TOKEN: ${{ github.token }}
