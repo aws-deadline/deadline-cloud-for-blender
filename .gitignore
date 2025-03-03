@@ -18,6 +18,9 @@ plugin_env/
 wheels/
 installer/components/
 
+# License file for InstallBuilder
+license.xml
+
 *.egg-info/
 __pycache__/
 *.py[cod]

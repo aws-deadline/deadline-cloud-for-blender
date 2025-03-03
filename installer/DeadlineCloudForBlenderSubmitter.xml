@@ -252,7 +252,11 @@
             </elseActionList>
         </if>
     </preInitializationActionList>
-
+    <preInstallationActionList>
+        <componentSelection>
+            <select>deadline_cloud_for_blender</select>
+        </componentSelection>
+    </preInstallationActionList>
     <postInstallationActionList>
         <setInstallerVariable name="installscope" value="${installscope}" persist="1"/>
         <writeFile>

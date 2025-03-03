@@ -4,6 +4,7 @@ import argparse
 import os
 import sys
 import shutil
+import stat
 import subprocess
 import tempfile
 from datetime import datetime
@@ -66,9 +67,6 @@ class DccSubmitter(NamedTuple):
     name: str
     """
     The name of the DCC application this submitter is for.
-
-    This **must** match up exactly with a corresponding value in the `DccSubmitter` enum in the
-    `lib/constructs/Config.ts` file.
     """
 
     @property
@@ -121,36 +119,71 @@ def download_from_s3(bucket_name, key, output_folder):
     return dest_path
 
 
-def download_from_secretsmanager(secret_id, output_path):
-    print(f"Downloading {secret_id}")
-    import boto3
+def get_default_installbuilder_location() -> str:
+    """
+    Returns the default location where InstallBuilder Professional will be installed depending on the platform.
+    """
 
-    sm = boto3.client("secretsmanager")
-    response = sm.get_secret_value(SecretId=secret_id)
-    with open(output_path, mode="w") as f:
-        f.write(response.get("SecretString"))
-
-
-def build_installer(workdir: str, license_secret_id: str, platform: str, local_dev_build: bool, s3bucket: Optional[str]):
     install_builder_path = ""
+
+    if sys.platform.startswith("darwin"):
+        install_builder_path = (
+            f"/Applications/InstallBuilder Professional {INSTALL_BUILDER_VERSION}/"
+        )
+    elif sys.platform.startswith("win32"):
+        install_builder_path = (
+            f"C:\\Program Files\\InstallBuilder Professional {INSTALL_BUILDER_VERSION}\\"
+        )
+    elif sys.platform.startswith("linux"):
+        install_builder_path = f"/opt/installbuilder-{INSTALL_BUILDER_VERSION}/"
+
+    return install_builder_path
+
+
+def _add_write_perms(func, path, exc_info) -> None:
+    """
+    Used as an error callback in `shutil.rmtree` to address an AccessDenied error that occurs on Windows.
+    If a directory fails to delete, attempt to add write permissions to it and try again.
+    Re-raise the error if it persists.
+    """
+
+    if not os.access(path, os.W_OK):
+        os.chmod(path, stat.S_IWUSR)
+        func(path)
+    else:
+        raise
+
+
+def build_installer(
+    workdir: str,
+    license_file: str,
+    install_builder_location: str,
+    platform: str,
+    local_dev_build: bool,
+    s3bucket: Optional[str],
+):
     install_builder_config = INSTALL_BUILDER
     if not local_dev_build:
-        install_builder_archive = download_from_s3(s3bucket, install_builder_config['archive'], workdir)
+        install_builder_archive = download_from_s3(
+            s3bucket, install_builder_config["archive"], workdir
+        )
         shutil.unpack_archive(install_builder_archive, workdir)
         install_builder_path = workdir
     else:
-        
-        if sys.platform.startswith("darwin"):
-            install_builder_path = f"/Applications/InstallBuilder Professional {INSTALL_BUILDER_VERSION}/"
-        elif sys.platform.startswith("win32"):
-            install_builder_path = "C:/Program Files/InstallBuilder/"
-        elif sys.platform.startswith("linux"):
-            install_builder_path = f"/opt/installbuilder-{INSTALL_BUILDER_VERSION}/"
-        if not install_builder_path:
-            raise FileNotFoundError("Could not find install builder's `builder` executable")
+        install_builder_path = install_builder_location
 
-    if license_secret_id and not local_dev_build:
-        download_from_secretsmanager(license_secret_id, os.path.join(workdir, "license.xml"))
+    if not install_builder_path:
+        raise FileNotFoundError(
+            "Could not find a default InstallBuilder path. Please specify one with '--install-builder-location'."
+        )
+
+    if not Path(install_builder_path).is_dir():
+        raise FileNotFoundError(
+            f"InstallBuilder path '{install_builder_path}' must be a directory containing 'bin/builder'."
+        )
+
+    if license_file and not local_dev_build:
+        shutil.copy(license_file, os.path.join(workdir, "license.xml"))
 
     install_builder = os.path.join(install_builder_path, install_builder_config["command"])
     out_dir = os.path.join(workdir, "out")
@@ -174,7 +207,6 @@ def build_installer(workdir: str, license_secret_id: str, platform: str, local_d
     )
 
     if EVALUATION_VERSION_STRING in output and not local_dev_build:
-        return out_dir
         raise EvaluationBuildError("InstallBuilder was detected using an evaluation version.")
     elif local_dev_build and EVALUATION_VERSION_STRING not in output:
         raise EvaluationBuildError(
@@ -190,33 +222,18 @@ def dev_create_dcc_component(workdir: tempfile.TemporaryDirectory, dcc_component
     """
     Creates artifacts locally
     """
-    # Clone dcc component
+    # Clone dcc component by copying it into the working directory & allowing the dependency bundle script to be executed
     repo_dir = f"{workdir}/{dcc_component.componentName}"
     source_folder = Path(os.path.abspath(__file__)).parent.parent
-    #source_folder = os.environ.get(f"{dcc_component.name.upper()}_SOURCE_FOLDER")
-    run(f"cp -rf {source_folder} {repo_dir}")
-    # if source_folder:
-    #     run(f"cp -rf {source_folder} {repo_dir}")
-    # else:
-    #     repository_owner = os.environ.get(
-    #         f"{dcc_component.name.upper()}_FORK_OWNER", "aws-deadline"
-    #     )
-    #     run(
-    #         f"git clone git@github.com:{repository_owner}/{dcc_component.componentName}.git {repo_dir}"
-    #     )
-    #     branch_override = os.environ.get(f"{dcc_component.name.upper()}_BRANCH_OVERRIDE")
-    #     if branch_override:
-    #         sys.stdout.write(f"Branch override for {dcc_component.name}: {branch_override}\n")
-    #         run(
-    #             f"cd {repo_dir}; git fetch origin {branch_override} && git checkout {branch_override}"
-    #         )
-    run(f"cd {repo_dir}; chmod +x ./depsBundle.sh")
-    run(f"cd {repo_dir}; ./depsBundle.sh")
+    shutil.copytree(source_folder, repo_dir, dirs_exist_ok=True)
+    bundle_file = Path(os.path.join(repo_dir, "depsBundle.sh"))
+    bundle_file.chmod(bundle_file.stat().st_mode | stat.S_IEXEC)
+    run(str(bundle_file))
 
 
 class RequiredArg(NamedTuple):
     """
-    Structure to represent a required CLI argument. Only used to provide better error messaging
+    Structure to represent a required CLI argument. Used to provide better error messaging.
     """
 
     argument: str
@@ -231,33 +248,37 @@ def main():
         "--dcc-name", required=True, help="The name of the DCC application this submitter is for."
     )
     parser.add_argument(
-        "--dcc-installer-file", required=True, help="The main installer file for the dcc"
+        "--dcc-installer-file", required=True, help="The main installer file for the DCC"
     )
 
-    parser.add_argument("--local-dev-build", action=argparse.BooleanOptionalAction, help=(""))
+    parser.add_argument(
+        "--local-dev-build",
+        action=argparse.BooleanOptionalAction,
+        help=(
+            "Add this argument when running a development build. This will use an evaluation copy of InstallBuilder and not require a license."
+        ),
+    )
     parser.add_argument(
         "--install-builder-s3-bucket",
         help="The name of S3 Bucket that contains Install Builder.",
-    )  # Required for non-local-builds
+    )  # Required for non-local builds
     prod_required_args.append(
         RequiredArg("--install-builder-s3-bucket", "install_builder_s3_bucket")
     )
 
     parser.add_argument(
-        "--install-builder-license-secret-id",
-        help="The ID (ARN or name) of Secret that contains the InstallBuilder license. This can be set to NO_LICENSE to skip downloading the license.",
-    )  # Required for non-local-builds
-    prod_required_args.append(
-        RequiredArg("--install-builder-license-secret-id", "install_builder_license_secret_id")
+        "--install-builder-location",
+        help="The InstallBuilder location, containing 'bin/builder'. Leave this blank to look for a Professional edition installation in the default location.",
+        default=get_default_installbuilder_location(),
     )
 
-    # parser.add_argument(
-    #     f'--dcc-artifact-path',
-    #     help=(
-    #         f'Path to the directory containing the {dcc_submitter.componentName} source code'
-    #     )
-    # )  # Required for non-local-builds
-    # prod_required_args.append(RequiredArg(f'--dcc-artifact-path', "dcc_artifact_path"))
+    parser.add_argument(
+        "--install-builder-license-file",
+        help="The path to the file containing the InstallBuilder license. This can be set to NO_LICENSE to skip downloading the license.",
+    )  # Required for non-local builds
+    prod_required_args.append(
+        RequiredArg("--install-builder-license-file", "install_builder_license_file")
+    )
 
     parser.add_argument(
         "--no-cleanup",
@@ -293,56 +314,48 @@ def main():
         if os.environ.get("CODEBUILD_BUILD_ID") is not None:
             parser.error("--local-dev-build cannot be used when running in CodeBuild.")
     with tempfile.TemporaryDirectory() as workdir:
-        run("pip install --upgrade pip")
+        run("python -m pip install --upgrade pip")
         print(f"cwd: {os.getcwd()}")
-        print(f"working directory: {workdir}")
-
-        # Stage a "components" directory immediately under the install builder project file's directory.
-        # The directory structure convention is:
-        #
-        # <INSTALL_BUILDER_PROJECT_ROOT>/
-        #    +- <Submitter>.xml (value of INSTALLER_TEMPLATE variable)
-        #    +- components/
-        #       +- <COMPONENT_NAME>
-        #          +- install_builder/
-        #             +- <COMPONENT_NAME>.xml
+        print(f"working directory: {workdir})")
         components_dir = os.path.join(INSTALLER_ROOT, "components")
         os.makedirs(components_dir, exist_ok=True)
-        # if args.local_dev_build:
-        dev_create_dcc_component(workdir, dcc_submitter)
+        if args.local_dev_build:
+            dev_create_dcc_component(workdir, dcc_submitter)
 
         src_component_path = f"{workdir}/{dcc_submitter.componentName}"
         dst_component_path = os.path.join(components_dir, dcc_submitter.componentName)
         if os.path.exists(dst_component_path):
-            shutil.rmtree(dst_component_path)
+            shutil.rmtree(dst_component_path, onerror=_add_write_perms)
         shutil.copytree(src_component_path, dst_component_path)
 
         try:
             installer_dir = build_installer(
                 workdir=workdir,
-                license_secret_id=(
-                    args.install_builder_license_secret_id
-                    if args.install_builder_license_secret_id != "NO_LICENSE"
+                license_file=(
+                    args.install_builder_license_file
+                    if args.install_builder_license_file != "NO_LICENSE"
                     else None
                 ),
+                install_builder_location=args.install_builder_location,
                 platform=args.platform,
                 local_dev_build=args.local_dev_build,
-                s3bucket=args.install_builder_s3_bucket
+                s3bucket=args.install_builder_s3_bucket,
             )
         except Exception as e:
             if args.cleanup:
-                shutil.rmtree(components_dir)
+                shutil.rmtree(components_dir, onerror=_add_write_perms)
             raise e
 
         installer_filename = INSTALLER_FILENAMES[args.platform]
         installer_path = os.path.join(installer_dir, installer_filename)
 
-        # .app is a folder on macOS, and a file on other operating systems
-        missing_installer_on_mac = sys.platform.startswith("darwin") and not os.path.isdir(
-            installer_path
-        ) and args.platform == "macos"
-        missing_installer = not os.path.isfile(installer_path) and not sys.platform.startswith("darwin")
-        if missing_installer_on_mac or missing_installer:
+        # The macOS .app installer will always be a directory, not a file.
+        # Other OS installers will be files.
+        if (
+            not os.path.isdir(installer_path)
+            if args.platform == "osx"
+            else not os.path.isfile(installer_path)
+        ):
             raise FileNotFoundError(
                 f"Expected installer file {installer_filename} not found in {installer_dir}.\n"
                 f"Found:\n\t{os.linesep.join(os.listdir(installer_dir))}"
@@ -353,11 +366,11 @@ def main():
             os.makedirs(args.output_dir, exist_ok=True)
             output_path = os.path.join(args.output_dir, output_path)
         if sys.platform.startswith("darwin") and os.path.exists(output_path):
-            shutil.rmtree(output_path)
+            shutil.rmtree(output_path, onerror=prod_required_args)
         shutil.move(installer_path, output_path)
 
         if args.cleanup:
-            shutil.rmtree(components_dir)
+            shutil.rmtree(components_dir, onerror=_add_write_perms)
             print(f"Deleted build directory: {components_dir}")
 
 

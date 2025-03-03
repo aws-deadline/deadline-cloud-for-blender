@@ -29,17 +29,6 @@ python = ["3.9", "3.10", "3.11", "3.12"]
 SKIP_BOOTSTRAP_TEST_RESOURCES="True"
 DEADLINE_ENABLE_DEVELOPER_OPTIONS="True"
 
-[envs.default.overrides]
-platform.linux.env-vars = [
-  'INSTALLER_PATH=DeadlineCloudForBlenderSubmitter-linux-x64-installer.run'
-]
-platform.macos.env-vars = [
-  'INSTALLER_PATH=DeadlineCloudForBlenderSubmitter-osx-installer.app'
-]
-platform.windows.env-vars = [
-  'INSTALLER_PATH=DeadlineCloudForBlenderSubmitter-windows-x64-installer.exe'
-]
-
 [envs.codebuild.scripts]
 build = "hatch build"
 

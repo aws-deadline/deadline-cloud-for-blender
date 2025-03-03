@@ -10,12 +10,19 @@ import pytest
 
 @pytest.fixture(scope="session")
 def installer_path():
-    path = os.getenv("INSTALLER_PATH")
-    if not path:
-        pytest.skip("INSTALLER_PATH environment variable is not set")
+    path = "DeadlineCloudForBlenderSubmitter-{platform}-{arch}-installer.{ext}"
 
-    if platform.system() == "Darwin" and Path(path).suffix == ".app":
-        path = os.path.join(path, "Contents", "MacOS", "installbuilder.sh")
+    if platform.system() == "Darwin":
+        path = os.path.join(
+            path.format(platform="osx", arch="x64", ext="app"),
+            "Contents",
+            "MacOS",
+            "installbuilder.sh",
+        )
+    elif platform.system() == "Windows":
+        path = path.format(platform="windows", arch="x64", ext="exe")
+    elif platform.system() == "Linux":
+        path = path.format(platform="linux", arch="x64", ext="run")
 
     if not os.path.isfile(path):
         raise FileNotFoundError(f"Installer not found at '{path}'")

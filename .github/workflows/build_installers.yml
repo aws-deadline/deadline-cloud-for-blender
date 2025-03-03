@@ -1,4 +1,4 @@
-name: "Build Linux Installer"
+name: "Build Installers"
 
 on:
   workflow_dispatch:
@@ -9,7 +9,7 @@ on:
 
 jobs:
   BuildLinuxInstaller:
-    if: (github.repository == 'epmog/deadline-cloud-for-blender')
+    if: (github.repository == 'aws-deadline/deadline-cloud-for-blender')
     name: Build Linux Installer
     runs-on: ubuntu-latest
     environment: ${{inputs.environment}}
@@ -17,9 +17,6 @@ jobs:
       id-token: write
       contents: read
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{inputs.branch}}
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
