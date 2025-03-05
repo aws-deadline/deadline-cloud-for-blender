@@ -72,13 +72,15 @@ files = "Read related assets"
     with open(str(Path(temp) / "blender_manifest.toml"), "w") as file:
         file.write(manifest)
 
-    zip = shutil.make_archive("dist/deadline-cloud-blender-addon", "zip", temp)
+    Path("dist_extras").mkdir(exist_ok=True)
+
+    zip = shutil.make_archive("dist_extras/deadline-cloud-blender-addon", "zip", temp)
 
     with open(zip, "rb") as file:
         bytes = file.read()
         sha256 = hashlib.sha256(bytes).hexdigest()
 
-    with open(Path("dist") / "index.json", "w") as file:
+    with open(Path("dist_extras") / "index.json", "w") as file:
         file.write(
             json.dumps(
                 {
