@@ -39,9 +39,20 @@
     </folderList>
     <initializationActionList>
         <setInstallerVariable name="all_components" value="${all_components} deadline_cloud_for_blender" />
+        <setInstallerVariable name="individual_install" value="0"/>
     </initializationActionList>
     <readyToInstallActionList>
-        <setInstallerVariable name="blender_installdir" value="${installdir}/Submitters/Blender/python" />
+        <if>
+            <conditionRuleList>
+                <isTrue value="${individual_install}"/>
+            </conditionRuleList>
+            <actionList>
+                <setInstallerVariable name="blender_installdir" value="${installdir}/python" />
+            </actionList>
+            <elseActionList>
+                <setInstallerVariable name="blender_installdir" value="${installdir}/Submitters/Blender/python" />
+            </elseActionList>
+        </if>
         <setInstallerVariable name="blender_addondir" value="${blender_installdir}/addons" />
         <setInstallerVariable name="blender_moduledir" value="${blender_installdir}/modules" />
         <if>
