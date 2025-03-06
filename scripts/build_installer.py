@@ -184,7 +184,7 @@ def dev_create_dcc_component(
     shutil.copytree(source_folder, repo_dir, dirs_exist_ok=True)
     bundle_file = Path(repo_dir) / "depsBundle.sh"
     bundle_file.chmod(bundle_file.stat().st_mode | stat.S_IEXEC)
-    subprocess.run(str(bundle_file))
+    subprocess.run(str(bundle_file), check=True)
 
 
 class RequiredArg(NamedTuple):

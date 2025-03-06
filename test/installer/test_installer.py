@@ -103,4 +103,4 @@ def test_uninstall(installed: Path):
         if not installed.exists():
             break
         time.sleep(10)
-    assert False, "Uninstall timed out"
+    assert not installed.exists()
