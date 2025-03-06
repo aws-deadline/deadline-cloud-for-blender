@@ -10,19 +10,19 @@ import pytest
 
 @pytest.fixture(scope="session")
 def installer_path():
-    path = "DeadlineCloudForBlenderSubmitter-{platform}-{arch}-installer.{ext}"
+    path = "DeadlineCloudForBlenderSubmitter-{platform}-installer.{ext}"
 
     if platform.system() == "Darwin":
         path = os.path.join(
-            path.format(platform="osx", arch="x64", ext="app"),
+            path.format(platform="osx", ext="app"),
             "Contents",
             "MacOS",
             "installbuilder.sh",
         )
     elif platform.system() == "Windows":
-        path = path.format(platform="windows", arch="x64", ext="exe")
+        path = path.format(platform="windows-x64", ext="exe")
     elif platform.system() == "Linux":
-        path = path.format(platform="linux", arch="x64", ext="run")
+        path = path.format(platform="linux-x64", ext="run")
 
     if not os.path.isfile(path):
         raise FileNotFoundError(f"Installer not found at '{path}'")
@@ -103,3 +103,4 @@ def test_uninstall(installed: Path):
         if not installed.exists():
             break
         time.sleep(10)
+    assert False, "Uninstall timed out"

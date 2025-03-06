@@ -2,7 +2,7 @@
 """Script to create platform-specific Deadline submission installers"""
 import argparse
 import os
-import sys
+import platform
 import shutil
 import stat
 import subprocess
@@ -38,22 +38,17 @@ from typing import List, NamedTuple, Optional
 # In this case, the Windows and Linux archives were changed to be "flattened" like the Mac one above.
 INSTALL_BUILDER = {
     "archive": "install_builder/VMware-InstallBuilder-Professional-linux.tar.gz",
-    "command": os.path.join("bin", "builder"),
+    "command": Path("bin") / "builder",
 }
 
 # This is derived from <installerFilename> in DeadlineCloudForBlenderSubmitter.xml
 # See "Supported Platforms" table in https://releases.installbuilder.com/installbuilder/docs/installbuilder-userguide.html
-INSTALLER_FILENAMES = {
-    "windows-x64": "DeadlineCloudForBlenderSubmitter-windows-x64-installer.exe",
-    "linux-x64": "DeadlineCloudForBlenderSubmitter-linux-x64-installer.run",
-    "osx": "DeadlineCloudForBlenderSubmitter-osx-installer.app",
-}
+INSTALLER_FILENAME_TEMPLATE = "DeadlineCloudForBlenderSubmitter-{platform}-installer.{ext}"
 
 # This is the directory containing the InstallBuilder root .xml component.
 # All file paths in the InstallBuilder component files are relative to this directory
-INSTALL_BUILDER_VERSION = "24.11.1"
-INSTALL_BUILDER_PROJECT_ROOT = Path(os.path.abspath(__file__)).parent.parent / "install_builder"
-INSTALLER_ROOT = Path(os.path.abspath(__file__)).parent.parent / "installer"
+INSTALL_BUILDER_PROJECT_ROOT = Path(__file__).absolute().parent.parent / "install_builder"
+INSTALLER_ROOT = Path(__file__).absolute().parent.parent / "installer"
 INSTALLER_TEMPLATE = "DeadlineCloudForBlenderSubmitter.xml"
 EVALUATION_VERSION_STRING = "Built with an evaluation version of InstallBuilder"
 
@@ -87,35 +82,14 @@ class EvaluationBuildError(Exception):
     pass
 
 
-def download_from_s3(bucket_name, key, output_folder):
-    dest_path = os.path.join(output_folder, os.path.basename(key))
+def download_from_s3(bucket_name: str, key: Path, output_folder: Path) -> Path:
+    dest_path = output_folder / key.name
     print(f"Downloading {key} from s3:\\\\{bucket_name}")
     import boto3
 
     s3 = boto3.client("s3")
     s3.download_file(bucket_name, key, dest_path)
     return dest_path
-
-
-def get_default_installbuilder_location() -> str:
-    """
-    Returns the default location where InstallBuilder Professional will be installed depending on the platform.
-    """
-
-    install_builder_path = ""
-
-    if sys.platform.startswith("darwin"):
-        install_builder_path = (
-            f"/Applications/InstallBuilder Professional {INSTALL_BUILDER_VERSION}/"
-        )
-    elif sys.platform.startswith("win32"):
-        install_builder_path = (
-            f"C:\\Program Files\\InstallBuilder Professional {INSTALL_BUILDER_VERSION}\\"
-        )
-    elif sys.platform.startswith("linux"):
-        install_builder_path = f"/opt/installbuilder-{INSTALL_BUILDER_VERSION}/"
-
-    return install_builder_path
 
 
 def _add_write_perms(func, path, exc_info) -> None:
@@ -133,13 +107,13 @@ def _add_write_perms(func, path, exc_info) -> None:
 
 
 def build_installer(
-    workdir: str,
+    workdir: Path,
     license_file: str,
-    install_builder_location: str,
+    install_builder_location: Path,
     platform: str,
     local_dev_build: bool,
     s3bucket: Optional[str],
-):
+) -> Path:
     install_builder_config = INSTALL_BUILDER
     if not local_dev_build:
         install_builder_archive = download_from_s3(
@@ -150,21 +124,16 @@ def build_installer(
     else:
         install_builder_path = install_builder_location
 
-    if not install_builder_path:
+    if not install_builder_path.is_dir():
         raise FileNotFoundError(
-            "Could not find a default InstallBuilder path. Please specify one with '--install-builder-location'."
-        )
-
-    if not Path(install_builder_path).is_dir():
-        raise FileNotFoundError(
-            f"InstallBuilder path '{install_builder_path}' must be a directory containing 'bin/builder'."
+            f"InstallBuilder path '{str(install_builder_path)}' must be a directory containing 'bin/builder'."
         )
 
     if license_file and not local_dev_build:
-        shutil.copy(license_file, os.path.join(workdir, "license.xml"))
+        shutil.copy(license_file, Path(workdir) / "license.xml")
 
-    install_builder = os.path.join(install_builder_path, install_builder_config["command"])
-    out_dir = os.path.join(workdir, "out")
+    install_builder = install_builder_path / install_builder_config["command"]
+    out_dir = Path(workdir) / "out"
     installer_version = os.getenv("INSTALLER_VERSION") if not local_dev_build else "00000000"
     date = datetime.today().date()
 
@@ -173,7 +142,7 @@ def build_installer(
         [
             install_builder,
             "build",
-            os.path.join(INSTALLER_ROOT, INSTALLER_TEMPLATE),
+            INSTALLER_ROOT / INSTALLER_TEMPLATE,
             platform,
             "--setvars",
             f"project.outputDirectory={out_dir}",
@@ -203,15 +172,17 @@ def build_installer(
     return out_dir
 
 
-def dev_create_dcc_component(workdir: tempfile.TemporaryDirectory, dcc_component: DccSubmitter):
+def dev_create_dcc_component(
+    workdir: tempfile.TemporaryDirectory, dcc_component: DccSubmitter
+) -> None:
     """
     Creates artifacts locally
     """
     # Clone dcc component by copying it into the working directory & allowing the dependency bundle script to be executed
     repo_dir = f"{workdir}/{dcc_component.componentName}"
-    source_folder = Path(os.path.abspath(__file__)).parent.parent
+    source_folder = Path(__file__).absolute().parent.parent
     shutil.copytree(source_folder, repo_dir, dirs_exist_ok=True)
-    bundle_file = Path(os.path.join(repo_dir, "depsBundle.sh"))
+    bundle_file = Path(repo_dir) / "depsBundle.sh"
     bundle_file.chmod(bundle_file.stat().st_mode | stat.S_IEXEC)
     subprocess.run(str(bundle_file))
 
@@ -253,8 +224,9 @@ def main():
 
     parser.add_argument(
         "--install-builder-location",
-        help="The InstallBuilder location, containing 'bin/builder'. Leave this blank to look for a Professional edition installation in the default location.",
-        default=get_default_installbuilder_location(),
+        help="The InstallBuilder location, containing 'bin/builder'.",
+        required=True,
+        type=Path,
     )
 
     parser.add_argument(
@@ -269,18 +241,18 @@ def main():
         "--no-cleanup",
         dest="cleanup",
         action="store_false",
-        help=("Do not delete the build components folder after completion."),
+        help="Do not delete the build components folder after completion.",
     )
     parser.add_argument(
         "--platform",
         required=True,
-        help="The platform to build an installer for",
-        choices=("windows-x64", "linux-x64", "osx"),
+        help="The platform to build an installer for. See the InstallBuilder documentation for a full list of allowed platforms.",
     )
     parser.add_argument(
         "--output-dir",
         required=False,
         default=None,
+        type=Path,
         help="The directory to create the installer in. Default is the current directory.",
     )
     args = parser.parse_args()
