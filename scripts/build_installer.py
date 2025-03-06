@@ -196,7 +196,89 @@ class RequiredArg(NamedTuple):
     attr: str
 
 
-def main():
+def main(args: argparse.Namespace) -> None:
+
+    dcc_submitter = DccSubmitter(name=args.dcc_name)
+    if not args.local_dev_build:
+        missing_args = []
+        for required_arg in prod_required_args:
+            if getattr(args, required_arg.attr) is None:
+                missing_args.append(required_arg.argument)
+        if missing_args:
+            parser.error(
+                "the following arguments are required for non-dev builds: "
+                f"{', '.join(missing_args)}\n"
+            )
+    else:
+        if os.environ.get("CODEBUILD_BUILD_ID") is not None:
+            parser.error("--local-dev-build cannot be used when running in CodeBuild.")
+    with tempfile.TemporaryDirectory() as workdir:
+        print(f"cwd: {Path.cwd()}")
+        print(f"working directory: {workdir})")
+        components_dir = INSTALLER_ROOT / "components"
+        components_dir.mkdir(exist_ok=True)
+        if args.local_dev_build:
+            dev_create_dcc_component(workdir, dcc_submitter)
+
+        src_component_path = f"{workdir}/{dcc_submitter.componentName}"
+        dst_component_path = Path(components_dir) / dcc_submitter.componentName
+        if Path(dst_component_path).exists():
+            shutil.rmtree(dst_component_path, onerror=_add_write_perms)
+        shutil.copytree(src_component_path, dst_component_path)
+
+        try:
+            installer_dir = build_installer(
+                workdir=workdir,
+                license_file=(
+                    args.install_builder_license_file
+                    if args.install_builder_license_file != "NO_LICENSE"
+                    else None
+                ),
+                install_builder_location=args.install_builder_location,
+                platform=args.platform,
+                local_dev_build=args.local_dev_build,
+                s3bucket=args.install_builder_s3_bucket,
+            )
+        except Exception as e:
+            if args.cleanup:
+                shutil.rmtree(components_dir, onerror=_add_write_perms)
+            raise e
+
+        # There are three possible extensions for built installers, depending on the platform.
+        # See `platform_exec_suffix` in https://releases.installbuilder.com/installbuilder/docs/installbuilder-userguide.html#built_in_variables
+        if args.platform == "osx":
+            installer_extension = "app"
+        elif args.platform.startswith("windows"):
+            installer_extension = "exe"
+        else:
+            installer_extension = "run"
+        installer_filename = INSTALLER_FILENAME_TEMPLATE.format(
+            platform=args.platform, ext=installer_extension
+        )
+        installer_path = Path(installer_dir) / installer_filename
+
+        # The macOS .app installer will always be a directory, not a file.
+        # Other OS installers will be files.
+        if not installer_path.is_dir() if args.platform == "osx" else not installer_path.is_file():
+            raise FileNotFoundError(
+                f"Expected installer file {installer_filename} not found in {installer_dir}.\n"
+                f"Found:\n\t{os.linesep.join(installer_dir.iterdir())}"
+            )
+
+        output_path = installer_filename
+        if args.output_dir:
+            args.output_dir.mkdir(exist_ok=True)
+            output_path = args.output_dir / output_path
+        if platform.system() == "Darwin" and Path(output_path).exists():
+            shutil.rmtree(output_path, onerror=prod_required_args)
+        shutil.move(installer_path, output_path)
+
+        if args.cleanup:
+            shutil.rmtree(components_dir, onerror=_add_write_perms)
+            print(f"Deleted build directory: {components_dir}")
+
+
+if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     prod_required_args: List[RequiredArg] = []
 
@@ -256,80 +338,4 @@ def main():
         help="The directory to create the installer in. Default is the current directory.",
     )
     args = parser.parse_args()
-    dcc_submitter = DccSubmitter(name=args.dcc_name)
-    if not args.local_dev_build:
-        missing_args = []
-        for required_arg in prod_required_args:
-            if getattr(args, required_arg.attr) is None:
-                missing_args.append(required_arg.argument)
-        if missing_args:
-            parser.error(
-                "the following arguments are required for non-dev builds: "
-                f"{', '.join(missing_args)}\n"
-            )
-    else:
-        if os.environ.get("CODEBUILD_BUILD_ID") is not None:
-            parser.error("--local-dev-build cannot be used when running in CodeBuild.")
-    with tempfile.TemporaryDirectory() as workdir:
-        run("python -m pip install --upgrade pip")
-        print(f"cwd: {os.getcwd()}")
-        print(f"working directory: {workdir})")
-        components_dir = os.path.join(INSTALLER_ROOT, "components")
-        os.makedirs(components_dir, exist_ok=True)
-        if args.local_dev_build:
-            dev_create_dcc_component(workdir, dcc_submitter)
-
-        src_component_path = f"{workdir}/{dcc_submitter.componentName}"
-        dst_component_path = os.path.join(components_dir, dcc_submitter.componentName)
-        if os.path.exists(dst_component_path):
-            shutil.rmtree(dst_component_path, onerror=_add_write_perms)
-        shutil.copytree(src_component_path, dst_component_path)
-
-        try:
-            installer_dir = build_installer(
-                workdir=workdir,
-                license_file=(
-                    args.install_builder_license_file
-                    if args.install_builder_license_file != "NO_LICENSE"
-                    else None
-                ),
-                install_builder_location=args.install_builder_location,
-                platform=args.platform,
-                local_dev_build=args.local_dev_build,
-                s3bucket=args.install_builder_s3_bucket,
-            )
-        except Exception as e:
-            if args.cleanup:
-                shutil.rmtree(components_dir, onerror=_add_write_perms)
-            raise e
-
-        installer_filename = INSTALLER_FILENAMES[args.platform]
-        installer_path = os.path.join(installer_dir, installer_filename)
-
-        # The macOS .app installer will always be a directory, not a file.
-        # Other OS installers will be files.
-        if (
-            not os.path.isdir(installer_path)
-            if args.platform == "osx"
-            else not os.path.isfile(installer_path)
-        ):
-            raise FileNotFoundError(
-                f"Expected installer file {installer_filename} not found in {installer_dir}.\n"
-                f"Found:\n\t{os.linesep.join(os.listdir(installer_dir))}"
-            )
-
-        output_path = installer_filename
-        if args.output_dir:
-            os.makedirs(args.output_dir, exist_ok=True)
-            output_path = os.path.join(args.output_dir, output_path)
-        if sys.platform.startswith("darwin") and os.path.exists(output_path):
-            shutil.rmtree(output_path, onerror=prod_required_args)
-        shutil.move(installer_path, output_path)
-
-        if args.cleanup:
-            shutil.rmtree(components_dir, onerror=_add_write_perms)
-            print(f"Deleted build directory: {components_dir}")
-
-
-if __name__ == "__main__":
-    main()
+    main(args)
