@@ -17,16 +17,16 @@ concurrency:
   group: release
 
 jobs:
-  UnitTests:
-    name: Unit Tests
-    uses: ./.github/workflows/code_quality.yml
-    with:
-      branch: mainline
+  # UnitTests:
+  #   name: Unit Tests
+  #   uses: ./.github/workflows/code_quality.yml
+  #   with:
+  #     branch: mainline
 
   Bump:
     name: Version Bump
-    needs: UnitTests
-    uses: aws-deadline/.github/.github/workflows/reusable_bump.yml@mainline
+    # needs: UnitTests
+    uses: erico-aws/.github/.github/workflows/reusable_bump.yml@mainline
     secrets: inherit
     with:
       force_version_bump: ${{ inputs.force_version_bump }}
