@@ -79,34 +79,12 @@ class DccSubmitter(NamedTuple):
         return f"deadline-cloud-for-{self.name}"
 
 
-class BadRCError(Exception):
-    pass
-
-
 class EvaluationBuildError(Exception):
+    """
+    Raised when an evaluation build of InstallBuilder is detected where it should not be used.
+    """
+
     pass
-
-
-def run(cmd, cwd=None, env=None, echo=True):
-    if echo:
-        sys.stdout.write(f"Running cmd: {cmd}\n")
-    kwargs = {
-        "shell": True,
-        "stdout": subprocess.PIPE,
-        "stderr": subprocess.PIPE,
-    }
-    if isinstance(cmd, list):
-        kwargs["shell"] = False
-    if cwd is not None:
-        kwargs["cwd"] = cwd
-    if env is not None:
-        kwargs["env"] = env
-    p = subprocess.Popen(cmd, **kwargs)
-    stdout, stderr = p.communicate()
-    output = stdout.decode("utf-8") + stderr.decode("utf-8")
-    if p.returncode != 0:
-        raise BadRCError(f"Bad rc ({p.returncode}) for cmd '{cmd}': {output}")
-    return output
 
 
 def download_from_s3(bucket_name, key, output_folder):
@@ -189,7 +167,9 @@ def build_installer(
     out_dir = os.path.join(workdir, "out")
     installer_version = os.getenv("INSTALLER_VERSION") if not local_dev_build else "00000000"
     date = datetime.today().date()
-    output = run(
+
+    print("Running Install Builder...")
+    output = subprocess.run(
         [
             install_builder,
             "build",
@@ -198,19 +178,24 @@ def build_installer(
             "--setvars",
             f"project.outputDirectory={out_dir}",
             f"project.version={installer_version[:8]}-{date}",
-        ]
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
     )
-    sys.stdout.write(
+    print(
         f"{'-'*30}\nBegin Install Builder Output\n{'-'*30}\n"
-        f"{output}\n"
+        f"{output.stdout}"
         f"{'-'*30}\nEnd Install Builder Output\n{'-'*30}\n"
     )
 
-    if EVALUATION_VERSION_STRING in output and not local_dev_build:
-        raise EvaluationBuildError("InstallBuilder was detected using an evaluation version.")
-    elif local_dev_build and EVALUATION_VERSION_STRING not in output:
+    if EVALUATION_VERSION_STRING in output.stdout and not local_dev_build:
         raise EvaluationBuildError(
-            "InstallBuilder was not detected using an evaluation version when running a dev build. "
+            "InstallBuilder was detected using an evaluation version, which is only permitted in local dev builds."
+        )
+    elif local_dev_build and EVALUATION_VERSION_STRING not in output.stdout:
+        print(
+            "WARNING: InstallBuilder was not detected using an evaluation version when running a dev build. "
             "This could indicate that the error messaging when using an evaluation version has changed.\n"
             "Please check the InstallBuilder logs to confirm if the error messaging has changed from "
             f"'{EVALUATION_VERSION_STRING}' and update the install_builder.py script accordingly."
@@ -228,7 +213,7 @@ def dev_create_dcc_component(workdir: tempfile.TemporaryDirectory, dcc_component
     shutil.copytree(source_folder, repo_dir, dirs_exist_ok=True)
     bundle_file = Path(os.path.join(repo_dir, "depsBundle.sh"))
     bundle_file.chmod(bundle_file.stat().st_mode | stat.S_IEXEC)
-    run(str(bundle_file))
+    subprocess.run(str(bundle_file))
 
 
 class RequiredArg(NamedTuple):
