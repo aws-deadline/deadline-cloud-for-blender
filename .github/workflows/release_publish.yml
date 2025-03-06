@@ -12,6 +12,12 @@ concurrency:
   group: release
 
 jobs:
+  UnitTests:
+    name: Unit Tests
+    uses: ./.github/workflows/code_quality.yml
+    with:
+      branch: mainline
+      
   Publish:
     name: Publish Release
     permissions:
