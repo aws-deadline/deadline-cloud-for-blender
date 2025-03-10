@@ -10,7 +10,12 @@ from tempfile import TemporaryDirectory
 from typing import Any
 
 SUPPORTED_PYTHON_VERSIONS = ["3.10", "3.11"]
-SUPPORTED_PLATFORMS = ["win_amd64", "manylinux2014_x86_64", "macosx_10_9_x86_64"]
+SUPPORTED_PLATFORMS = [
+    "win_amd64",
+    "manylinux2014_x86_64",
+    "macosx_10_9_x86_64",
+    "macosx_11_0_arm64",
+]
 NATIVE_DEPENDENCIES = ["xxhash"]
 
 

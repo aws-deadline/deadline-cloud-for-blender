@@ -16,6 +16,10 @@ dependency_bundle/
 dist/
 plugin_env/
 wheels/
+installer/components/
+
+# License file for InstallBuilder
+license.xml
 
 *.egg-info/
 __pycache__/
@@ -24,9 +28,11 @@ __pycache__/
 .tox
 
 # misc extensions that might pop up
-.run
-.exe
-.zip
+*.run
+*.exe
+*.zip
+*.app
+*.dmg
 
 # virtualenv
 .venv
