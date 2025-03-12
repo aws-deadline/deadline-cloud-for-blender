@@ -20,4 +20,4 @@ runs:
     - name: Build Blender add-on and extension respository index
       shell: bash
       run: |
-        python buildAddon.py --version ${{ inputs.semver }}
+        hatch run build-addon --version ${{ inputs.semver }}

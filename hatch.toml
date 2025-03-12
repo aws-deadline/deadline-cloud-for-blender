@@ -21,6 +21,7 @@ lint = [
 ]
 build-installer = "python {root}/scripts/build_installer.py --dcc-name blender --dcc-installer-file {root}/installer/DeadlineCloudForBlenderSubmitter.xml {args:}"
 test-installer = "pytest --no-cov {args:test/installer} -vvv --numprocesses=1"
+build-addon = "python scripts/build_addon.py {args}"
 
 [[envs.all.matrix]]
 python = ["3.9", "3.10", "3.11", "3.12"]
