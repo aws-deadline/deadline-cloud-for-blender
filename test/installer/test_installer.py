@@ -60,11 +60,11 @@ def test_install(installed: Path):
         uninstaller = "uninstall.exe"
     else:
         uninstaller = "uninstall"
-    python_dir = installed / "Submitters" / "Blender" / "python"
+    python_dir = installed / "python"
 
     # THEN
     top_level_dir = [f.name for f in installed.iterdir()]
-    assert "Submitters" in top_level_dir
+    assert python_dir.name in top_level_dir
     assert "installer_version.txt" in top_level_dir
     assert uninstaller in top_level_dir
 

@@ -172,21 +172,6 @@ def build_installer(
     return out_dir
 
 
-def dev_create_dcc_component(
-    workdir: tempfile.TemporaryDirectory, dcc_component: DccSubmitter
-) -> None:
-    """
-    Creates artifacts locally
-    """
-    # Clone dcc component by copying it into the working directory & allowing the dependency bundle script to be executed
-    repo_dir = f"{workdir}/{dcc_component.componentName}"
-    source_folder = Path(__file__).absolute().parent.parent
-    shutil.copytree(source_folder, repo_dir, dirs_exist_ok=True)
-    bundle_file = Path(repo_dir) / "depsBundle.sh"
-    bundle_file.chmod(bundle_file.stat().st_mode | stat.S_IEXEC)
-    subprocess.run(str(bundle_file), check=True)
-
-
 class RequiredArg(NamedTuple):
     """
     Structure to represent a required CLI argument. Used to provide better error messaging.
@@ -198,7 +183,6 @@ class RequiredArg(NamedTuple):
 
 def main(args: argparse.Namespace) -> None:
 
-    dcc_submitter = DccSubmitter(name=args.dcc_name)
     if not args.local_dev_build:
         missing_args = []
         for required_arg in prod_required_args:
@@ -217,14 +201,20 @@ def main(args: argparse.Namespace) -> None:
         print(f"working directory: {workdir})")
         components_dir = INSTALLER_ROOT / "components"
         components_dir.mkdir(exist_ok=True)
-        if args.local_dev_build:
-            dev_create_dcc_component(workdir, dcc_submitter)
 
-        src_component_path = f"{workdir}/{dcc_submitter.componentName}"
-        dst_component_path = Path(components_dir) / dcc_submitter.componentName
-        if Path(dst_component_path).exists():
-            shutil.rmtree(dst_component_path, onerror=_add_write_perms)
-        shutil.copytree(src_component_path, dst_component_path)
+        if components_dir.exists():
+            shutil.rmtree(components_dir, onerror=_add_write_perms)
+        src_component_path = Path("./install_builder")
+        shutil.copytree(src_component_path, components_dir)
+
+        bundle_file = Path(shutil.copy("depsBundle.sh", f"{components_dir}/depsBundle.sh"))
+        shutil.copy("depsBundle.py", f"{components_dir}/depsBundle.py")
+        bundle_file.chmod(bundle_file.stat().st_mode | stat.S_IEXEC)
+        try:
+            subprocess.run(str(bundle_file), check=True)
+        except subprocess.CalledProcessError as e:
+            print(f"Encountered the following error when bundling dependencies: {e.output}")
+            raise
 
         try:
             installer_dir = build_installer(

@@ -20,7 +20,7 @@
             <platforms>all</platforms>
             <distributionFileList>
                 <distributionDirectory allowWildcards="1">
-                    <origin>components/deadline-cloud-for-blender/src/deadline/blender_submitter/addons/*</origin>
+                    <origin>../src/deadline/blender_submitter/addons/*</origin>
                     <excludeFiles>*/install_builder</excludeFiles>
                 </distributionDirectory>
             </distributionFileList>
@@ -32,7 +32,7 @@
             <platforms>all</platforms>
             <distributionFileList>
                 <distributionDirectory allowWildcards="1">
-                    <origin>components/deadline-cloud-for-blender/dependency_bundle</origin>
+                    <origin>../dependency_bundle</origin>
                 </distributionDirectory>
             </distributionFileList>
         </folder>
