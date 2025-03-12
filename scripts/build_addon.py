@@ -116,7 +116,9 @@ files = "Read related assets"
                             "license": ["SPDX:Apache-2.0"],
                             "blender_version_min": "4.2.0",
                             "website": "https://github.com/aws-deadline/deadline-cloud-for-blender",
-                            "copyright": ["2025 Amazon Web Services"],
+                            "copyright": [
+                                "Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved."
+                            ],
                             "permissions": {
                                 "network": "Connect to AWS Deadline Cloud and upload assets",
                                 "files": "Read related assets",
