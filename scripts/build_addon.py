@@ -17,7 +17,14 @@ args = parser.parse_args()
 version = args.version or "0.0.0"
 
 
-SUPPORTED_PLATFORMS = ["win_amd64", "manylinux_2_17_x86_64", "macosx_11_0_arm64"]
+SUPPORTED_PLATFORMS = [
+    "win_amd64",
+    "manylinux_2_17_x86_64",
+    "macosx_11_0_arm64",
+    "macosx_10_9_x86_64",
+]
+ADDON_NAME = "Deadline Cloud for Blender"
+ADDON_TAGLINE = "Submit to AWS Deadline Cloud"
 
 with TemporaryDirectory() as temp:
     shutil.copytree(
@@ -61,8 +68,8 @@ with TemporaryDirectory() as temp:
 
 id = "deadline_cloud"
 version = "{version}"
-name = "AWS Deadline Cloud"
-tagline = "Submit jobs to AWS Deadline Cloud"
+name = "{ADDON_NAME}"
+tagline = "{ADDON_TAGLINE}"
 maintainer = "AWS"
 type = "add-on"
 website = "https://github.com/aws-deadline/deadline-cloud-for-blender"
@@ -108,8 +115,8 @@ files = "Read related assets"
                         {
                             "schema_version": "1.0.0",
                             "id": "deadline_cloud",
-                            "name": "AWS Deadline Cloud",
-                            "tagline": "Submit jobs to AWS Deadline Cloud",
+                            "name": ADDON_NAME,
+                            "tagline": ADDON_TAGLINE,
                             "version": version,
                             "type": "add-on",
                             "maintainer": "AWS",
