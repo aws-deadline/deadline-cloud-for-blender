@@ -3,6 +3,7 @@ from collections import defaultdict
 import getpass
 import os
 from pathlib import Path
+import re
 import stat
 import subprocess
 import platform
@@ -179,6 +180,55 @@ def uninstaller_path():
         uninstaller_path = uninstaller_path.with_suffix("exe")
 
     yield uninstaller_path
+
+
+def test_default_location(installer_path: Path):
+    """Ensures that the default output location reported by the installer is accurate.
+       The help text will only show it for the default scope (user). Example help output:
+
+    --prefix <prefix>                           Installation Directory
+                                                Default: /home/<user>/DeadlineCloudForBlenderSubmitter
+    """
+    # GIVEN
+    default_install_location = Path("~/DeadlineCloudForBlenderSubmitter").expanduser()
+    default_pattern = r"Default: (.*)"
+    location = ""
+
+    # WHEN
+    help_result = subprocess.run(
+        [installer_path, "--mode", "text", "--help"], check=True, capture_output=True
+    )
+
+    # THEN
+    assert help_result.returncode == 0
+
+    help_output = iter(help_result.stdout.decode("utf-8").splitlines())
+    while (line := next(help_output, None)) is not None:
+        if line.strip().startswith("--prefix"):
+            location = re.match(default_pattern, next(help_output, "").strip(), flags=re.IGNORECASE)
+            break
+
+    assert (
+        location
+    ), f"Could not find default install location in help output:\n{help_result.stdout.decode('utf-8')}"
+    if platform.system() != "Windows":
+        assert location.group(1) == default_install_location.as_posix()
+    else:
+        assert location.group(1) == str(default_install_location())
+
+
+def test_does_not_use_evaluation_mode(installer_path: Path, tmp_path: Path):
+    """Ensure the installer is not built with the evaluation mode of the installer software"""
+    # GIVEN
+    eval_text = r"Created with an evaluation version of InstallBuilder"
+
+    # WHEN
+    result = subprocess.run(
+        [installer_path, "--mode", "text", "--prefix", tmp_path], check=True, capture_output=True
+    )
+
+    # THEN
+    assert eval_text not in result.stdout.decode("utf-8")
 
 
 @pytest.mark.skipif(platform.system() != "Darwin", reason="Only run on macOS")
