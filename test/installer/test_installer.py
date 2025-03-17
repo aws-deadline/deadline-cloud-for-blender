@@ -217,18 +217,46 @@ def test_default_location(installer_path: Path):
         assert location.group(1) == str(default_install_location())
 
 
-def test_does_not_use_evaluation_mode(installer_path: Path, tmp_path: Path):
-    """Ensure the installer is not built with the evaluation mode of the installer software"""
+def test_did_not_build_with_evaluation_mode(installer_path: Path, tmp_path: Path):
+    """Tests to see if there's an evaluation version header from installbuilder.
+    Should never occur in a production build but is fine when building your own for testing.
+    
+    This is done by launching the installer, exiting before it completes, and checking the output
+    does NOT contain a specific line entry. Unfortunately this is makes the test pretty fragile, but
+    the behaviour has existed for years. If it exists it's expected to be the second line, but we check
+    the top few lines that we're guaranteed to have in case it shifts a tiny bit.
+
+    note: tmp_path is leveraged to ensure that the user's install is not messed with if the test does not
+    behave correctly."""
     # GIVEN
     eval_text = r"Created with an evaluation version of InstallBuilder"
+    output = []
 
     # WHEN
-    result = subprocess.run(
-        [installer_path, "--mode", "text", "--prefix", tmp_path], check=True, capture_output=True
+    proc = subprocess.Popen(
+        [installer_path, "--mode", "text", "--prefix", tmp_path], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
     )
+    
+    try:
+        # We want to fail the installer fast so that it doesn't proceed to install with the defaults
+        proc.wait(0.5)
+    except subprocess.TimeoutExpired as e:
+        # Example header from installbuilder
+        """----------------------------------------------------------------------------
+Created with an evaluation version of InstallBuilder
 
+Welcome to the AWS Deadline Cloud for ... Submitter Setup Wizard.
+
+----------------------------------------------------------------------------
+"""
+        output = [ proc.stdout.readline().strip() for _ in range(6) ]
+    finally:
+        proc.terminate()
+        proc.kill()
+        
     # THEN
-    assert eval_text not in result.stdout.decode("utf-8")
+    for line in output:
+        assert eval_text not in line, "Installer was detected to have been built with Evaluation mode"
 
 
 @pytest.mark.skipif(platform.system() != "Darwin", reason="Only run on macOS")
