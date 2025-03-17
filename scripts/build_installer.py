@@ -218,7 +218,7 @@ def main(args: argparse.Namespace) -> None:
         shutil.copy("depsBundle.py", f"{components_dir}/depsBundle.py")
         bundle_file.chmod(bundle_file.stat().st_mode | stat.S_IEXEC)
         try:
-            subprocess.run(str(bundle_file), check=True)
+            subprocess.run(["bash", bundle_file], check=True)
         except subprocess.CalledProcessError as e:
             print(f"Encountered the following error when bundling dependencies: {e.output}")
             raise
