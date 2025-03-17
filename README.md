@@ -30,6 +30,18 @@ This package provides a Blender plugin that creates jobs for AWS Deadline Cloud 
 If you have installed the submitter using the Deadline Cloud submitter installer you can follow the guide to [Setup Deadline Cloud submitters](https://docs.aws.amazon.com/deadline-cloud/latest/userguide/submitter.html#load-dca-plugin) for the manual steps needed after installation.
 
 If you are setting up the submitter for a developer workflow or manual installation you can follow the instructions in the [DEVELOPMENT](https://github.com/aws-deadline/deadline-cloud-for-blender/blob/mainline/DEVELOPMENT.md#manual-installation) file.
+
+#### Experimental: Install and auto-update Blender add-on
+The Blender submitter can be installed and updated within Blender. Requires Blender 4.2 or newer. This add-on and install method are still experimental and may be removed in the future. Use at your own risk.
+1. Open Blender. Click the **Edit** menu then click **Preferences...**. In the **Preferences** window, click on **Get Extensions** on the left side bar. In the top right of the **Preferences** window, click **Repositories**, click the **+** icon, then click **Add Remote Repository**.
+2. Set the **URL** to `https://github.com/aws-deadline/deadline-cloud-for-blender/releases/latest/download/index.json` and check the box for **Check for Updates on Startup**. Click **Create**.
+
+   <img alt="Screenshot of the Blender preferences window with an open pop-up for adding an extension repository" src="./docs/install-01-adding-repo.png" width="300" />
+3. Now, under the **Available** list, there should be an entry for **AWS Deadline Cloud**. Click its **Install** button. A progress bar will track the download then disappear when the installation is complete.
+
+   <img alt="Screenshot of the Blender preferences window with the AWS Deadline Cloud add-on available for installation" src="./docs/install-02-repo-added.png" width="300" />
+3. The add-on is now installed! You can now use the new Submit to AWS Deadline Cloud option in the Render menu. If later there's an update available, an **Update** button will appear next to the **AWS Deadline Cloud** entry in the **Get Extensions** section.
+
 ## Adaptor
 
 The Blender Adaptor implements the [OpenJD][openjd-adaptor-runtime] interface that allows render workloads to launch Blender and feed it commands. This gives the following benefits:

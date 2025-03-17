@@ -9,10 +9,15 @@ inputs:
 runs:
   using: composite
   steps:
-  - name: Zip submitter plugin
-    shell: bash
-    run: |
-      mkdir dist_extras
-      cd src/deadline/blender_submitter/addons
-      zip -r  ../../../../dist_extras/blender_submitter_plugin_${{inputs.semver}}.zip .
-      cd ../../../../
+    - name: Zip submitter plugin
+      shell: bash
+      run: |
+        mkdir -p dist_extras
+        cd src/deadline/blender_submitter/addons
+        zip -r  ../../../../dist_extras/blender_submitter_plugin_${{inputs.semver}}.zip .
+        cd ../../../../
+
+    - name: Build Blender add-on and extension respository index
+      shell: bash
+      run: |
+        hatch run build-addon --version ${{ inputs.semver }}

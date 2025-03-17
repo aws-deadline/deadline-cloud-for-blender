@@ -51,7 +51,7 @@ class DEADLINE_CLOUD_OT_open_dialog(Operator):
             self.install_gui()
 
         from qtpy import QtCore, QtWidgets
-        from deadline_cloud_blender_submitter.open_deadline_cloud_dialog import (
+        from .open_deadline_cloud_dialog import (
             create_deadline_dialog,
         )
 
@@ -108,7 +108,7 @@ class DEADLINE_CLOUD_OT_open_dialog(Operator):
     def has_gui_deps(self):
         try:
             import qtpy  # noqa
-            from deadline_cloud_blender_submitter.open_deadline_cloud_dialog import (  # noqa
+            from .open_deadline_cloud_dialog import (  # noqa
                 create_deadline_dialog,
             )
         except Exception as e:

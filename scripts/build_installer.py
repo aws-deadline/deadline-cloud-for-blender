@@ -82,8 +82,8 @@ class EvaluationBuildError(Exception):
     pass
 
 
-def download_from_s3(bucket_name: str, key: Path, output_folder: Path) -> Path:
-    dest_path = output_folder / key.name
+def download_from_s3(bucket_name: str, key: str, output_folder: str) -> Path:
+    dest_path = Path(output_folder) / Path(key).name
     print(f"Downloading {key} from s3:\\\\{bucket_name}")
     import boto3
 
@@ -124,7 +124,7 @@ def build_installer(
     else:
         install_builder_path = install_builder_location
 
-    if not install_builder_path.is_dir():
+    if not Path(install_builder_path).is_dir():
         raise FileNotFoundError(
             f"InstallBuilder path '{str(install_builder_path)}' must be a directory containing 'bin/builder'."
         )
@@ -138,27 +138,35 @@ def build_installer(
     date = datetime.today().date()
 
     print("Running Install Builder...")
-    output = subprocess.run(
-        [
-            install_builder,
-            "build",
-            INSTALLER_ROOT / INSTALLER_TEMPLATE,
-            platform,
-            "--setvars",
-            f"project.outputDirectory={out_dir}",
-            f"project.version={installer_version[:8]}-{date}",
-        ],
-        check=True,
-        capture_output=True,
-        text=True,
-    )
+    try:
+        output = subprocess.run(
+            [
+                install_builder,
+                "build",
+                INSTALLER_ROOT / INSTALLER_TEMPLATE,
+                platform,
+                "--setvars",
+                f"project.outputDirectory={out_dir}",
+                f"project.version={installer_version[:8]}-{date}",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except subprocess.CalledProcessError as e:
+        print(f"Encountered an error when running: {e.output}")
+        raise
     print(
         f"{'-'*30}\nBegin Install Builder Output\n{'-'*30}\n"
         f"{output.stdout}"
         f"{'-'*30}\nEnd Install Builder Output\n{'-'*30}\n"
     )
 
-    if EVALUATION_VERSION_STRING in output.stdout and not local_dev_build:
+    if (
+        EVALUATION_VERSION_STRING in output.stdout
+        and not local_dev_build
+        and license_file is not None
+    ):
         raise EvaluationBuildError(
             "InstallBuilder was detected using an evaluation version, which is only permitted in local dev builds."
         )
@@ -172,21 +180,6 @@ def build_installer(
     return out_dir
 
 
-def dev_create_dcc_component(
-    workdir: tempfile.TemporaryDirectory, dcc_component: DccSubmitter
-) -> None:
-    """
-    Creates artifacts locally
-    """
-    # Clone dcc component by copying it into the working directory & allowing the dependency bundle script to be executed
-    repo_dir = f"{workdir}/{dcc_component.componentName}"
-    source_folder = Path(__file__).absolute().parent.parent
-    shutil.copytree(source_folder, repo_dir, dirs_exist_ok=True)
-    bundle_file = Path(repo_dir) / "depsBundle.sh"
-    bundle_file.chmod(bundle_file.stat().st_mode | stat.S_IEXEC)
-    subprocess.run(str(bundle_file), check=True)
-
-
 class RequiredArg(NamedTuple):
     """
     Structure to represent a required CLI argument. Used to provide better error messaging.
@@ -198,7 +191,6 @@ class RequiredArg(NamedTuple):
 
 def main(args: argparse.Namespace) -> None:
 
-    dcc_submitter = DccSubmitter(name=args.dcc_name)
     if not args.local_dev_build:
         missing_args = []
         for required_arg in prod_required_args:
@@ -217,14 +209,19 @@ def main(args: argparse.Namespace) -> None:
         print(f"working directory: {workdir})")
         components_dir = INSTALLER_ROOT / "components"
         components_dir.mkdir(exist_ok=True)
-        if args.local_dev_build:
-            dev_create_dcc_component(workdir, dcc_submitter)
 
-        src_component_path = f"{workdir}/{dcc_submitter.componentName}"
-        dst_component_path = Path(components_dir) / dcc_submitter.componentName
-        if Path(dst_component_path).exists():
-            shutil.rmtree(dst_component_path, onerror=_add_write_perms)
-        shutil.copytree(src_component_path, dst_component_path)
+        if components_dir.exists():
+            shutil.rmtree(components_dir, onerror=_add_write_perms)
+        shutil.copytree(INSTALL_BUILDER_PROJECT_ROOT, components_dir)
+
+        bundle_file = Path(shutil.copy("depsBundle.sh", f"{components_dir}/depsBundle.sh"))
+        shutil.copy("depsBundle.py", f"{components_dir}/depsBundle.py")
+        bundle_file.chmod(bundle_file.stat().st_mode | stat.S_IEXEC)
+        try:
+            subprocess.run(str(bundle_file), check=True)
+        except subprocess.CalledProcessError as e:
+            print(f"Encountered the following error when bundling dependencies: {e.output}")
+            raise
 
         try:
             installer_dir = build_installer(
@@ -234,7 +231,11 @@ def main(args: argparse.Namespace) -> None:
                     if args.install_builder_license_file != "NO_LICENSE"
                     else None
                 ),
-                install_builder_location=args.install_builder_location,
+                install_builder_location=(
+                    args.install_builder_location
+                    if args.install_builder_location
+                    else INSTALL_BUILDER["archive"]
+                ),
                 platform=args.platform,
                 local_dev_build=args.local_dev_build,
                 s3bucket=args.install_builder_s3_bucket,
@@ -306,8 +307,7 @@ if __name__ == "__main__":
 
     parser.add_argument(
         "--install-builder-location",
-        help="The InstallBuilder location, containing 'bin/builder'.",
-        required=True,
+        help="The InstallBuilder location, containing 'bin/builder'. Required for local dev builds.",
         type=Path,
     )
 

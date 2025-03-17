@@ -14,6 +14,7 @@ devcontainer/*.env
 build/
 dependency_bundle/
 dist/
+dist_extras/
 plugin_env/
 wheels/
 installer/components/
@@ -48,3 +49,5 @@ venv/
 # Artifacts from integration tests
 *.blend1
 *.deadline_render_settings.json
+
+.DS_Store

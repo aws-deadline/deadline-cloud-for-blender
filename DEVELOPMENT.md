@@ -91,6 +91,17 @@ These instructions make the following assumptions:
     ```
 1. Restart Blender - changes to the script directory won't take effect until Blender has been restarted.
 
+#### Experimental: Build and install a portable Blender add-on
+There's an alternative packaging method for the add-on that's simpler to build and install.
+1. Build the package with `hatch build`
+1. From the repo root, run `hatch run build-addon`. The script will generate a portable Blender add-on under `dist_extras/deadline-cloud-blender-addon.zip`.
+2. Go to Blender, click the Edit menu, select Preferences..., click the Add-ons tab, click the downward facing arrow in the upper right, then click Install from Disk... Select the zip file from the previous step.
+3. The add-on is now installed! You can the new Submit to AWS Deadline Cloud option in the Render menu.
+
+The `script/build_addon.py` script enables the add-on to be installed and updated inside Blender. The script generates a native Blender add-on `deadline-cloud-blender-addon.zip` which is a zip file with a specific structure. The zip contains a `blender_manifest.toml` file which describes the plug-in and a `wheels/` directory that contains the submitter dependencies. In addition to add-on itself, the script generates an `index.json` file which is a Blender extensions repository index. The index describes the available add-ons and where to download them. If the the addon and index are hosted on the web and if the index's URL is added to Blender as an extensions repository, Blender will present the add-on in the list of installable extensions.
+
+See [Blender's extension docs](https://docs.blender.org/manual/en/latest/advanced/extensions/getting_started.html) for more detail. See the README.md for instructions on using this repo's releases as a Blender extension repository.
+
 #### Usage
 
 This repository comes with the addon: `deadline_cloud_blender_submitter`
