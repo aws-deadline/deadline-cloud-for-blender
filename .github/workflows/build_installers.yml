@@ -3,7 +3,7 @@ name: "Build Installers"
 on:
   workflow_dispatch:
     inputs:
-      branch:
+      tag:
         required: true
         type: string
 
@@ -11,24 +11,9 @@ jobs:
   BuildLinuxInstaller:
     if: (github.repository == 'aws-deadline/deadline-cloud-for-blender')
     name: Build Linux Installer
-    runs-on: ubuntu-latest
-    environment: ${{inputs.environment}}
-    permissions:
-      id-token: write
-      contents: read
-    steps:
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_CODEBUILD_MAINLINE_INSTALLER_ROLE }}
-          aws-region: us-west-2
-          mask-aws-account-id: true
-          role-duration-seconds: 3600
-        
-      - name: Build Linux Installer
-        uses: aws-actions/aws-codebuild-run-build@v1
-        with:
-          project-name: deadline-cloud-for-blender-LinuxInstaller
-          source-version-override: ${{inputs.branch}}
-          hide-cloudwatch-logs: true
+    uses: aws-deadline/.github/.github/workflows/reusable_build_installers.yml@mainline
+    secrets: inherit
+    with:
+      environment: ${{inputs.environment}}
+      tag: ${{inputs.tag}}
+      oses: "['Linux']"
