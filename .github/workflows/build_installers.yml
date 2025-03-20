@@ -3,17 +3,35 @@ name: "Build Installers"
 on:
   workflow_dispatch:
     inputs:
-      tag:
+      os:
+        required: true
+        default: Linux
+        type: choice
+        options:
+        - Linux
+        - Windows
+      ref_type:
+        required: true
+        default: tags
+        type: choice
+        options:
+        - tags
+        - heads
+
+      ref:
         required: true
         type: string
+        default: mainline
 
 jobs:
-  BuildLinuxInstaller:
+  BuildInstaller:
     if: (github.repository == 'aws-deadline/deadline-cloud-for-blender')
-    name: Build Linux Installer
+    name: Build Installer
     uses: aws-deadline/.github/.github/workflows/reusable_build_installers.yml@mainline
     secrets: inherit
     with:
       environment: ${{inputs.environment}}
-      tag: ${{inputs.tag}}
-      oses: "['Linux']"
+      ref_type: ${{inputs.ref_type}}
+      ref: ${{inputs.ref}}
+      oses: "['${{inputs.os}}']"
+      project_name: "deadline-cloud-for-blender"

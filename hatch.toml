@@ -6,6 +6,7 @@ pre-install-commands = [
 [envs.default.scripts]
 sync = "pip install -r requirements-testing.txt"
 test = "pytest --cov-config pyproject.toml {args:test/unit}"
+test-installer = "pytest --no-cov {args:test/installer} -vvv"
 typing = "mypy {args:src test}"
 style = [
   "ruff check {args:.}",
@@ -19,8 +20,7 @@ lint = [
   "style",
   "typing",
 ]
-build-installer = "python {root}/scripts/build_installer.py --dcc-name blender --dcc-installer-file {root}/installer/DeadlineCloudForBlenderSubmitter.xml {args:}"
-test-installer = "pytest --no-cov {args:test/installer} -vvv"
+
 build-addon = "python scripts/build_addon.py {args}"
 
 [[envs.all.matrix]]
@@ -29,6 +29,9 @@ python = ["3.9", "3.10", "3.11", "3.12"]
 [envs.default.env-vars]
 SKIP_BOOTSTRAP_TEST_RESOURCES="True"
 DEADLINE_ENABLE_DEVELOPER_OPTIONS="True"
+
+[envs.installer.scripts]
+build-installer = "python {root}/scripts/build_installer_cli.py --installer-source-path {root}/installer/DeadlineCloudForBlenderSubmitter.xml {args:}"
 
 [envs.codebuild.scripts]
 build = "hatch build"

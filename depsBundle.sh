@@ -1,4 +1,9 @@
 #!/bin/bash
+
+# This script is called in a shell subprocess.
+# If editing this script, please see the security considerations
+# of this invocation method:
+# https://docs.python.org/3/library/subprocess.html#security-considerations
 set -xeuo pipefail
 
 python3 depsBundle.py

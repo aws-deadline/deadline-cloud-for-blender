@@ -134,7 +134,7 @@
 
     <componentList>
         <include>
-            <file>components/deadline-cloud-for-blender.xml</file>
+            <file>../install_builder/deadline-cloud-for-blender.xml</file>
         </include>
     </componentList>
 

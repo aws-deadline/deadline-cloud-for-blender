@@ -1,341 +1,199 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
-"""Script to create platform-specific Deadline submission installers"""
-import argparse
+"""Script to create platform-specific Deadline Client installers using InstallBuilder."""
+
 import os
 import platform
-import shutil
-import stat
 import subprocess
+import sys
+import shutil
 import tempfile
 from datetime import datetime
+from typing import Optional
 from pathlib import Path
-from typing import List, NamedTuple, Optional
 
-# If the InstallBuilder version is being changed, please ensure the archives are in a "flattened" structure.
-#
-# The InstallBuilder archives listed below must be in a "flattened" file structure, where the
-# actual install files are at the root of the archive. The structure of the root of the archive
-# should contain the following: (relevant output from `ls -l`)
-# drwxr-xr-x autoupdate
-# drwxr-xr-x bin
-# drwxr-xr-x demo
-# drwxr-xr-x docs
-# drwxr-xr-x output
-# drwxr-xr-x paks
-# drwxr-xr-x projects
-# drwxr-xr-x tools
-# -rwx------ uninstall (.app folder on Mac, .exe on Windows)
-#
-# Since the BitRock license ("license.xml" file) needs to be put at the root of the InstallBuilder
-# installation folder, having a flattened structure makes this location consistent across platforms.
-# See https://installbuilder.com/docs/installbuilder-userguide/_installation_and_getting_started.html
-#
-# For example, the InstallBuilder 19.8.0 archives originally had the installation files one folder deeper
-# from the root of the archive for Windows and Linux:
-# - Windows: <archive-root>/BitRock InstallBuilder Professional 19.8.0/<files>
-# - Linux: <archive-root>/installbuilder-19.8.0/<files>
-# - Mac: <archive-root>/<files>
-# In this case, the Windows and Linux archives were changed to be "flattened" like the Mac one above.
-INSTALL_BUILDER = {
-    "archive": "install_builder/VMware-InstallBuilder-Professional-linux.tar.gz",
-    "command": Path("bin") / "builder",
-}
+from common import EvaluationBuildError, run
+from find_installbuilder import InstallBuilderSelection
 
-# This is derived from <installerFilename> in DeadlineCloudForBlenderSubmitter.xml
+# This is derived from <installerFilename> in installer/DeadlineCloudClient.xml
 # See "Supported Platforms" table in https://releases.installbuilder.com/installbuilder/docs/installbuilder-userguide.html
-INSTALLER_FILENAME_TEMPLATE = "DeadlineCloudForBlenderSubmitter-{platform}-installer.{ext}"
-
-# This is the directory containing the InstallBuilder root .xml component.
-# All file paths in the InstallBuilder component files are relative to this directory
-INSTALL_BUILDER_PROJECT_ROOT = Path(__file__).absolute().parent.parent / "install_builder"
-INSTALLER_ROOT = Path(__file__).absolute().parent.parent / "installer"
-INSTALLER_TEMPLATE = "DeadlineCloudForBlenderSubmitter.xml"
+INSTALLER_FILENAMES = {
+    "Windows": "DeadlineCloudForBlenderSubmitter-windows-x64-installer.exe",
+    "Linux": "DeadlineCloudForBlenderSubmitter-linux-x64-installer.run",
+    "MacOS": "DeadlineCloudForBlenderSubmitter-osx-installer.app",
+}
 EVALUATION_VERSION_STRING = "Built with an evaluation version of InstallBuilder"
 
 
-class DccSubmitter(NamedTuple):
+def setup_install_builder(
+    workdir: Path,
+    install_builder_location: Optional[Path],
+    license_file_path: Optional[Path],
+    install_builder_s3_bucket: Optional[str] = None,
+    install_builder_s3_key: Optional[str] = None,
+) -> Path:
     """
-    A structure representing the parameters for integrating a DCC submitter into the InstallBuilder
-    project.
+    Ensure installbuilder is installed in some way and return the path
+    to the installation directory.
+    The method of installing/finding installbuilder is based on the inputs:
+        - If `install_builder_location` is provided, look for an installbuilder installation at that path
+        - Else if `install_builder_s3_bucket` is provided, attempt to download and unpack install builder from that bucket
+        - Else search for it at the default installation path (handy for dev mode)
     """
-
-    name: str
-    """
-    The name of the DCC application this submitter is for.
-    """
-
-    @property
-    def componentName(self) -> str:
-        """
-        The component name that corresponds to a subdirectory of 'components' subdir
-        of the InstallBuilder project file's directory. By convention, this should
-        match the submitter's repository name.
-        """
-        return f"deadline-cloud-for-{self.name}"
-
-
-class EvaluationBuildError(Exception):
-    """
-    Raised when an evaluation build of InstallBuilder is detected where it should not be used.
-    """
-
-    pass
-
-
-def download_from_s3(bucket_name: str, key: str, output_folder: str) -> Path:
-    dest_path = Path(output_folder) / Path(key).name
-    print(f"Downloading {key} from s3:\\\\{bucket_name}")
-    import boto3
-
-    s3 = boto3.client("s3")
-    s3.download_file(bucket_name, key, dest_path)
-    return dest_path
-
-
-def _add_write_perms(func, path, exc_info) -> None:
-    """
-    Used as an error callback in `shutil.rmtree` to address an AccessDenied error that occurs on Windows.
-    If a directory fails to delete, attempt to add write permissions to it and try again.
-    Re-raise the error if it persists.
-    """
-
-    if not os.access(path, os.W_OK):
-        os.chmod(path, stat.S_IWUSR)
-        func(path)
+    if install_builder_location is not None:
+        selection = InstallBuilderSelection.from_path(install_builder_location)
+    elif install_builder_s3_bucket is not None:
+        selection = InstallBuilderSelection.from_s3(
+            install_builder_s3_bucket, workdir, install_builder_s3_key
+        )
     else:
-        raise
+        selection = InstallBuilderSelection.from_search()
+
+    install_builder_path = selection.resolve_install_builder_installation(workdir)
+
+    if platform.system() == "Windows":
+        binary_name = "builder.exe"
+    else:
+        binary_name = "builder"
+
+    if (
+        not install_builder_path.is_dir()
+        or not (install_builder_path / "bin" / binary_name).is_file()
+    ):
+        raise FileNotFoundError(
+            f"InstallBuilder path '{install_builder_path}' must be a directory containing 'bin/{binary_name}'."
+        )
+
+    if license_file_path is not None:
+        shutil.copy(license_file_path, install_builder_path / "license.xml")
+
+    return install_builder_path
 
 
 def build_installer(
     workdir: Path,
-    license_file: str,
+    component_file_path: Path,
     install_builder_location: Path,
-    platform: str,
-    local_dev_build: bool,
-    s3bucket: Optional[str],
+    installer_platform: str,
+    dev: bool,
 ) -> Path:
-    install_builder_config = INSTALL_BUILDER
-    if not local_dev_build:
-        install_builder_archive = download_from_s3(
-            s3bucket, install_builder_config["archive"], workdir
-        )
-        shutil.unpack_archive(install_builder_archive, workdir)
-        install_builder_path = workdir
-    else:
-        install_builder_path = install_builder_location
-
-    if not Path(install_builder_path).is_dir():
+    """
+    Actually build the installer
+    """
+    if install_builder_location is None:
         raise FileNotFoundError(
-            f"InstallBuilder path '{str(install_builder_path)}' must be a directory containing 'bin/builder'."
+            "Could not find a default InstallBuilder path. Please specify one with '--install-builder-location'."
         )
 
-    if license_file and not local_dev_build:
-        shutil.copy(license_file, Path(workdir) / "license.xml")
+    if not install_builder_location.is_dir():
+        raise FileNotFoundError(
+            f"InstallBuilder path '{install_builder_location}' must be a directory containing 'bin/builder'."
+        )
 
-    install_builder = install_builder_path / install_builder_config["command"]
-    out_dir = Path(workdir) / "out"
-    installer_version = os.getenv("INSTALLER_VERSION") if not local_dev_build else "00000000"
-    date = datetime.today().date()
+    if installer_platform == "Linux":
+        installbuilder_platform = "linux-x64"
+    elif installer_platform == "MacOS":
+        installbuilder_platform = "osx"
+    elif installer_platform == "Windows":
+        installbuilder_platform = "windows-x64"
+    else:
+        raise ValueError(f"Unknown platform '{installer_platform}'")
 
-    print("Running Install Builder...")
     try:
-        output = subprocess.run(
-            [
-                install_builder,
-                "build",
-                INSTALLER_ROOT / INSTALLER_TEMPLATE,
-                platform,
-                "--setvars",
-                f"project.outputDirectory={out_dir}",
-                f"project.version={installer_version[:8]}-{date}",
-            ],
-            check=True,
-            capture_output=True,
-            text=True,
-        )
+        if platform.system() == "Windows":
+            # `shell=True` is necessary here to run on Windows.
+            # Please see the security considerations of this flag if editing the script or its invocation:
+            # https://docs.python.org/3/library/subprocess.html#security-considerations
+            deps_bundle_output = subprocess.run(
+                "depsBundle.sh", check=True, shell=True, capture_output=True
+            )
+        else:
+            deps_bundle_output = subprocess.run("./depsBundle.sh", check=True, capture_output=True)
+        print(deps_bundle_output.stdout.decode("utf-8"))
     except subprocess.CalledProcessError as e:
-        print(f"Encountered an error when running: {e.output}")
+        print(f"Error when bundling dependencies: {e.stdout.decode('utf-8')}")
         raise
-    print(
-        f"{'-'*30}\nBegin Install Builder Output\n{'-'*30}\n"
-        f"{output.stdout}"
-        f"{'-'*30}\nEnd Install Builder Output\n{'-'*30}\n"
+
+    install_builder_cli = install_builder_location / "bin" / "builder"
+    out_dir = workdir / "out"
+    installer_version = os.getenv("INSTALLER_VERSION") if not dev else "00000000"
+    if installer_version is None:
+        raise ValueError("INSTALLER_VERSION environment variable must be set.")
+    output = run(
+        [
+            install_builder_cli,
+            "build",
+            str(component_file_path),
+            installbuilder_platform,
+            "--setvars",
+            f"project.outputDirectory={out_dir}",
+            f"project.version={installer_version[:8]}-{datetime.today().date()}",
+        ]
+    )
+    sys.stdout.write(
+        f"{'-' * 30}\nBegin Install Builder Output\n{'-' * 30}\n"
+        f"{output}\n"
+        f"{'-' * 30}\nEnd Install Builder Output\n{'-' * 30}\n"
     )
 
-    if (
-        EVALUATION_VERSION_STRING in output.stdout
-        and not local_dev_build
-        and license_file is not None
-    ):
+    if EVALUATION_VERSION_STRING in output and not dev:
+        raise EvaluationBuildError("InstallBuilder was detected using an evaluation version.")
+    elif dev and EVALUATION_VERSION_STRING not in output:
         raise EvaluationBuildError(
-            "InstallBuilder was detected using an evaluation version, which is only permitted in local dev builds."
-        )
-    elif local_dev_build and EVALUATION_VERSION_STRING not in output.stdout:
-        print(
-            "WARNING: InstallBuilder was not detected using an evaluation version when running a dev build. "
+            "InstallBuilder was not detected using an evaluation version when running a dev build. "
             "This could indicate that the error messaging when using an evaluation version has changed.\n"
             "Please check the InstallBuilder logs to confirm if the error messaging has changed from "
-            f"'{EVALUATION_VERSION_STRING}' and update the install_builder.py script accordingly."
+            f"'{EVALUATION_VERSION_STRING}' and update the build_installer.py script accordingly."
         )
     return out_dir
 
 
-class RequiredArg(NamedTuple):
-    """
-    Structure to represent a required CLI argument. Used to provide better error messaging.
-    """
+def main(
+    dev: bool,
+    install_builder_location: Optional[Path],
+    install_builder_license_path: Optional[Path],
+    install_builder_s3_bucket: Optional[str],
+    install_builder_s3_key: Optional[str],
+    output_dir: Optional[Path],
+    installer_platform: str,
+    installer_source_path: Path,
+) -> None:
+    with tempfile.TemporaryDirectory() as wd:
+        workdir = Path(wd)
+        print(f"cwd: {os.getcwd()}")
+        print(f"working directory: {str(workdir)}")
 
-    argument: str
-    attr: str
-
-
-def main(args: argparse.Namespace) -> None:
-
-    if not args.local_dev_build:
-        missing_args = []
-        for required_arg in prod_required_args:
-            if getattr(args, required_arg.attr) is None:
-                missing_args.append(required_arg.argument)
-        if missing_args:
-            parser.error(
-                "the following arguments are required for non-dev builds: "
-                f"{', '.join(missing_args)}\n"
-            )
-    else:
-        if os.environ.get("CODEBUILD_BUILD_ID") is not None:
-            parser.error("--local-dev-build cannot be used when running in CodeBuild.")
-    with tempfile.TemporaryDirectory() as workdir:
-        print(f"cwd: {Path.cwd()}")
-        print(f"working directory: {workdir})")
-        components_dir = INSTALLER_ROOT / "components"
-        components_dir.mkdir(exist_ok=True)
-
-        if components_dir.exists():
-            shutil.rmtree(components_dir, onerror=_add_write_perms)
-        shutil.copytree(INSTALL_BUILDER_PROJECT_ROOT, components_dir)
-
-        bundle_file = Path(shutil.copy("depsBundle.sh", f"{components_dir}/depsBundle.sh"))
-        shutil.copy("depsBundle.py", f"{components_dir}/depsBundle.py")
-        bundle_file.chmod(bundle_file.stat().st_mode | stat.S_IEXEC)
-        try:
-            subprocess.run(["bash", bundle_file], check=True)
-        except subprocess.CalledProcessError as e:
-            print(f"Encountered the following error when bundling dependencies: {e.output}")
-            raise
-
-        try:
-            installer_dir = build_installer(
-                workdir=workdir,
-                license_file=(
-                    args.install_builder_license_file
-                    if args.install_builder_license_file != "NO_LICENSE"
-                    else None
-                ),
-                install_builder_location=(
-                    args.install_builder_location
-                    if args.install_builder_location
-                    else INSTALL_BUILDER["archive"]
-                ),
-                platform=args.platform,
-                local_dev_build=args.local_dev_build,
-                s3bucket=args.install_builder_s3_bucket,
-            )
-        except Exception as e:
-            if args.cleanup:
-                shutil.rmtree(components_dir, onerror=_add_write_perms)
-            raise e
-
-        # There are three possible extensions for built installers, depending on the platform.
-        # See `platform_exec_suffix` in https://releases.installbuilder.com/installbuilder/docs/installbuilder-userguide.html#built_in_variables
-        if args.platform == "osx":
-            installer_extension = "app"
-        elif args.platform.startswith("windows"):
-            installer_extension = "exe"
-        else:
-            installer_extension = "run"
-        installer_filename = INSTALLER_FILENAME_TEMPLATE.format(
-            platform=args.platform, ext=installer_extension
+        installbuilder_path = setup_install_builder(
+            workdir=workdir,
+            install_builder_location=install_builder_location,
+            license_file_path=install_builder_license_path,
+            install_builder_s3_bucket=install_builder_s3_bucket,
+            install_builder_s3_key=install_builder_s3_key,
         )
-        installer_path = Path(installer_dir) / installer_filename
+        installer_dir = build_installer(
+            workdir=workdir,
+            component_file_path=installer_source_path,
+            install_builder_location=installbuilder_path,
+            dev=dev,
+            installer_platform=installer_platform,
+        )
+
+        installer_filename = INSTALLER_FILENAMES[installer_platform]
+        installer_path = installer_dir / installer_filename
 
         # The macOS .app installer will always be a directory, not a file.
         # Other OS installers will be files.
-        if not installer_path.is_dir() if args.platform == "osx" else not installer_path.is_file():
+        if (
+            not installer_path.is_dir()
+            if installer_platform == "MacOS"
+            else not installer_path.is_file()
+        ):
             raise FileNotFoundError(
                 f"Expected installer file {installer_filename} not found in {installer_dir}.\n"
-                f"Found:\n\t{os.linesep.join(installer_dir.iterdir())}"
+                f"Found:\n\t{os.linesep.join([str(i) for i in installer_dir.iterdir()])}"
             )
 
         output_path = installer_filename
-        if args.output_dir:
-            args.output_dir.mkdir(exist_ok=True)
-            output_path = args.output_dir / output_path
-        if platform.system() == "Darwin" and Path(output_path).exists():
-            shutil.rmtree(output_path, onerror=prod_required_args)
+        if output_dir:
+            output_dir.mkdir(exist_ok=True)
+            output_path = output_dir / output_path
         shutil.move(installer_path, output_path)
-
-        if args.cleanup:
-            shutil.rmtree(components_dir, onerror=_add_write_perms)
-            print(f"Deleted build directory: {components_dir}")
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description=__doc__)
-    prod_required_args: List[RequiredArg] = []
-
-    parser.add_argument(
-        "--dcc-name", required=True, help="The name of the DCC application this submitter is for."
-    )
-    parser.add_argument(
-        "--dcc-installer-file", required=True, help="The main installer file for the DCC"
-    )
-
-    parser.add_argument(
-        "--local-dev-build",
-        action=argparse.BooleanOptionalAction,
-        help=(
-            "Add this argument when running a development build. This will use an evaluation copy of InstallBuilder and not require a license."
-        ),
-    )
-    parser.add_argument(
-        "--install-builder-s3-bucket",
-        help="The name of S3 Bucket that contains Install Builder. Required for non-local builds.",
-    )  # Required for non-local builds
-    prod_required_args.append(
-        RequiredArg("--install-builder-s3-bucket", "install_builder_s3_bucket")
-    )
-
-    parser.add_argument(
-        "--install-builder-location",
-        help="The InstallBuilder location, containing 'bin/builder'. Required for local dev builds.",
-        type=Path,
-    )
-
-    parser.add_argument(
-        "--install-builder-license-file",
-        help="The path to the file containing the InstallBuilder license. This can be set to NO_LICENSE to skip downloading the license.",
-    )  # Required for non-local builds
-    prod_required_args.append(
-        RequiredArg("--install-builder-license-file", "install_builder_license_file")
-    )
-
-    parser.add_argument(
-        "--no-cleanup",
-        dest="cleanup",
-        action="store_false",
-        help="Do not delete the build components folder after completion.",
-    )
-    parser.add_argument(
-        "--platform",
-        required=True,
-        help="The platform to build an installer for. See the InstallBuilder documentation for a full list of allowed platforms.",
-    )
-    parser.add_argument(
-        "--output-dir",
-        required=False,
-        default=None,
-        type=Path,
-        help="The directory to create the installer in. Default is the current directory.",
-    )
-    args = parser.parse_args()
-    main(args)
