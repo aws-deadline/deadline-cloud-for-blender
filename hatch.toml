@@ -20,7 +20,7 @@ lint = [
   "typing",
 ]
 build-installer = "python {root}/scripts/build_installer.py --dcc-name blender --dcc-installer-file {root}/installer/DeadlineCloudForBlenderSubmitter.xml {args:}"
-test-installer = "pytest --no-cov {args:test/installer} -vvv --numprocesses=1"
+test-installer = "pytest --no-cov {args:test/installer} -vvv"
 build-addon = "python scripts/build_addon.py {args}"
 
 [[envs.all.matrix]]
