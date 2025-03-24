@@ -17,11 +17,15 @@ on:
         options:
         - tags
         - heads
-
       ref:
         required: true
         type: string
         default: mainline
+      environment:
+        required: true
+        type: choice
+        options:
+        - mainline
 
 jobs:
   BuildInstaller:
