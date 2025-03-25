@@ -1,4 +1,5 @@
 #!/bin/bash
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 
 # This script is called in a shell subprocess.
 # If editing this script, please see the security considerations

@@ -67,9 +67,16 @@ EOF
 $CONTENT
 EOF
             ;;
+            *.ps1)
+                CONTENT=$(cat "$file")
+                cat > "$file" <<EOF
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+
+$CONTENT
+EOF
+            ;;
             *)
                 echo "Skipping file in unrecognized format: $file" >&2
-                exit 1
             ;;
         esac
     fi
