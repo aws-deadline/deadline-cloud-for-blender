@@ -19,6 +19,12 @@ SUPPORTED_PLATFORMS = [
     "macosx_11_0_arm64",
 ]
 NATIVE_DEPENDENCIES = ["xxhash"]
+FINAL_BUNDLE_NAMES = [
+    "deadline_cloud_for_blender_submitter-deps-windows.zip",
+    "deadline_cloud_for_blender_submitter-deps-linux.zip",
+    "deadline_cloud_for_blender_submitter-deps-macos-intel.zip",
+    "deadline_cloud_for_blender_submitter-deps-macos-arm64.zip",
+]
 
 
 def _get_project_dict() -> dict[str, Any]:
@@ -134,13 +140,25 @@ def _zip_bundle(base_env: Path, zip_path: Path) -> None:
     shutil.make_archive(str(zip_path.with_suffix("")), "zip", str(base_env))
 
 
-def _copy_zip_to_destination(zip_path: Path) -> None:
+def _copy_zip_to_destination(zip_path: Path) -> Path:
     dependency_bundle_dir = Path.cwd() / "dependency_bundle"
     dependency_bundle_dir.mkdir(exist_ok=True)
     zip_destination = dependency_bundle_dir / zip_path.name
     if zip_destination.exists():
         zip_destination.unlink()
     shutil.copy(str(zip_path), str(zip_destination))
+
+    return zip_destination
+
+
+def _remove_old_bundles(zip_destination: Path):
+    for file in FINAL_BUNDLE_NAMES:
+        Path(zip_destination.parent / file).unlink(missing_ok=True)
+
+
+def _rename_bundles_to_final_names(zip_destination: Path):
+    for file in FINAL_BUNDLE_NAMES:
+        shutil.copy(zip_destination, zip_destination.parent / file)
 
 
 def build_deps_bundle() -> None:
@@ -154,7 +172,9 @@ def build_deps_bundle() -> None:
         zip_path = _get_zip_path(working_directory, project_dict)
         _zip_bundle(base_env, zip_path)
         print(list(working_directory.glob("*")))
-        _copy_zip_to_destination(zip_path)
+        zip_destination = _copy_zip_to_destination(zip_path)
+        _remove_old_bundles(zip_destination)
+        _rename_bundles_to_final_names(zip_destination)
 
 
 if __name__ == "__main__":

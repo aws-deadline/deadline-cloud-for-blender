@@ -3,7 +3,6 @@
 
 import os
 import platform
-import subprocess
 import sys
 import shutil
 import tempfile
@@ -13,6 +12,12 @@ from pathlib import Path
 
 from common import EvaluationBuildError, run
 from find_installbuilder import InstallBuilderSelection
+
+# Add the top level to the path for now. We can move depsBundle.py
+# to the scripts directory when we have more confidence that
+# it isnt' needed in the root directory anymore.
+sys.path.append(str(Path(__file__).resolve().parent.parent))
+from depsBundle import build_deps_bundle
 
 # This is derived from <installerFilename> in installer/DeadlineCloudClient.xml
 # See "Supported Platforms" table in https://releases.installbuilder.com/installbuilder/docs/installbuilder-userguide.html
@@ -98,20 +103,7 @@ def build_installer(
     else:
         raise ValueError(f"Unknown platform '{installer_platform}'")
 
-    try:
-        if platform.system() == "Windows":
-            # `shell=True` is necessary here to run on Windows.
-            # Please see the security considerations of this flag if editing the script or its invocation:
-            # https://docs.python.org/3/library/subprocess.html#security-considerations
-            deps_bundle_output = subprocess.run(
-                "depsBundle.sh", check=True, shell=True, capture_output=True
-            )
-        else:
-            deps_bundle_output = subprocess.run("./depsBundle.sh", check=True, capture_output=True)
-        print(deps_bundle_output.stdout.decode("utf-8"))
-    except subprocess.CalledProcessError as e:
-        print(f"Error when bundling dependencies: {e.stdout.decode('utf-8')}")
-        raise
+    build_deps_bundle()
 
     install_builder_cli = install_builder_location / "bin" / "builder"
     out_dir = workdir / "out"
