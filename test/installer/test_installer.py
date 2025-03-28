@@ -266,8 +266,11 @@ class TestLinuxAndMacOS:
     def _validate_posix_permissions(self, installation_path: Path):
         # assists mypy type checking to ignore this on Windows
         assert sys.platform != "win32"
+        # pwd is not available on Windows
+        import pwd
+
         # GIVEN
-        current_user = getpass.getuser()
+        current_user = pwd.getpwuid(os.getuid())[0]  # type: ignore
 
         # WHEN
         bad_perms: defaultdict[Path, list[str]] = defaultdict(list)
