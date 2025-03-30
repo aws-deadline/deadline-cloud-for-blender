@@ -13,7 +13,7 @@ on:
         - MacOS
       ref_type:
         required: true
-        default: tags
+        default: heads
         type: choice
         options:
         - tags
