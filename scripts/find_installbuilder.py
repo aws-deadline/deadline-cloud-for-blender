@@ -151,6 +151,12 @@ class _InstallBuilderInstallation:
         )
 
 
+def get_builder_exe_name() -> str:
+    if platform.system() == "Windows":
+        return "builder.exe"
+    return "builder"
+
+
 def _get_default_installbuilder_location() -> Path:
     """
     Returns the default location where InstallBuilder Professional will be installed depending on the platform.
@@ -162,7 +168,7 @@ def _get_default_installbuilder_location() -> Path:
     for install_dir in config.parent_path.iterdir():
         if install_dir.is_dir():
             match = config.get_install_directory_regex().match(install_dir.name)
-            if match and (install_dir / "bin" / "builder").is_file():
+            if match and (install_dir / "bin" / get_builder_exe_name()).is_file():
                 if platform.system() == "Linux":
                     version_offset = 0
                 else:

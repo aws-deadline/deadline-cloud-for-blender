@@ -2,7 +2,6 @@
 """Script to create platform-specific Deadline Client installers using InstallBuilder."""
 
 import os
-import platform
 import sys
 import shutil
 import tempfile
@@ -11,12 +10,8 @@ from typing import Optional
 from pathlib import Path
 
 from common import EvaluationBuildError, run
-from find_installbuilder import InstallBuilderSelection
+from find_installbuilder import InstallBuilderSelection, get_builder_exe_name
 
-# Add the top level to the path for now. We can move depsBundle.py
-# to the scripts directory when we have more confidence that
-# it isnt' needed in the root directory anymore.
-sys.path.append(str(Path(__file__).resolve().parent.parent))
 from depsBundle import build_deps_bundle
 
 # This is derived from <installerFilename> in installer/DeadlineCloudClient.xml
@@ -55,17 +50,12 @@ def setup_install_builder(
 
     install_builder_path = selection.resolve_install_builder_installation(workdir)
 
-    if platform.system() == "Windows":
-        binary_name = "builder.exe"
-    else:
-        binary_name = "builder"
-
     if (
         not install_builder_path.is_dir()
-        or not (install_builder_path / "bin" / binary_name).is_file()
+        or not (install_builder_path / "bin" / get_builder_exe_name()).is_file()
     ):
         raise FileNotFoundError(
-            f"InstallBuilder path '{install_builder_path}' must be a directory containing 'bin/{binary_name}'."
+            f"InstallBuilder path '{install_builder_path}' must be a directory containing 'bin/{get_builder_exe_name()}'."
         )
 
     if license_file_path is not None:
@@ -184,7 +174,7 @@ def main(
                 f"Found:\n\t{os.linesep.join([str(i) for i in installer_dir.iterdir()])}"
             )
 
-        output_path = installer_filename
+        output_path = Path(installer_filename)
         if output_dir:
             output_dir.mkdir(exist_ok=True)
             output_path = output_dir / output_path

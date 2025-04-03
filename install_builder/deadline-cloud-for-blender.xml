@@ -56,42 +56,6 @@
         </if>
         <setInstallerVariable name="blender_addondir" value="${blender_installdir}/addons" />
         <setInstallerVariable name="blender_moduledir" value="${blender_installdir}/modules" />
-        <if>
-            <conditionRuleList>
-                <platformTest type="windows" />
-            </conditionRuleList>
-            <actionList>
-                <setInstallerVariable name="blender_deps_platform" value="windows" />
-            </actionList>
-        </if>
-        <if>
-            <conditionRuleList>
-                <platformTest type="linux" />
-            </conditionRuleList>
-            <actionList>
-                <setInstallerVariable name="blender_deps_platform" value="linux" />
-            </actionList>
-        </if>
-        <if>
-            <conditionRuleEvaluationLogic>and</conditionRuleEvaluationLogic>
-            <conditionRuleList>
-                <platformTest type="osx" />
-                <platformTest type="osx-intel" />
-            </conditionRuleList>
-            <actionList>
-                <setInstallerVariable name="blender_deps_platform" value="macos-intel" />
-            </actionList>
-        </if>
-        <if>
-            <conditionRuleEvaluationLogic>and</conditionRuleEvaluationLogic>
-            <conditionRuleList>
-                <platformTest type="osx" />
-                <platformTest negate="1" type="osx-intel" />
-            </conditionRuleList>
-            <actionList>
-                <setInstallerVariable name="blender_deps_platform" value="macos-arm64" />
-            </actionList>
-        </if>
     </readyToInstallActionList>
     <postInstallationActionList>
         <if>
@@ -104,7 +68,7 @@
         </if>
         <unzip>
             <destinationDirectory>${blender_moduledir}</destinationDirectory>
-            <zipFile>${installdir}/tmp/blender_deps/dependency_bundle/deadline_cloud_for_blender_submitter-deps-${blender_deps_platform}.zip</zipFile>
+            <zipFile>${installdir}/tmp/blender_deps/dependency_bundle/deadline_cloud_for_blender_submitter-deps.zip</zipFile>
         </unzip>
         <deleteFile>
             <path>${installdir}/tmp/blender_deps</path>

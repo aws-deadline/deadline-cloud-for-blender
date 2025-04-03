@@ -7,4 +7,4 @@
 # https://docs.python.org/3/library/subprocess.html#security-considerations
 set -xeuo pipefail
 
-python3 depsBundle.py
+python3 scripts/depsBundle.py

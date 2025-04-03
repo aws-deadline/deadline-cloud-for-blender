@@ -12,19 +12,7 @@ from tempfile import TemporaryDirectory
 from typing import Any
 
 SUPPORTED_PYTHON_VERSIONS = ["3.10", "3.11"]
-SUPPORTED_PLATFORMS = [
-    "win_amd64",
-    "manylinux2014_x86_64",
-    "macosx_10_9_x86_64",
-    "macosx_11_0_arm64",
-]
 NATIVE_DEPENDENCIES = ["xxhash"]
-FINAL_BUNDLE_NAMES = [
-    "deadline_cloud_for_blender_submitter-deps-windows.zip",
-    "deadline_cloud_for_blender_submitter-deps-linux.zip",
-    "deadline_cloud_for_blender_submitter-deps-macos-intel.zip",
-    "deadline_cloud_for_blender_submitter-deps-macos-arm64.zip",
-]
 
 
 def _get_project_dict() -> dict[str, Any]:
@@ -33,7 +21,7 @@ def _get_project_dict() -> dict[str, Any]:
             toml_install_pip_args = ["pip", "install", "--target", toml_env, "toml"]
             subprocess.run(toml_install_pip_args, check=True)
             sys.path.insert(0, toml_env)
-            import toml
+            import toml  # type: ignore
         mode = "r"
     else:
         import tomllib as toml
@@ -92,25 +80,20 @@ def _download_native_dependencies(working_directory: Path, base_env: Path) -> li
     ]
     native_dependency_paths = []
     for version in SUPPORTED_PYTHON_VERSIONS:
-        for platform in SUPPORTED_PLATFORMS:
-            native_dependency_path = (
-                working_directory / "native" / f"{version.replace('.', '_')}_{platform}"
-            )
-            native_dependency_paths.append(native_dependency_path)
-            native_dependency_path.mkdir(parents=True)
-            native_dependency_pip_args = [
-                "pip",
-                "install",
-                "--target",
-                str(native_dependency_path),
-                "--platform",
-                platform,
-                "--python-version",
-                version,
-                "--only-binary=:all:",
-                *versioned_native_dependencies,
-            ]
-            subprocess.run(native_dependency_pip_args, check=True)
+        native_dependency_path = working_directory / "native" / f"{version.replace('.', '_')}"
+        native_dependency_paths.append(native_dependency_path)
+        native_dependency_path.mkdir(parents=True)
+        native_dependency_pip_args = [
+            "pip",
+            "install",
+            "--target",
+            str(native_dependency_path),
+            "--python-version",
+            version,
+            "--only-binary=:all:",
+            *versioned_native_dependencies,
+        ]
+        subprocess.run(native_dependency_pip_args, check=True)
     return native_dependency_paths
 
 
@@ -151,19 +134,9 @@ def _copy_zip_to_destination(zip_path: Path) -> Path:
     return zip_destination
 
 
-def _remove_old_bundles(zip_destination: Path):
-    for file in FINAL_BUNDLE_NAMES:
-        Path(zip_destination.parent / file).unlink(missing_ok=True)
-
-
-def _rename_bundles_to_final_names(zip_destination: Path):
-    for file in FINAL_BUNDLE_NAMES:
-        shutil.copy(zip_destination, zip_destination.parent / file)
-
-
 def build_deps_bundle() -> None:
-    with TemporaryDirectory() as working_directory:
-        working_directory = Path(working_directory)
+    with TemporaryDirectory() as wd:
+        working_directory = Path(wd)
         project_dict = _get_project_dict()
         dependencies = _get_dependencies(project_dict)
         base_env = _build_base_environment(working_directory, dependencies)
@@ -172,9 +145,7 @@ def build_deps_bundle() -> None:
         zip_path = _get_zip_path(working_directory, project_dict)
         _zip_bundle(base_env, zip_path)
         print(list(working_directory.glob("*")))
-        zip_destination = _copy_zip_to_destination(zip_path)
-        _remove_old_bundles(zip_destination)
-        _rename_bundles_to_final_names(zip_destination)
+        _copy_zip_to_destination(zip_path)
 
 
 if __name__ == "__main__":
