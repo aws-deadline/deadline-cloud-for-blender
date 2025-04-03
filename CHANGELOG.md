@@ -1,3 +1,13 @@
+## 0.5.3 (2025-04-03)
+
+### Bug Fixes
+* "All Renderable Layers" option was rendering every layer in each step when it should only be rendering one layer per step ([`c235b8e`](https://github.com/aws-deadline/deadline-cloud-for-blender/commit/c235b8eb646f63503f27930b23be6dbb6bfb90eb))
+
+### Experimental
+
+These changes are experimental and are subject to change without warning
+* Experimental support for installing and updating via Blender extensions (#197) ([`9f6b36f`](https://github.com/aws-deadline/deadline-cloud-for-blender/commit/9f6b36fc16d117c88ad005f4f3c3bc6e919daa5c))
+
 ## 0.5.2 (2025-02-13)
 
 
