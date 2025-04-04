@@ -185,7 +185,7 @@ def test_default_location(installer_path: Path):
 
 
 @pytest.mark.skipif(
-    os.getenv("CODEBUILD_SRC_DIR") is None,
+    os.getenv("CODEBUILD_SRC_DIR") is None or os.getenv("IS_DEV_BUILD", "false").lower() == "true",
     reason="Only installers built with a license will not be evaluation mode",
 )
 @pytest.mark.skipif(
@@ -458,7 +458,7 @@ class TestSystemInstall:
 
 
 @pytest.mark.skipif(
-    os.getenv("CODEBUILD_SRC_DIR") is None,
+    os.getenv("CODEBUILD_SRC_DIR") is None or os.getenv("IS_DEV_BUILD", "false").lower() == "true",
     reason="Only installers built internally will be signed",
 )
 class TestVerifySigning:
