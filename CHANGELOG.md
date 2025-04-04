@@ -1,5 +1,6 @@
 ## 0.5.3 (2025-04-03)
 
+
 ### Bug Fixes
 * "All Renderable Layers" option was rendering every layer in each step when it should only be rendering one layer per step ([`c235b8e`](https://github.com/aws-deadline/deadline-cloud-for-blender/commit/c235b8eb646f63503f27930b23be6dbb6bfb90eb))
 
