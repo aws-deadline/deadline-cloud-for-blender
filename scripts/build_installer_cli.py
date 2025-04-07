@@ -190,6 +190,7 @@ def _not_allowed_if_env_var_set(
     type=Path,
     help="The path to the installer source xml file",
 )
+@click.option("--override-installer-version", type=str, help="Use this as the installer version.")
 def cli(
     install_builder_path: Optional[Path],
     install_builder_s3_bucket: Optional[str],
@@ -200,6 +201,7 @@ def cli(
     platform: str,
     output_dir: Optional[Path],
     installer_source_path: Path,
+    override_installer_version: Optional[str],
 ) -> None:
     cli_body(
         install_builder_path,
@@ -211,6 +213,7 @@ def cli(
         platform,
         output_dir,
         installer_source_path,
+        override_installer_version,
     )
 
 
@@ -224,6 +227,7 @@ def cli_body(
     platform: str,
     output_dir: Optional[Path],
     installer_source_path: Path,
+    override_installer_version: Optional[str],
 ) -> None:
     """
     Separate from the command function so we can mock the body out
@@ -238,6 +242,7 @@ def cli_body(
         output_dir,
         platform,
         installer_source_path,
+        override_installer_version,
     )
 
 
