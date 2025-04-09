@@ -1,4 +1,4 @@
-## 0.5.3 (2025-04-03)
+## 0.5.3 (2025-04-09)
 
 
 ### Bug Fixes
@@ -8,6 +8,7 @@
 
 These changes are experimental and are subject to change without warning
 * Experimental support for installing and updating via Blender extensions (#197) ([`9f6b36f`](https://github.com/aws-deadline/deadline-cloud-for-blender/commit/9f6b36fc16d117c88ad005f4f3c3bc6e919daa5c))
+
 
 ## 0.5.2 (2025-02-13)
 
