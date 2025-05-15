@@ -235,6 +235,7 @@ def test_fill_job_template(submitter_settings, common_layer_settings):
                                         "file://{{Env.File.initData}}",
                                     ],
                                     "cancelation": {"mode": "NOTIFY_THEN_TERMINATE"},
+                                    "timeout": 3720,
                                 },
                                 "onExit": {
                                     "command": "blender-openjd",
@@ -245,6 +246,7 @@ def test_fill_job_template(submitter_settings, common_layer_settings):
                                         "{{ Session.WorkingDirectory }}/connection.json",
                                     ],
                                     "cancelation": {"mode": "NOTIFY_THEN_TERMINATE"},
+                                    "timeout": 120,
                                 },
                             },
                         },
@@ -308,6 +310,7 @@ def test_fill_job_template(submitter_settings, common_layer_settings):
                                         "file://{{Env.File.initData}}",
                                     ],
                                     "cancelation": {"mode": "NOTIFY_THEN_TERMINATE"},
+                                    "timeout": 3720,
                                 },
                                 "onExit": {
                                     "command": "blender-openjd",
@@ -318,6 +321,7 @@ def test_fill_job_template(submitter_settings, common_layer_settings):
                                         "{{ Session.WorkingDirectory }}/connection.json",
                                     ],
                                     "cancelation": {"mode": "NOTIFY_THEN_TERMINATE"},
+                                    "timeout": 120,
                                 },
                             },
                         },

@@ -162,6 +162,7 @@ steps:
           - file://{{Env.File.initData}}
           cancelation:
             mode: NOTIFY_THEN_TERMINATE
+          timeout: 3720
         onExit:
           command: blender-openjd
           args:
@@ -171,6 +172,7 @@ steps:
           - '{{ Session.WorkingDirectory }}/connection.json'
           cancelation:
             mode: NOTIFY_THEN_TERMINATE
+          timeout: 120
   script:
     embeddedFiles:
     - name: runData
@@ -233,6 +235,7 @@ steps:
           - file://{{Env.File.initData}}
           cancelation:
             mode: NOTIFY_THEN_TERMINATE
+          timeout: 3720
         onExit:
           command: blender-openjd
           args:
@@ -242,6 +245,7 @@ steps:
           - '{{ Session.WorkingDirectory }}/connection.json'
           cancelation:
             mode: NOTIFY_THEN_TERMINATE
+          timeout: 120
   script:
     embeddedFiles:
     - name: runData
