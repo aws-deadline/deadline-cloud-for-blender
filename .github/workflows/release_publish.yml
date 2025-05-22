@@ -1,68 +1,93 @@
 name: "Release: Publish"
-run-name: "Release: ${{ inputs.tag }}"
+run-name: "Release: ${{ github.event.head_commit.message || inputs.tag }}"
 
 on:
+  push:
+    branches:
+      - mainline
+    paths:
+      - CHANGELOG.md
   workflow_dispatch:
-      inputs:
-          tag:
-              required: true
-              type: string
+    inputs:
+      tag:
+        required: true
+        type: string
+        description: Specify a tag to re-run a release.
+
+concurrency:
+  group: release
+
+permissions:
+  contents: read
 
 jobs:
-  CheckForRelease:
-    runs-on: ubuntu-latest
-    name: CheckForRelease
-    outputs:
-      isReleased: ${{steps.checkrelease.outputs.isReleased}}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with: 
-          ref: ${{inputs.tag}}
-          fetch-depth: 0
-      - id: checkrelease
-        shell: bash
-        run: |
-          if gh release view "${{inputs.tag}}" &> /dev/null; then
-            echo "isReleased=true" >> $GITHUB_OUTPUT
-          else
-            echo "isReleased=false" >> $GITHUB_OUTPUT
-          fi
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  TagRelease:
+    uses: aws-deadline/.github/.github/workflows/reusable_tag_release.yml@mainline
+    secrets: inherit
+    with:
+      tag: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || '' }}
 
-  prerelease:
-      needs: CheckForRelease
-      if: needs.CheckForRelease.outputs.isReleased == 'false'
+  UnitTests:
+    needs: [TagRelease]
+    name: Unit and Integration Tests
+    uses: ./.github/workflows/code_quality.yml
+    with:
+      tag: ${{ needs.TagRelease.outputs.tag }}
+
+  PreRelease:
+      needs: [TagRelease, UnitTests]
       uses: aws-deadline/.github/.github/workflows/reusable_prerelease.yml@mainline
+      permissions:
+        id-token: write
+        contents: write
       secrets: inherit
       with:
-          installer_oses: "['Linux', 'Windows', 'MacOS']"
-          tag: ${{inputs.tag}}
-  release:
-      needs: prerelease
-      uses: aws-deadline/.github/.github/workflows/reusable_release.yml@mainline
-      secrets: inherit
-      with:
-          tag: ${{inputs.tag}}
+          tag: ${{ needs.TagRelease.outputs.tag }}
+
+  BuildAndStageInstallers:
+    needs: [TagRelease, PreRelease]
+    uses: aws-deadline/.github/.github/workflows/reusable_build_and_stage_installers.yml@mainline
+    secrets: inherit
+    permissions:
+      id-token: write
+      contents: read
+    with:
+      project_name: ${{ github.event.repository.name }}
+      tag: ${{ needs.TagRelease.outputs.tag }}
+      oses: "['Linux', 'Windows', 'MacOS']"
+
   IsCondaReady:
-    needs: release
+    needs: BuildAndStageInstallers
     runs-on: ubuntu-latest
     environment: release
     name: “Is the Conda Package available in all ProdWaves and have you ran any required manual tests?”
     steps:
       - run: |
          :
-  publish:
-      needs: IsCondaReady
+
+  Release:
+      needs: [TagRelease, IsCondaReady]
+      uses: aws-deadline/.github/.github/workflows/reusable_release.yml@mainline
+      secrets: inherit
+      permissions:
+        id-token: write
+        contents: write
+      with:
+          tag: ${{ needs.TagRelease.outputs.tag }}
+  
+  Publish:
+      needs: [TagRelease, Release]
       uses: aws-deadline/.github/.github/workflows/reusable_publish_python.yml@mainline
+      permissions:
+        id-token: write
       secrets: inherit
       with:
-          tag: ${{inputs.tag}}
+          tag: ${{ needs.TagRelease.outputs.tag }}
+
   # PyPI does not support reusable workflows yet
   # # See https://github.com/pypi/warehouse/issues/11096
   PublishToPyPI:
-      needs: publish
+      needs: [TagRelease, Publish]
       runs-on: ubuntu-latest
       environment: release
       permissions:
@@ -71,7 +96,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.tag }}
+          ref: ${{ needs.TagRelease.outputs.tag }}
           fetch-depth: 0
       - name: Set up Python
         uses: actions/setup-python@v5
