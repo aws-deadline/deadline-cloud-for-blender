@@ -91,7 +91,7 @@ def find_files(project_path, skip_temp=True, skip_nonexistent=True) -> list[Path
     if skip_nonexistent:
         files = (f for f in files if f.exists())
 
-    return [f.resolve() for f in files]
+    return [Path(os.path.abspath(f)) for f in files]
 
 
 def _get_blender_temp_dirs() -> list[Path]:
@@ -105,19 +105,19 @@ def _get_blender_temp_dirs() -> list[Path]:
     dirs = []
 
     # `bpy.app.tempdir` seems to resolve to a project-specific directory, e.g. `'C:\\Users\\user\\AppData\\Local\\Temp\\blender_a07504\\'`. We want the parent directory, e.g. `'Temp\\'`.
-    dirs.append(Path(bpy.app.tempdir).parent.resolve())
+    dirs.append(Path(os.path.abspath(bpy.app.tempdir)).parent)
 
     # The user's preferences may specify a temp directory.
     user_pref_dir = bpy.context.preferences.filepaths.temporary_directory
     if user_pref_dir:
-        dirs.append(Path(user_pref_dir).resolve())
+        dirs.append(Path(os.path.abspath(user_pref_dir)))
 
     # System environment variables may specify a temp directory. Which one exists (if any) depends on the OS.
     for var in ["TEMP", "TMP", "TMP_DIR"]:
         if os.environ.get(var):
-            dirs.append(Path(os.environ[var]).resolve())
+            dirs.append(Path(os.path.abspath(os.environ[var])))
 
     # The root temp directory is always a candidate.
-    dirs.append(Path("/tmp").resolve())
+    dirs.append(Path("/tmp"))
 
     return list(set(dirs))
