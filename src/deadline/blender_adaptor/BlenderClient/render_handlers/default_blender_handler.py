@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+from typing import cast
 
 import bpy  # type: ignore
 
@@ -47,7 +48,7 @@ class DefaultBlenderHandler:
 
         Returns the name of the camera.
         """
-        camera: str = data.get("camera", self.camera_name)
+        camera: str = cast(str, data.get("camera", self.camera_name))
         if camera is None:
             raise RuntimeError(f"No camera specified in data: {data}")
 

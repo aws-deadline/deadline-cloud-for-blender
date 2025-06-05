@@ -71,7 +71,7 @@
             <zipFile>${installdir}/tmp/blender_deps/dependency_bundle/deadline_cloud_for_blender_submitter-deps.zip</zipFile>
         </unzip>
         <deleteFile>
-            <path>${installdir}/tmp/blender_deps</path>
+            <path>${installdir}/tmp</path>
         </deleteFile>
     </postInstallationActionList>
 </component>

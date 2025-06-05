@@ -129,7 +129,7 @@ def _create_bundle(
     asset_references: AssetReferences,
     requirements: Optional[dict[str, Any]] = None,
     purpose: Optional[str] = None,
-) -> None:
+) -> dict[str, Any]:
     """Create and write Deadline job bundle files to the given directory. Also save sticky settings.
 
     NOTE: The parameters to this function are fixed by the Deadline API. Do not change them, even if they are unused. See the source of the `SubmitJobToDeadlineDialog` class.
@@ -145,7 +145,7 @@ def _create_bundle(
         requirements: The host requirements. There are only passed if the user has specified custom host requirements in the UI. If "all available worker hosts" are selected, this is None.
         purpose: The purpose of the job bundle.
     """
-    _create_bundle_internal(
+    return _create_bundle_internal(
         widget, job_bundle_dir, settings, queue_parameters, asset_references, requirements, purpose
     )
 
@@ -159,7 +159,7 @@ def _create_bundle_internal(
     requirements: Optional[dict[str, Any]] = None,
     purpose: Optional[str] = None,
     prompt_for_saving=True,
-) -> None:
+) -> dict[str, Any]:
     """Create and write Deadline job bundle files to the given directory. Also save sticky settings.
     The internal variation exists so that the functionality can be accessed without a UI.
 
@@ -229,6 +229,10 @@ def _create_bundle_internal(
     settings.input_filenames = sorted(attachments.input_filenames)
     scene_filename = settings.project_path
     settings.save_sticky_settings(scene_filename)
+
+    return {
+        "job_parameters": parameter_values,
+    }
 
 
 def _get_auto_detected_assets(project_path: str) -> AssetReferences:
