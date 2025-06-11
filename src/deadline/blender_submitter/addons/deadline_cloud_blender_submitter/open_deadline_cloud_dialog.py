@@ -95,7 +95,7 @@ def create_deadline_dialog(parent=None) -> SubmitJobToDeadlineDialog:
     )
 
     # https://docs.blender.org/api/current/bpy.app.html#bpy.app.version
-    blender_version = ".".join(map(str, bpy.app.version[:2]))
+    blender_version = ".".join(str(v) for v in bpy.app.version[:2])
     adaptor_version = ".".join(str(v) for v in adaptor_version_tuple[:2])
     # Need Blender and the Blender OpenJD application interface adaptor
     rez_packages = f"blender-{blender_version} deadline_cloud_for_blender"

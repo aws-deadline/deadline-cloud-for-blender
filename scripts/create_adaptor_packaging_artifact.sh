@@ -141,7 +141,7 @@ PYSCRIPT="from pathlib import Path
 import sys
 reentry_exe = Path(sys.argv[0]).absolute()
 sys.path.append(str(reentry_exe.parent.parent / \"opt\" / \"$ADAPTOR_NAME\"))
-from deadline.${APP}_adaptor.${APP^}Adaptor.__main__ import main
+from deadline.${APP}_adaptor.${APP^}Adaptor import main
 sys.exit(main(reentry_exe=reentry_exe))
 "
 
