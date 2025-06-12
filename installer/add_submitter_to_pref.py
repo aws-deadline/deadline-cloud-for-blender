@@ -1,3 +1,5 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+
 import bpy
 import addon_utils
 import argparse
@@ -24,10 +26,6 @@ def main():
 
     bpy.ops.preferences.script_directory_add(directory=args.deadline_cloud_install_path)
     bpy.utils.load_scripts(refresh_scripts=True)
-
-    for script_dir in bpy.context.preferences.filepaths.script_directories:
-        if script_dir.directory == args.deadline_cloud_install_path:
-            script_dir.name == "Deadline for Blender"
 
     addon_utils.enable("deadline_cloud_blender_submitter", default_set=True)
 
