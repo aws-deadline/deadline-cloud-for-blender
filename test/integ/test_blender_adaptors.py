@@ -11,10 +11,12 @@ from .helpers.test_runners import run_adaptor_test
 @pytest.mark.adaptor
 class TestAdaptors:
     """
-    Tests that ensure correct output from the Blener adaptor given a job bundle and scene file.
+    Tests that ensure correct output from the Blender adaptor given a job bundle and scene file.
     """
 
-    def test_minimal_scene_adaptor(self, script_location: Path, tmp_path: Path) -> None:
+    def test_minimal_scene_adaptor(
+        self, script_location: Path, tmp_path: Path, blender_location
+    ) -> None:
         test_file_location = script_location / "minimal_test"
         scene_location = test_file_location / "scene" / "test.blend"
         output_path = tmp_path / "output"
@@ -30,14 +32,18 @@ class TestAdaptors:
             "ResolutionY": 480,
         }
 
-        run_adaptor_test(test_file_location / "expected_job_bundle" / "template.yaml", job_params)
+        run_adaptor_test(
+            test_file_location / "expected_job_bundle" / "template.yaml",
+            job_params,
+            blender_location,
+        )
         assert_all_images_close(
             expected_image_directory=test_file_location / "expected_images",
             actual_image_directory=output_path,
         )
 
     def test_minimal_scene_with_host_requirements_adaptor(
-        self, script_location: Path, tmp_path: Path
+        self, script_location: Path, tmp_path: Path, blender_location
     ) -> None:
         test_file_location = script_location / "minimal_test_host_requirements"
         scene_location = test_file_location / "scene" / "test.blend"
@@ -55,7 +61,11 @@ class TestAdaptors:
             "ResolutionY": 480,
         }
 
-        run_adaptor_test(test_file_location / "expected_job_bundle" / "template.yaml", job_params)
+        run_adaptor_test(
+            test_file_location / "expected_job_bundle" / "template.yaml",
+            job_params,
+            blender_location,
+        )
         assert_all_images_close(
             expected_image_directory=test_file_location / "expected_images",
             actual_image_directory=output_path,

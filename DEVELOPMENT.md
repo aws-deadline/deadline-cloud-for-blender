@@ -53,11 +53,9 @@ hatch run test-installer
 
 ### Run Integration Tests
 
-1. Set the environment variable `BLENDER_EXECUTABLE` to the location of the Blender application.
-   1. `export BLENDER_EXECUTABLE=<BlenderLocation>` on Linux and MacOS.
-      1. Default on MacOS is `/Applications/Blender.app/Contents/MacOS/Blender`
-   1. `set BLENDER_EXECUTABLE=<BlenderLocation>` on Windows.
-      1. Default on Windows is `C:\Program Files\Blender Foundation\Blender\blender.exe`
+1. If you can run `blender` from your terminal or on Windows/MacOS you did a default Blender install,
+   the tests will find Blender automatically. Otherwise, set the environment variable `BLENDER_EXECUTABLE`
+   to the location of your Blender application.
 2. Run `hatch run integ:test`
 
 ### Manual Installation

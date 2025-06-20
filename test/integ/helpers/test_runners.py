@@ -1,7 +1,7 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 
+import os
 import subprocess
-import yaml
 import json
 
 from pathlib import Path
@@ -50,20 +50,18 @@ def is_valid_template(template_location: Path) -> bool:
     return output_json["status"] == "success"
 
 
-def run_adaptor_test(template_path: Path, job_params: dict[str, Any]) -> None:
-    with open(template_path) as f:
-        template = yaml.safe_load(f)
+def run_adaptor_test(template_path: Path, job_params: dict[str, Any], blender_location) -> None:
+    # Set BLENDER_EXECUTABLE so the adaptor will find it
+    os.environ["BLENDER_EXECUTABLE"] = str(blender_location)
 
-    for step in template["steps"]:
-        output = run_command(
-            [
-                "openjd",
-                "run",
-                str(template_path),
-                "--step",
-                step["name"],
-                "--job-param",
-                json.dumps(job_params),
-            ]
-        )
-        assert output.returncode == 0
+    # Run the full job. The template may contain multiple steps, representing a test in each
+    output = run_command(
+        [
+            "openjd",
+            "run",
+            str(template_path),
+            "--job-param",
+            json.dumps(job_params),
+        ]
+    )
+    assert output.returncode == 0
