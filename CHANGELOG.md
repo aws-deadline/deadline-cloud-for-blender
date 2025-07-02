@@ -1,3 +1,11 @@
+## 0.5.4 (2025-07-02)
+
+
+
+### Bug Fixes
+* Installer leaves behind empty tmp directory (#235) ([`63a13d7`](https://github.com/aws-deadline/deadline-cloud-for-blender/commit/63a13d79281b658d691ca9a29eabbad2de3774f3))
+* Asset References on Network Drives are UNC Paths (#231) ([`8162022`](https://github.com/aws-deadline/deadline-cloud-for-blender/commit/81620228b00c949f0b29e348423d59e381059553))
+
 ## 0.5.3 (2025-04-09)
 
 
