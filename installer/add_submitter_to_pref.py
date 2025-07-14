@@ -1,5 +1,8 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 
+# Adds the Deadline Cloud Install Path to Blender's Script directory list.
+# Then enables the submitters plugin.
+
 import bpy
 import addon_utils
 import argparse

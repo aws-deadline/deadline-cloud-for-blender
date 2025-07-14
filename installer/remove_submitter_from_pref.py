@@ -1,5 +1,8 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 
+# Disables the Deadline Blender Submitter plugin.
+# Then removes all instances of the Deadline Cloud install path from Blender's scripts directories list.
+
 import bpy
 import addon_utils
 import argparse
