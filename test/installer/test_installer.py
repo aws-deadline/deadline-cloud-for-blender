@@ -94,6 +94,7 @@ def _validate_files(installation_path: Path) -> None:
     assert "deadline" in module_dir
     assert "qtpy" in module_dir
     assert "xxhash" in module_dir
+    assert "psutil" in module_dir
 
     # Check the blender module is here and there's a version file
     addon_dir = [
