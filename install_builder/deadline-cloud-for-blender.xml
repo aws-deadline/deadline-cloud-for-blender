@@ -1,14 +1,14 @@
 <!-- Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved. -->
-<component>
+<componentGroup>
     <name>deadline_cloud_for_blender</name>
-    <description>Deadline Cloud for Blender 3.6-4.2</description>
+    <description>AWS Deadline Cloud for Blender 3.6-4.2</description>
     <detailedDescription>Blender plugin for submitting jobs to AWS Deadline Cloud</detailedDescription>
     <canBeEdited>1</canBeEdited>
     <selected>0</selected>
     <show>1</show>
     <parameterList>
         <stringParameter name="deadline_cloud_for_blender_summary" ask="0" cliOptionShow="0">
-            <value>Deadline Cloud for Blender 3.6-4.2
+            <value>AWS Deadline Cloud for Blender 3.6-4.2
 - Compatible with Blender 3.6 to 4.2
 - Install the integrated Blender submitter files to the installation directory</value>
         </stringParameter>
@@ -27,6 +27,20 @@
             </distributionFileList>
         </folder>
         <folder>
+            <description>Blender files</description>
+            <destination>${installdir}</destination>
+            <name>blender_settings</name>
+            <platforms>all</platforms>
+            <distributionFileList>
+                <distributionFile>
+                    <origin>add_submitter_to_pref.py</origin>
+                </distributionFile>
+                <distributionFile>
+                    <origin>remove_submitter_from_pref.py</origin>
+                </distributionFile>
+            </distributionFileList>
+        </folder>
+        <folder>
             <description>Blender dependency files</description>
             <destination>${installdir}/tmp/blender_deps</destination>
             <name>blenderdeps</name>
@@ -38,20 +52,260 @@
             </distributionFileList>
         </folder>
     </folderList>
-    <initializationActionList>
+    <functionDefinitionList>
+        <actionDefinition name="fnSetBlenderPref">
+            <parameterList>
+                <stringParameter name="blenderPath"/>
+            </parameterList>
+            <actionList>
+                <runProgram>
+                    <program>${blenderPath}</program>
+                    <programArguments>--background --python ${installdir}/add_submitter_to_pref.py -- --deadline_cloud_install_path ${blender_installdir}</programArguments>
+                    <abortOnError>0</abortOnError>
+                    <showMessageOnError>1</showMessageOnError>
+                    <onErrorActionList>
+                        <showQuestion>
+                            <text>An error occured while setting up the AWS Deadline Cloud Submitter. Would you like to visit the AWS Deadline Cloud Github page for manual installation instructions?</text>
+                            <variable>open_github_browser</variable>
+                        </showQuestion>
+                        <if>
+                            <conditionRuleList>
+                                <isTrue value="${open_github_browser}"/>
+                            </conditionRuleList>
+                            <actionList>
+                                <launchBrowser>
+                                    <url>https://github.com/aws-deadline/deadline-cloud-for-blender?tab=readme-ov-file#submitter</url>
+                                </launchBrowser>
+                            </actionList>
+                        </if> 
+                    </onErrorActionList>
+                </runProgram>
+            </actionList>
+        </actionDefinition>
+        <actionDefinition name="fnUnsetBlenderPref">
+            <parameterList>
+                <stringParameter name="blenderPath"/>
+            </parameterList>
+            <actionList>
+                <runProgram>
+                    <program>${blenderPath}</program>
+                    <programArguments>--background --python ${installdir}/remove_submitter_from_pref.py -- --deadline_cloud_install_path ${blender_installdir}</programArguments>
+                    <abortOnError>0</abortOnError>
+                    <showMessageOnError>1</showMessageOnError>
+                    <customErrorMessage>An error occured while uninstalling the AWS Deadline Cloud Submitter from Blender. The addon and scripts directory may need to be removed manually.</customErrorMessage>
+                </runProgram>
+            </actionList>
+        </actionDefinition>
+    </functionDefinitionList>
+    <componentList>
+        <component>
+            <name>blender_36</name>
+            <description>Blender 3.6</description>
+            <selected>1</selected>
+            <parameterList>
+                <fileParameter>
+                    <name>blender_36_path</name>
+                    <description>Path to Blender 3.6</description>
+                    <explanation>Enter the path to Blender 3.6. For easiest installation, Blender should be installed before installing AWS Deadline Cloud for Blender.</explanation>
+                    <default>${blender_36_default}</default>
+                    <allowEmptyValue>0</allowEmptyValue>
+                    <ask>yes</ask>
+                    <cliOptionName>blender-36-path</cliOptionName>
+                    <cliOptionText>Path to the Blender 3.6.</cliOptionText>
+                    <osxBundlesAreFiles>1</osxBundlesAreFiles>
+                </fileParameter>
+            </parameterList>
+            <postInstallationActionList>
+                <if>
+                    <conditionRuleList>
+                        <platformTest type="osx"/>
+                    </conditionRuleList>
+                    <actionList>
+                        <setInstallerVariable name="blender_36_path" value="${blender_36_path}/Contents/MacOS/Blender" />
+                    </actionList>
+                </if>
+                <fnSetBlenderPref blenderPath="${blender_36_path}"/>
+            </postInstallationActionList>
+            <preUninstallationActionList>
+                <if>
+                    <conditionRuleList>
+                        <platformTest type="osx"/>
+                    </conditionRuleList>
+                    <actionList>
+                        <setInstallerVariable name="blender_36_path" value="${blender_36_path}/Contents/MacOS/Blender" />
+                    </actionList>
+                </if>
+                <fnUnsetBlenderPref blenderPath="${blender_36_path}"/>
+            </preUninstallationActionList>
+        </component>
+        <component>
+            <name>blender_4</name>
+            <description>Blender 4.0</description>
+            <selected>1</selected>
+            <parameterList>
+                <fileParameter>
+                    <name>blender_4_path</name>
+                    <description>Path to Blender 4.0</description>
+                    <explanation>Enter the path to Blender 4.0. For easiest installation, Blender should be installed before installing AWS Deadline Cloud for Blender.</explanation>
+                    <default>${blender_4_default}</default>
+                    <allowEmptyValue>0</allowEmptyValue>
+                    <ask>yes</ask>
+                    <cliOptionName>blender-4-path</cliOptionName>
+                    <cliOptionText>Path to the Blender 4.0.</cliOptionText>
+                    <osxBundlesAreFiles>1</osxBundlesAreFiles>
+                </fileParameter>
+            </parameterList>
+            <postInstallationActionList>
+                <if>
+                    <conditionRuleList>
+                        <platformTest type="osx"/>
+                    </conditionRuleList>
+                    <actionList>
+                        <setInstallerVariable name="blender_4_path" value="${blender_4_path}/Contents/MacOS/Blender" />
+                    </actionList>
+                </if>
+                <fnSetBlenderPref blenderPath="${blender_4_path}"/>
+            </postInstallationActionList>
+            <preUninstallationActionList>
+                <if>
+                    <conditionRuleList>
+                        <platformTest type="osx"/>
+                    </conditionRuleList>
+                    <actionList>
+                        <setInstallerVariable name="blender_4_path" value="${blender_4_path}/Contents/MacOS/Blender" />
+                    </actionList>
+                </if>
+                <fnUnsetBlenderPref blenderPath="${blender_4_path}"/>
+            </preUninstallationActionList>
+        </component>
+        <component>
+            <name>blender_41</name>
+            <description>Blender 4.1</description>
+            <selected>1</selected>
+            <parameterList>
+                <fileParameter>
+                    <name>blender_41_path</name>
+                    <description>Path to Blender 4.1</description>
+                    <explanation>Enter the path to Blender 4.1. For easiest installation, Blender should be installed before installing AWS Deadline Cloud for Blender.</explanation>
+                    <default>${blender_41_default}</default>
+                    <allowEmptyValue>0</allowEmptyValue>
+                    <ask>yes</ask>
+                    <cliOptionName>blender-41-path</cliOptionName>
+                    <cliOptionText>Path to the Blender 4.1.</cliOptionText>
+                    <osxBundlesAreFiles>1</osxBundlesAreFiles>
+                </fileParameter>
+            </parameterList>
+            <postInstallationActionList>
+                <if>
+                    <conditionRuleList>
+                        <platformTest type="osx"/>
+                    </conditionRuleList>
+                    <actionList>
+                        <setInstallerVariable name="blender_41_path" value="${blender_41_path}/Contents/MacOS/Blender" />
+                    </actionList>
+                </if>
+                <fnSetBlenderPref blenderPath="${blender_41_path}"/>
+            </postInstallationActionList>
+            <preUninstallationActionList>
+                <if>
+                    <conditionRuleList>
+                        <platformTest type="osx"/>
+                    </conditionRuleList>
+                    <actionList>
+                        <setInstallerVariable name="blender_41_path" value="${blender_41_path}/Contents/MacOS/Blender" />
+                    </actionList>
+                </if>
+                <fnUnsetBlenderPref blenderPath="${blender_41_path}"/>
+            </preUninstallationActionList>
+        </component>
+        <component>
+            <name>blender_42</name>
+            <description>Blender 4.2</description>
+            <selected>1</selected>
+            <parameterList>
+                <fileParameter>
+                    <name>blender_42_path</name>
+                    <description>Path to Blender 4.2</description>
+                    <explanation>Enter the path to Blender 4.2. For easiest installation, Blender should be installed before installing AWS Deadline Cloud for Blender.</explanation>
+                    <default>${blender_42_default}</default>
+                    <allowEmptyValue>0</allowEmptyValue>
+                    <ask>yes</ask>
+                    <cliOptionName>blender-42-path</cliOptionName>
+                    <cliOptionText>Path to the Blender 4.2.</cliOptionText>
+                    <osxBundlesAreFiles>1</osxBundlesAreFiles>
+                </fileParameter>
+            </parameterList>
+            <postInstallationActionList>
+                <if>
+                    <conditionRuleList>
+                        <platformTest type="osx"/>
+                    </conditionRuleList>
+                    <actionList>
+                        <setInstallerVariable name="blender_42_path" value="${blender_42_path}/Contents/MacOS/Blender" />
+                    </actionList>
+                </if>
+                <fnSetBlenderPref blenderPath="${blender_42_path}"/>
+            </postInstallationActionList>
+            <preUninstallationActionList>
+                <if>
+                    <conditionRuleList>
+                        <platformTest type="osx"/>
+                    </conditionRuleList>
+                    <actionList>
+                        <setInstallerVariable name="blender_42_path" value="${blender_42_path}/Contents/MacOS/Blender" />
+                    </actionList>
+                </if>
+                <fnUnsetBlenderPref blenderPath="${blender_42_path}"/>
+            </preUninstallationActionList>
+        </component>
+    </componentList>
+    <preInitializationActionList>
         <setInstallerVariable name="all_components" value="${all_components} deadline_cloud_for_blender" />
         <setInstallerVariable name="individual_install" value="0"/>
-    </initializationActionList>
+        <if>
+            <conditionRuleList>
+                <platformTest type="windows" />
+            </conditionRuleList>
+            <actionList>
+                <setInstallerVariable name="blender_36_default" value="C:\Program Files\Blender Foundation\Blender 3.6\blender.exe" />
+                <setInstallerVariable name="blender_4_default" value="C:\Program Files\Blender Foundation\Blender 4.0\blender.exe" />
+                <setInstallerVariable name="blender_41_default" value="C:\Program Files\Blender Foundation\Blender 4.1\blender.exe" />
+                <setInstallerVariable name="blender_42_default" value="C:\Program Files\Blender Foundation\Blender 4.2\blender.exe" />
+            </actionList>
+        </if>
+        <if>
+            <conditionRuleList>
+                <platformTest type="linux" />
+            </conditionRuleList>
+            <actionList>
+                <setInstallerVariable name="blender_36_default" value="/usr/local/blender" />
+                <setInstallerVariable name="blender_4_default" value="/usr/local/blender" />
+                <setInstallerVariable name="blender_41_default" value="/usr/local/blender" />
+                <setInstallerVariable name="blender_42_default" value="/usr/local/blender" />
+            </actionList>
+        </if>
+        <if>
+            <conditionRuleList>
+                <platformTest type="osx" />
+            </conditionRuleList>
+            <actionList>
+                <setInstallerVariable name="blender_36_default" value="/Applications/Blender.app" />
+                <setInstallerVariable name="blender_4_default" value="/Applications/Blender.app" />
+                <setInstallerVariable name="blender_41_default" value="/Applications/Blender.app" />
+                <setInstallerVariable name="blender_42_default" value="/Applications/Blender.app" />
+            </actionList>
+        </if>
+    </preInitializationActionList>
     <readyToInstallActionList>
         <if>
             <conditionRuleList>
                 <isTrue value="${individual_install}"/>
             </conditionRuleList>
             <actionList>
-                <setInstallerVariable name="blender_installdir" value="${installdir}/python" />
+                <setInstallerVariable name="blender_installdir" value="${installdir}/python" persist="1" />
             </actionList>
             <elseActionList>
-                <setInstallerVariable name="blender_installdir" value="${installdir}/Submitters/Blender/python" />
+                <setInstallerVariable name="blender_installdir" value="${installdir}/Submitters/Blender/python" persist="1" />
             </elseActionList>
         </if>
         <setInstallerVariable name="blender_addondir" value="${blender_installdir}/addons" />
@@ -74,4 +328,4 @@
             <path>${installdir}/tmp</path>
         </deleteFile>
     </postInstallationActionList>
-</component>
+</componentGroup>
