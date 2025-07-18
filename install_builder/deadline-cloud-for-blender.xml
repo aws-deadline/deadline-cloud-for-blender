@@ -101,7 +101,7 @@
         <component>
             <name>blender_36</name>
             <description>Blender 3.6</description>
-            <selected>1</selected>
+            <selected>0</selected>
             <parameterList>
                 <fileParameter>
                     <name>blender_36_path</name>
@@ -141,7 +141,7 @@
         <component>
             <name>blender_4</name>
             <description>Blender 4.0</description>
-            <selected>1</selected>
+            <selected>0</selected>
             <parameterList>
                 <fileParameter>
                     <name>blender_4_path</name>
@@ -181,7 +181,7 @@
         <component>
             <name>blender_41</name>
             <description>Blender 4.1</description>
-            <selected>1</selected>
+            <selected>0</selected>
             <parameterList>
                 <fileParameter>
                     <name>blender_41_path</name>
@@ -221,7 +221,7 @@
         <component>
             <name>blender_42</name>
             <description>Blender 4.2</description>
-            <selected>1</selected>
+            <selected>0</selected>
             <parameterList>
                 <fileParameter>
                     <name>blender_42_path</name>
