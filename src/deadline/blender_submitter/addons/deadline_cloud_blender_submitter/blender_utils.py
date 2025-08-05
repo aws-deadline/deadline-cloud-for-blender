@@ -78,20 +78,42 @@ def find_files(project_path, skip_temp=True, skip_nonexistent=True) -> list[Path
     files.append(project_path)
     files = set(Path(f) for f in files)
 
+    temp_dirs = []
     if skip_temp:
         temp_dirs = _get_blender_temp_dirs()
         _logger.debug(f"Resolved Blender temp directories: {temp_dirs}")
 
-        def is_in_temp(f: Path):
-            """Returns True if the given file is in any of Blender's temp directories."""
-            return any(f.is_relative_to(temp_dir) for temp_dir in temp_dirs)
+    # Path where Blender stores its built-in brush asset .blend files
+    blender_resource_path = Path(bpy.utils.resource_path("LOCAL"))
 
-        files = (f for f in files if not is_in_temp(f))
+    def _is_in_temp(f: Path) -> bool:
+        """Returns True if the given file is in any of Blender's temp directories."""
+        return any(f.is_relative_to(temp_dir) for temp_dir in temp_dirs)
 
-    if skip_nonexistent:
-        files = (f for f in files if f.exists())
+    def _is_essential_brush(path: Path) -> bool:
+        """
+        Returns True if the given file is a built-in brush asset.
+        Any paths to files within the local Blender resource folder prefixed with
+        'essentials_brushes-' are filtered out since these are bundled with Blender and appear
+        to be unneccesary for just rendering. These files were previously included in the main
+        .blend file but with 4.3+ they are now separate assets in the Blender install
+        https://code.blender.org/2024/07/brush-assets-is-out/#new-brush-workflow
+        """
+        return path.is_relative_to(blender_resource_path) and path.name.startswith(
+            "essentials_brushes-"
+        )
 
-    return [Path(os.path.abspath(f)) for f in files]
+    filtered_files = []
+    for file in files:
+        if (
+            (skip_temp and _is_in_temp(file))
+            or (skip_nonexistent and not file.exists())
+            or _is_essential_brush(file)
+        ):
+            continue
+        filtered_files.append(Path(os.path.abspath(file)))
+
+    return filtered_files
 
 
 def _get_blender_temp_dirs() -> list[Path]:
