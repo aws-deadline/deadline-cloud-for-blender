@@ -76,7 +76,7 @@ def build_installer(
     """
     if install_builder_location is None:
         raise FileNotFoundError(
-            "Could not find a default InstallBuilder path. Please specify one with '--install-builder-location'."
+            "Could not find a default InstallBuilder path. Please specify one with '--install-builder-path'."
         )
 
     if not install_builder_location.is_dir():
