@@ -9,12 +9,8 @@ from qtpy.QtCore import Qt  # type: ignore
 
 from deadline.client import api
 from deadline.client.job_bundle._yaml import deadline_yaml_dump
-from deadline.client.job_bundle.parameters import JobParameter
 from deadline.client.job_bundle.submission import AssetReferences
-from deadline.client.ui.dialogs.submit_job_to_deadline_dialog import (
-    SubmitJobToDeadlineDialog,
-    JobBundlePurpose,
-)
+from deadline.client.ui.dialogs.submit_job_to_deadline_dialog import SubmitJobToDeadlineDialog
 
 from . import blender_utils as bu
 from . import sanity_checks as sc
@@ -129,10 +125,10 @@ def _create_bundle(
     widget: SubmitJobToDeadlineDialog,
     job_bundle_dir: str,
     settings: tf.BlenderSubmitterUISettings,
-    queue_parameters: list[JobParameter],
+    queue_parameters: list[dict[str, Any]],
     asset_references: AssetReferences,
-    host_requirements: Optional[dict[str, Any]] = None,
-    purpose: JobBundlePurpose = JobBundlePurpose.SUBMISSION,
+    requirements: Optional[dict[str, Any]] = None,
+    purpose: Optional[str] = None,
 ) -> dict[str, Any]:
     """Create and write Deadline job bundle files to the given directory. Also save sticky settings.
 
@@ -146,17 +142,11 @@ def _create_bundle(
         settings: The job settings.
         queue_parameters: The queue parameters.
         asset_references: The asset references.
-        host_requirements: The host requirements. There are only passed if the user has specified custom host requirements in the UI. If "all available worker hosts" are selected, this is None.
+        requirements: The host requirements. There are only passed if the user has specified custom host requirements in the UI. If "all available worker hosts" are selected, this is None.
         purpose: The purpose of the job bundle.
     """
     return _create_bundle_internal(
-        widget,
-        job_bundle_dir,
-        settings,
-        queue_parameters,
-        asset_references,
-        host_requirements,
-        purpose,
+        widget, job_bundle_dir, settings, queue_parameters, asset_references, requirements, purpose
     )
 
 
@@ -164,10 +154,10 @@ def _create_bundle_internal(
     widget: SubmitJobToDeadlineDialog,
     job_bundle_dir: str,
     settings: tf.BlenderSubmitterUISettings,
-    queue_parameters: list[JobParameter],
+    queue_parameters: list[dict[str, Any]],
     asset_references: AssetReferences,
-    host_requirements: Optional[dict[str, Any]] = None,
-    purpose: Optional[JobBundlePurpose] = None,
+    requirements: Optional[dict[str, Any]] = None,
+    purpose: Optional[str] = None,
     prompt_for_saving=True,
 ) -> dict[str, Any]:
     """Create and write Deadline job bundle files to the given directory. Also save sticky settings.
@@ -179,7 +169,7 @@ def _create_bundle_internal(
         settings: The job settings.
         queue_parameters: The queue parameters.
         asset_references: The asset references.
-        host_requirements: The host requirements. There are only passed if the user has specified custom host requirements in the UI. If "all available worker hosts" are selected, this is None.
+        requirements: The host requirements. There are only passed if the user has specified custom host requirements in the UI. If "all available worker hosts" are selected, this is None.
         purpose: The purpose of the job bundle.
     """
     # Make sure the output path used for submission is absolute
@@ -219,9 +209,7 @@ def _create_bundle_internal(
     if settings.override_frame_range:
         common_layer_settings.frame_range = settings.frame_list
 
-    job_template = tf.fill_job_template(
-        settings, layer_names, common_layer_settings, host_requirements
-    )
+    job_template = tf.fill_job_template(settings, layer_names, common_layer_settings, requirements)
     parameter_values = tf.get_parameter_values(settings, common_layer_settings, queue_parameters)
 
     # Write the job bundle files.
