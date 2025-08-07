@@ -12,7 +12,7 @@ AWS Deadline Cloud for Blender is a python package that allows users to create [
 [openjd-adaptor-runtime]: https://github.com/OpenJobDescription/openjd-adaptor-runtime-for-python
 [openjd-adaptor-runtime-lifecycle]: https://github.com/OpenJobDescription/openjd-adaptor-runtime-for-python/blob/release/README.md#adaptor-lifecycle
 
-## Compatibility
+## Compatibility Test
 
 This library requires:
 
