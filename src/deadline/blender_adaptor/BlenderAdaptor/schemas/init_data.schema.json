@@ -36,6 +36,7 @@
     },
     "required": [
         "scene_file",
-        "render_engine"
+        "render_engine",
+        "gpu_device"
     ]
 }
