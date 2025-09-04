@@ -9,7 +9,7 @@ from typing import Any
 
 
 def run_command(args: list[str]) -> subprocess.CompletedProcess[bytes]:
-    output = subprocess.run(args, capture_output=True)
+    output = subprocess.run(args, capture_output=True, env=os.environ.copy())
 
     print(f"Ran the following: {' '.join(output.args)}")
     print(f"\nstdout:\n\n{output.stdout.decode('utf-8', errors='replace')}")
@@ -51,17 +51,28 @@ def is_valid_template(template_location: Path) -> bool:
 
 
 def run_adaptor_test(template_path: Path, job_params: dict[str, Any], blender_location) -> None:
+    import yaml
+
     # Set BLENDER_EXECUTABLE so the adaptor will find it
     os.environ["BLENDER_EXECUTABLE"] = str(blender_location)
 
-    # Run the full job. The template may contain multiple steps, representing a test in each
-    output = run_command(
-        [
-            "openjd",
-            "run",
-            str(template_path),
-            "--job-param",
-            json.dumps(job_params),
-        ]
-    )
-    assert output.returncode == 0
+    # Parse template to get step names
+    with open(template_path) as f:
+        template = yaml.safe_load(f)
+
+    steps = [step["name"] for step in template.get("steps", [])]
+
+    # Run each step separately to avoid connection file race condition
+    for step_name in steps:
+        output = run_command(
+            [
+                "openjd",
+                "run",
+                str(template_path),
+                "--step",
+                step_name,
+                "--job-param",
+                json.dumps(job_params),
+            ]
+        )
+        assert output.returncode == 0

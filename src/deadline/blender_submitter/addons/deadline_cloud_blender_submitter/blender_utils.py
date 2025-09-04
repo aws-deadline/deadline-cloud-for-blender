@@ -74,6 +74,13 @@ def find_files(project_path, skip_temp=True, skip_nonexistent=True) -> list[Path
         skip_temp: if True, skip all files from any of Blender's potential temp directories.
         skip_nonexistent: if True, skip all files that do not exist. When files are shared across machines, Blender may retain memory of original paths; this ensures that all retrieved paths exist on the local filesystem.
     """
+    import os
+
+    # Get allowlist from environment variable (semicolon-separated on Windows, colon-separated on Unix)
+    allowlist_env = os.environ.get("BLENDER_TEMP_ALLOWLIST", "")
+    separator = ";" if os.name == "nt" else ":"
+    temp_allowlist = [Path(p.strip()) for p in allowlist_env.split(separator) if p.strip()]
+
     files = bpy.utils.blend_paths(absolute=True)
     files.append(project_path)
     files = set(Path(f) for f in files)
@@ -87,7 +94,9 @@ def find_files(project_path, skip_temp=True, skip_nonexistent=True) -> list[Path
     blender_resource_path = Path(bpy.utils.resource_path("LOCAL"))
 
     def _is_in_temp(f: Path) -> bool:
-        """Returns True if the given file is in any of Blender's temp directories."""
+        """Returns True if the given file is in any of Blender's temp directories, unless it's in the allowlist."""
+        if any(f.is_relative_to(allowed) for allowed in temp_allowlist):
+            return False
         return any(f.is_relative_to(temp_dir) for temp_dir in temp_dirs)
 
     def _is_essential_brush(path: Path) -> bool:

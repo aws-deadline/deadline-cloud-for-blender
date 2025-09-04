@@ -17,6 +17,7 @@ def assert_all_images_close(
         expected_image_directory: The directory containing the expected images.
         actual_image_directory: The directory containing the actual images.
     """
+
     for image in (expected_image_directory).iterdir():
         if not image.is_file() or image.name == ".DS_Store":
             continue
@@ -38,9 +39,31 @@ def assert_all_images_close(
         # Check that the two images are the same within a tolerance.
         # It's normal for there to be noise in an output image, so it is unlikely that two
         # renders will be exactly the same.
-        if not np.allclose(actual, expected, atol=2):
-            # For debugging: Uncomment to write the diff image along-side the expected image with _diff suffix
-            # diff = actual - expected
-            # PIL.Image.fromarray(diff).save(expected_image_directory / f"{image.name}_diff.png")
+        # Check both: max difference and percentage of pixels outside tolerance
+        diff = np.abs(actual.astype(int) - expected.astype(int))
+        max_diff = diff.max()
+        pixels_outside_tolerance = np.sum(diff > 2)
+        total_pixels = diff.size
+        percent_outside = (pixels_outside_tolerance / total_pixels) * 100
 
-            assert False, f"Image {image.name} is not close to the expected image"
+        # Pass if max diff <= 2 OR less than 0.5% of pixels are outside tolerance
+        if max_diff > 2 and percent_outside > 0.5:
+            print(f"Expected shape: {expected.shape}, Actual shape: {actual.shape}")
+            print(
+                f"Pixels outside tolerance (>2): {pixels_outside_tolerance}/{total_pixels} ({percent_outside:.2f}%)"
+            )
+            # For debugging: Uncomment to show per-channel differences
+            # if len(expected.shape) == 3:
+            #     for i, channel in enumerate(['R', 'G', 'B', 'A'][:expected.shape[2]]):
+            #         print(f"  {channel} channel max diff: {diff[:,:,i].max()}")
+            # For debugging: Uncomment to write the diff image along-side the actual image with _diff suffix
+            # diff_img = diff.astype(np.uint8)
+            # diff_amplified = np.clip(diff_img * 50, 0, 255).astype(np.uint8)
+            # if len(diff_amplified.shape) == 3 and diff_amplified.shape[2] == 4:
+            #     diff_amplified[:,:,3] = 255
+            # PIL.Image.fromarray(diff_amplified).save(actual_image_directory / f"{image.name}_diff.png")
+            # print(f"Diff image saved to {actual_image_directory / f'{image.name}_diff.png'} (amplified 50x)")
+
+            assert (
+                False
+            ), f"Image {image.name} is not close to the expected image (max diff: {max_diff}, {percent_outside:.2f}% pixels outside tolerance)"

@@ -47,6 +47,22 @@ test = "pytest --no-cov {args:test/integ} -vvv --numprocesses=1"
 test_submitters = "pytest --no-cov {args:test/integ} -vvv --numprocesses=1 -m submitter"
 test_adaptors = "pytest --no-cov {args:test/integ} -vvv --numprocesses=1 -m adaptor"
 
+[envs.integ-ci]
+pre-install-commands = [
+  "pip install -r requirements-integ-testing.txt",
+  "pip install -r requirements-testing.txt"
+]
+
+[[envs.integ-ci.matrix]]
+blender = ["4.5.4", "4.2.12"]
+
+[envs.integ-ci.env-vars]
+BLENDER_VERSION = "{matrix:blender}"
+
+[envs.integ-ci.scripts]
+setup = "python ./pipeline/setup-runner.py --versions {matrix:blender} {args}"
+test = "pytest --no-cov {args:test/integ} -vvv --numprocesses=1"
+
 [envs.codebuild.env-vars]
 SKIP_BOOTSTRAP_TEST_RESOURCES="True"
 
