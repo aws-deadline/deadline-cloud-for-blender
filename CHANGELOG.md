@@ -43,6 +43,9 @@ These changes are experimental and are subject to change without warning
 
 ## 0.5.0 (2025-01-13)
 
+### BREAKING CHANGES
+* The blender-openjd adaptor now requires that gpu_device is specified in init_data. This value can be set to NONE if a GPU is not used.
+
 
 ### Features
 * Enable GPU rendering from submitter ([`7a4f8bc`](https://github.com/aws-deadline/deadline-cloud-for-blender/commit/7a4f8bc28f55059b77a6f6d31baa39766fe56c98))

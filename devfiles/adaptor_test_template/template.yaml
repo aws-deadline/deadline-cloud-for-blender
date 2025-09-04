@@ -112,6 +112,7 @@ steps:
           data: |
             scene_file: {{Param.BlenderFile}}
             render_engine: {{Param.RenderEngine}}
+            gpu_device: {{Param.GPUDevice}}
             render_scene: {{Param.RenderScene}}
             render_layer: {{Param.RenderLayer}}
             camera: {{Param.Camera}}
@@ -120,10 +121,8 @@ steps:
             output_format: {{Param.OutputFormat}}
       actions:
         onEnter:
-          command: python3
+          command: blender-openjd
           args:
-            - -m
-            - blender_adaptor.BlenderAdaptor
             - daemon
             - start
             - --connection-file
@@ -133,10 +132,8 @@ steps:
           cancelation:
             mode: NOTIFY_THEN_TERMINATE
         onExit:
-          command: python3
+          command: blender-openjd
           args:
-            - -m
-            - blender_adaptor.BlenderAdaptor
             - daemon
             - stop
             - --connection-file
@@ -152,10 +149,8 @@ steps:
           frame: {{Task.Param.Frame}}
     actions:
       onRun:
-        command: python3
+        command: blender-openjd
         args:
-          - -m
-          - blender_adaptor.BlenderAdaptor
           - daemon
           - run
           - --connection-file
