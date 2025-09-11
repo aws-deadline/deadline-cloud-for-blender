@@ -16,6 +16,7 @@ from typing import Any, Optional
 
 import yaml
 from deadline.client.exceptions import DeadlineOperationError
+from deadline.client.job_bundle.parameters import JobParameter
 
 _logger = logging.getLogger(__name__)
 
@@ -372,7 +373,7 @@ def _fill_step_template(
 def get_parameter_values(
     settings: BlenderSubmitterUISettings,
     layer_settings: CommonLayerSettings,
-    queue_params: list[dict[str, Any]],
+    queue_params: list[JobParameter],
 ) -> list[dict[str, Any]]:
     """Collect the parameter values for the job bundle as a list of name/value dicts."""
 
@@ -411,8 +412,8 @@ def get_parameter_values(
     if settings.include_adaptor_wheels:
         wheels_path = str(Path(__file__).parent.parent.parent.parent / "wheels")
         params.append({"name": "OverrideAdaptorWheels", "value": wheels_path})
-        rez_param = {}
-        conda_param = {}
+        rez_param: Optional[JobParameter] = None
+        conda_param: Optional[JobParameter] = None
         # Find the Packages parameter definition in the queue params.
         for param in queue_params:
             if param["name"] == "RezPackages":
