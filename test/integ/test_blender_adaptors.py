@@ -15,7 +15,11 @@ class TestAdaptors:
     """
 
     def test_minimal_scene_adaptor(
-        self, script_location: Path, tmp_path: Path, blender_location
+        self,
+        script_location: Path,
+        tmp_path: Path,
+        blender_location: Path,
+        blender_version: str,
     ) -> None:
         test_file_location = script_location / "minimal_test"
         scene_location = test_file_location / "scene" / "test.blend"
@@ -38,12 +42,16 @@ class TestAdaptors:
             blender_location,
         )
         assert_all_images_close(
-            expected_image_directory=test_file_location / "expected_images",
+            expected_image_directory=test_file_location / "expected_images" / blender_version,
             actual_image_directory=output_path,
         )
 
     def test_minimal_scene_with_host_requirements_adaptor(
-        self, script_location: Path, tmp_path: Path, blender_location
+        self,
+        script_location: Path,
+        tmp_path: Path,
+        blender_location: Path,
+        blender_version: str,
     ) -> None:
         test_file_location = script_location / "minimal_test_host_requirements"
         scene_location = test_file_location / "scene" / "test.blend"
@@ -67,6 +75,6 @@ class TestAdaptors:
             blender_location,
         )
         assert_all_images_close(
-            expected_image_directory=test_file_location / "expected_images",
+            expected_image_directory=test_file_location / "expected_images" / blender_version,
             actual_image_directory=output_path,
         )

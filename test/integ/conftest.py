@@ -2,10 +2,15 @@
 
 import pytest
 import os
+import re
 import shutil
+import subprocess
 import sys
 
 from pathlib import Path
+
+
+_BLENDER_VERSION_RE = re.compile(r"^Blender (?P<version>\d+\.\d+)\..*$")
 
 
 @pytest.fixture
@@ -39,6 +44,20 @@ def blender_location() -> Path:
     raise RuntimeError(
         "Blender could not be found, set the BLENDER_EXECUTABLE environment variable to fix this."
     )
+
+
+@pytest.fixture
+def blender_version(blender_location) -> str:
+    cmd = [str(blender_location), "--version"]
+    result = subprocess.run(
+        cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+    )
+    first_line = result.stdout.splitlines()[0]
+    match = _BLENDER_VERSION_RE.match(first_line)
+    if not match:
+        raise RuntimeError(f"Could not parse Blender version from {first_line}")
+    version = match.group("version")
+    return version
 
 
 @pytest.fixture
