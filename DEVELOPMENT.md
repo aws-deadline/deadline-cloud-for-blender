@@ -56,7 +56,12 @@ hatch run test-installer
 1. If you can run `blender` from your terminal or on Windows/MacOS you did a default Blender install,
    the tests will find Blender automatically. Otherwise, set the environment variable `BLENDER_EXECUTABLE`
    to the location of your Blender application.
-2. Run `hatch run integ:test`
+1. **On Windows**: Install `pywin32` into Blender's python environment manually.
+   ```bash
+    # Git Bash
+    pip install -r requirements-integ-testing.txt --python-version=<3.10 | 3.11> --only-binary=:all: --target <BLENDER_INSTALL_LOCATION>/<3.6 | 4.2>/python/lib/site-packages/
+    ```
+1. Run `hatch run integ:test`
 
 ### Manual Installation
 
