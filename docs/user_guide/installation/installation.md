@@ -5,19 +5,10 @@ You can install the Deadline Cloud for Blender submitter using the Deadline Clou
 **To install the submitter**
 
 1. Download the [Deadline Cloud submitter installer](https://docs.aws.amazon.com/deadline-cloud/latest/userguide/submitter.html).
-1. Run the installer and follow the prompts.
+1. Run the installer.
+    - When prompted, select each version of Blender you want to use the submitter with.
 1. Launch Blender.
-
-The Deadline Cloud submitter add-on should be automatically enabled.
-> The submitter installer is available for Windows, MacOS, and Linux. See the [developer README](https://github.com/aws-deadline/deadline-cloud-for-blender/blob/mainline/README.md) for manual installation instructions.
-
-**To verify the submitter is installed correctly**
-
-1. Open Blender.
-1. On the **Edit** menu, choose **Preferences…**.
-1. Choose **Add-ons** on the left side bar.
-1. Search for `Deadline Cloud`.
-1. You should see the **AWS Deadline Cloud for Blender Submitter** add-on listed and enabled.
+1. Verify the installation by checking the **Render** menu for a **Submit to AWS Deadline Cloud** option.
 
 If the add-on is not available from the **Render** menu, you will need to manually enable it.
 

@@ -2,14 +2,27 @@
 
 This library collects telemetry data by default. Telemetry events contain non-personally identifiable information that helps us understand how users interact with our software. We use this to know which features our customers use and/or what existing pain points are.
 
-You can opt out of telemetry on your machine by editing your Deadline Cloud configuration, or temporarily by setting an environment variable in your terminal.
+There are three ways to opt out of telemetry:
 
-**To opt out of telemetry (config)**
+- Use the submitter dialog (recommended)
+- Use the command-line tool
+- Set a terminal environment variable
+
+**To opt out of telemetry (submitter)**
+
+1. Launch the submitter by choosing **Render**, **Submit to AWS Deadline Cloud**.
+1. Choose **Settings...** at the bottom of the submitter dialog.
+1. Under **General settings**, check **Telemetry opt out**.
+1. Choose **Apply** to save the setting, or **OK** to save and close the settings dialog.
+
+**To opt out of telemetry (command line)**
 
 1. Run the `deadline config` command:
 ```sh
 deadline config set telemetry.opt_out true
 ```
+
+This is equivalent to checking **Telemetry opt out** in the submitter GUI as described above.
 
 **To opt out of telemetry (terminal)**
 
