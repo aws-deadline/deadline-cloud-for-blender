@@ -42,6 +42,37 @@ To send us a pull request, please:
 GitHub provides additional documentation on [forking a repository](https://help.github.com/articles/fork-a-repo/) and
 [creating a pull request](https://help.github.com/articles/creating-a-pull-request/).
 
+### Conventional commits
+
+The commits in this repository are all required to use [conventional commit syntax](https://www.conventionalcommits.org/en/v1.0.0/)
+in their title to help us identify the kind of change that is being made, automatically generate the changelog, and 
+automatically identify next release version number. Only the first commit that deviates from mainline in your pull request
+must adhere to this requirement.
+
+We ask that you use these commit types in your commit titles:
+
+* `feat` - When the pull request adds a new feature or functionality;
+* `fix` - When the pull request is implementing a fix to a bug;
+* `test` - When the pull request is only implementing an addition or change to tests or the testing infrastructure;
+* `docs` - When the pull request is primarily implementing an addition or change to the package's documentation;
+* `refactor` - When the pull request is implementing only a refactor of existing code;
+* `ci` - When the pull request is implementing a change to the CI infrastructure of the packge;
+* `chore` - When the pull request is a generic maintenance task.
+* `perf` - When the pull request is a performance improvement.
+
+We also require that the type in your conventional commit title end in an exclaimation point (e.g. `feat!` or `fix!`)
+if the pull request should be considered to be a breaking change in some way. Please also include a "BREAKING CHANGE" footer
+in the description of your commit in this case ([example](https://www.conventionalcommits.org/en/v1.0.0/#commit-message-with-both--and-breaking-change-footer)).
+Examples of breaking changes include:
+
+*   removing a feature of the DCC integration
+*   changing established behavior of the integration that users have come to rely on
+*   breaking backwards-compatibility between the submitter and and the adaptor
+
+If you need change a commit message, then please see the
+[GitHub documentation on the topic](https://docs.github.com/en/pull-requests/committing-changes-to-your-project/creating-and-editing-commits/changing-a-commit-message)
+to guide you.
+
 ## Finding contributions to work on
 
 Looking at the existing issues is a great way to find something to contribute on. As our projects, by default, use the default GitHub issue labels (enhancement/bug/duplicate/help wanted/invalid/question/wontfix), looking at any 'help wanted' issues is a great place to start.
