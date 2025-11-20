@@ -71,6 +71,16 @@ def blender_version(blender_location) -> str:
     if not match:
         raise RuntimeError(f"Could not parse Blender version from {first_line}")
     version = match.group("version")
+
+    env_version = os.environ.get("BLENDER_VERSION")
+    if env_version:
+        # Compare only major.minor (e.g., "4.5" from "4.5.4")
+        env_version_short = ".".join(env_version.split(".")[:2])
+        assert version == env_version_short, (
+            f"BLENDER_VERSION env var ({env_version}) does not match "
+            f"blender --version output ({version})"
+        )
+
     return version
 
 

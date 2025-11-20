@@ -38,8 +38,7 @@ build = "hatch build"
 
 [envs.integ]
 pre-install-commands = [
-  "pip install -r requirements-integ-testing.txt",
-  "pip install -r requirements-testing.txt"
+  "pip install -r requirements-integ-testing.txt -r requirements-testing.txt"
 ]
 
 [envs.integ.scripts]
@@ -49,18 +48,22 @@ test_adaptors = "pytest --no-cov {args:test/integ} -vvv --numprocesses=1 -m adap
 
 [envs.integ-ci]
 pre-install-commands = [
-  "pip install -r requirements-integ-testing.txt",
-  "pip install -r requirements-testing.txt"
+  "pip install -r requirements-integ-testing.txt -r requirements-testing.txt"
 ]
 
 [[envs.integ-ci.matrix]]
-blender = ["4.5.4", "4.2.12"]
+blender = ["4.5.4"]
+python = ["3.11"]
+
+[[envs.integ-ci.matrix]]
+blender = ["4.2.12"]
+python = ["3.11"]
 
 [envs.integ-ci.env-vars]
 BLENDER_VERSION = "{matrix:blender}"
 
 [envs.integ-ci.scripts]
-setup = "python ./pipeline/setup-runner.py --versions {matrix:blender} {args}"
+setup = "python ./pipeline/setup-runner.py --versions {matrix:blender} --python-version {matrix:python} {args}"
 test = "pytest --no-cov {args:test/integ} -vvv --numprocesses=1"
 
 [envs.codebuild.env-vars]

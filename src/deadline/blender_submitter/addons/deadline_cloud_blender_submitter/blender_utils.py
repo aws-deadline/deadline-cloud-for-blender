@@ -78,8 +78,7 @@ def find_files(project_path, skip_temp=True, skip_nonexistent=True) -> list[Path
 
     # Get allowlist from environment variable (semicolon-separated on Windows, colon-separated on Unix)
     allowlist_env = os.environ.get("BLENDER_TEMP_ALLOWLIST", "")
-    separator = ";" if os.name == "nt" else ":"
-    temp_allowlist = [Path(p.strip()) for p in allowlist_env.split(separator) if p.strip()]
+    temp_allowlist = [Path(p.strip()) for p in allowlist_env.split(os.pathsep) if p.strip()]
 
     files = bpy.utils.blend_paths(absolute=True)
     files.append(project_path)

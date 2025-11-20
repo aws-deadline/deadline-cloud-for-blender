@@ -12,6 +12,10 @@ import time
 from pathlib import Path
 
 BLENDER_VERSIONS = ["4.2.12", "4.5.4"]
+BLENDER_PYTHON_VERSIONS = {
+    "4.2.12": "3.11",
+    "4.5.4": "3.11",
+}
 USE_PUBLIC_URLS = False
 
 # SHA256 checksums from https://www.blender.org/download/
@@ -64,16 +68,13 @@ def verify_checksum(file_path, expected_checksum):
     return True
 
 
-def setup_linux(install_x11=False):
+def setup_linux(python_version, install_x11=False):
     pkg_mgr = (
         "dnf"
         if subprocess.run("command -v dnf", shell=True, capture_output=True).returncode == 0
         else "yum"
     )
     run(f"{pkg_mgr} update -y", shell=True)
-
-    run("pip install --upgrade pip hatch", shell=True)
-    run("pip install --upgrade -r requirements-development.txt", shell=True)
 
     if install_x11:
         run(
@@ -140,7 +141,7 @@ def setup_linux(install_x11=False):
     )
 
     run(
-        'pip install --upgrade --python-version 3.11 --only-binary=:all: "deadline[gui]" blender-qt-stylesheet -t ./DeadlineCloudSubmitter/Submitters/Blender/python/modules',
+        f'pip install --upgrade --python-version {python_version} --only-binary=:all: "deadline[gui]" blender-qt-stylesheet -t ./DeadlineCloudSubmitter/Submitters/Blender/python/modules',
         shell=True,
     )
 
@@ -152,10 +153,7 @@ def setup_linux(install_x11=False):
         )
 
 
-def setup_windows():
-    run("pip install --upgrade pip hatch", shell=True)
-    run("pip install --upgrade -r requirements-development.txt", shell=True)
-
+def setup_windows(python_version):
     for version in BLENDER_VERSIONS:
         major_minor = ".".join(version.split(".")[:2])
         blender_dir = Path(f"C:/Tools/blender-{version}-windows-x64")
@@ -216,14 +214,14 @@ def setup_windows():
     )
 
     run(
-        'pip install --upgrade --python-version 3.11 --only-binary=:all: "deadline[gui]" blender-qt-stylesheet pywin32 -t DeadlineCloudSubmitter\\Submitters\\Blender\\python\\modules',
+        f'pip install --upgrade --python-version {python_version} --only-binary=:all: "deadline[gui]" blender-qt-stylesheet pywin32 -t DeadlineCloudSubmitter\\Submitters\\Blender\\python\\modules',
         shell=True,
     )
 
     for version in BLENDER_VERSIONS:
         blender_python_site = f"C:/Tools/blender-{version}-windows-x64/{version.split('.')[0]}.{version.split('.')[1]}/python/lib/site-packages"
         run(
-            f"pip install --upgrade -r requirements-integ-testing.txt --python-version=3.11 --only-binary=:all: --target {blender_python_site}",
+            f"pip install --upgrade -r requirements-integ-testing.txt --python-version={python_version} --only-binary=:all: --target {blender_python_site}",
             shell=True,
         )
 
@@ -236,10 +234,7 @@ def setup_windows():
         )
 
 
-def setup_macos():
-    run("pip install --upgrade pip hatch", shell=True)
-    run("pip install --upgrade -r requirements-development.txt", shell=True)
-
+def setup_macos(python_version):
     for version in BLENDER_VERSIONS:
         major_minor = ".".join(version.split(".")[:2])
         blender_app = Path(f"/Applications/Blender-{version}.app")
@@ -279,7 +274,7 @@ def setup_macos():
     )
 
     run(
-        'pip install --upgrade --python-version 3.11 --only-binary=:all: "deadline[gui]" blender-qt-stylesheet -t ./DeadlineCloudSubmitter/Submitters/Blender/python/modules',
+        f'pip install --upgrade --python-version {python_version} --only-binary=:all: "deadline[gui]" blender-qt-stylesheet -t ./DeadlineCloudSubmitter/Submitters/Blender/python/modules',
         shell=True,
     )
 
@@ -300,6 +295,9 @@ if __name__ == "__main__":
         "--versions", nargs="+", help="Blender versions to install (e.g., 4.5.4 4.2.12)"
     )
     parser.add_argument(
+        "--python-version", help="Python version to use for pip installs (e.g., 3.11)"
+    )
+    parser.add_argument(
         "--install-x11",
         action="store_true",
         help="Install X11 libraries and start Xvfb (Linux only)",
@@ -309,11 +307,24 @@ if __name__ == "__main__":
     USE_PUBLIC_URLS = args.public_urls
     if args.versions:
         BLENDER_VERSIONS = args.versions
+
+    # Use provided python version or infer from first Blender version
+    if args.python_version:
+        python_version = args.python_version
+    else:
+        python_version = BLENDER_PYTHON_VERSIONS.get(BLENDER_VERSIONS[0], "3.11")
+
     system = platform.system()
     print(f"Setting up {system} with Blender {', '.join(BLENDER_VERSIONS)}")
     print(f"Using {'public URLs' if USE_PUBLIC_URLS else 'S3 bucket'}")
+    print(f"Python version: {python_version}")
+
     if system == "Linux":
-        setup_linux(install_x11=args.install_x11)
+        setup_linux(python_version=python_version, install_x11=args.install_x11)
+    elif system == "Windows":
+        setup_windows(python_version=python_version)
+    elif system == "Darwin":
+        setup_macos(python_version=python_version)
     else:
-        {"Windows": setup_windows, "Darwin": setup_macos}[system]()
+        raise OSError(f"Unsupported OS: {system}")
     print("Setup complete!")

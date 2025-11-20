@@ -53,6 +53,8 @@ hatch run test-installer
 
 ### Run Integration Tests
 
+#### Local Integration Tests
+
 1. If you can run `blender` from your terminal or on Windows/MacOS you did a default Blender install,
    the tests will find Blender automatically. Otherwise, set the environment variable `BLENDER_EXECUTABLE`
    to the location of your Blender application.
@@ -62,6 +64,34 @@ hatch run test-installer
     pip install -r requirements-integ-testing.txt --python-version=<3.10 | 3.11> --only-binary=:all: --target <BLENDER_INSTALL_LOCATION>/<3.6 | 4.2>/python/lib/site-packages/
     ```
 1. Run `hatch run integ:test`
+
+#### CI Integration Tests (integ-ci environment)
+
+The `integ-ci` hatch environment is designed for automated testing in CI/CD pipelines with multiple Blender versions.
+
+**Environment Variables:**
+- `BLENDER_VERSION`: Set automatically by the hatch matrix.
+- `DEPENDENCY_BUCKET`: S3 bucket name containing Blender installers (required for setup script unless using `--public-urls`).
+
+**Usage:**
+```bash
+hatch run integ-ci:setup 
+hatch run integ-ci:test
+
+# Setup from public Blender downloads (with checksum verification)
+hatch run integ-ci:setup --public-urls
+
+# Setup with X11/Xvfb on Linux
+hatch run integ-ci:setup --install-x11
+```
+
+**Setup Script Options:**
+- `--public-urls`: Download from blender.org instead of S3 with SHA256 checksum verification
+- `--install-x11`: Install X11 libraries and start Xvfb on Linux (for headless rendering)
+- `--versions`: Specify Blender versions to install (e.g., `4.5.4 4.2.12`)
+- `--python-version`: Specify Python version for pip installs (e.g., `3.11`).
+
+The `pipeline/setup-runner.py` script downloads and installs Blender versions, then installs the submitter addon.
 
 ### Manual Installation
 
