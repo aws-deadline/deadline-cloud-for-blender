@@ -29,9 +29,9 @@ BLENDER_CHECKSUMS = {
 }
 
 
-def run(cmd, shell=False, check=True):
-    print(f"Running: {cmd if isinstance(cmd, str) else ' '.join(cmd)}")
-    result = subprocess.run(cmd, shell=shell)
+def run(cmd, check=True):
+    print(f"Running: {' '.join(cmd)}")
+    result = subprocess.run(cmd)
     if check and result.returncode != 0:
         sys.exit(result.returncode)
     return result
@@ -48,9 +48,6 @@ def download_from_s3(s3_path, local_path):
 
 def verify_checksum(file_path, expected_checksum):
     """Verify SHA256 checksum of downloaded file."""
-    if not USE_PUBLIC_URLS:
-        return True
-
     print(f"Verifying checksum for {file_path}...")
     sha256 = hashlib.sha256()
     with open(file_path, "rb") as f:
@@ -68,34 +65,77 @@ def verify_checksum(file_path, expected_checksum):
     return True
 
 
+def validate_version(version):
+    """Validate Blender version string"""
+    import re
+
+    if not re.match(r"^\d+\.\d+\.\d+$", version):
+        print(f"ERROR: Invalid version format: {version}")
+        print("Version must be in format X.Y.Z (e.g., 4.2.12)")
+        sys.exit(1)
+    return version
+
+
 def setup_linux(python_version, install_x11=False):
     pkg_mgr = (
         "dnf"
-        if subprocess.run("command -v dnf", shell=True, capture_output=True).returncode == 0
+        if subprocess.run(["command", "-v", "dnf"], capture_output=True).returncode == 0
         else "yum"
     )
-    run(f"{pkg_mgr} update -y", shell=True)
+    run([pkg_mgr, "update", "-y"])
 
+    # Optional, for running tests on a headless runner.
     if install_x11:
         run(
-            f"{pkg_mgr} install -y mesa-libGL mesa-libGLU mesa-libEGL libglvnd-egl fontconfig libxcb xcb-util-cursor xcb-util-image xcb-util-keysyms xcb-util-renderutil xcb-util-wm libxkbcommon-x11 xorg-x11-server-Xvfb libX11 libXrender libXi libXrandr libXxf86vm libXfixes libXcursor libXinerama libxkbcommon libSM libICE libXt libXmu",
-            shell=True,
+            [
+                pkg_mgr,
+                "install",
+                "-y",
+                "mesa-libGL",
+                "mesa-libGLU",
+                "mesa-libEGL",
+                "libglvnd-egl",
+                "fontconfig",
+                "libxcb",
+                "xcb-util-cursor",
+                "xcb-util-image",
+                "xcb-util-keysyms",
+                "xcb-util-renderutil",
+                "xcb-util-wm",
+                "libxkbcommon-x11",
+                "xorg-x11-server-Xvfb",
+                "libX11",
+                "libXrender",
+                "libXi",
+                "libXrandr",
+                "libXxf86vm",
+                "libXfixes",
+                "libXcursor",
+                "libXinerama",
+                "libxkbcommon",
+                "libSM",
+                "libICE",
+                "libXt",
+                "libXmu",
+            ]
         )
-        if run("pgrep Xvfb", shell=True, check=False).returncode != 0:
-            run("Xvfb :99 -screen 0 1024x768x24 &", shell=True)
-            run("sleep 2", shell=True)
+        if run(["pgrep", "Xvfb"], check=False).returncode != 0:
+            run(["Xvfb", ":99", "-screen", "0", "1024x768x24"], check=False)
+            run(["sleep", "2"])
         print("\nXvfb started. Run this before tests:")
         print("  export DISPLAY=:99")
 
     for version in BLENDER_VERSIONS:
         major_minor = ".".join(version.split(".")[:2])
         blender_dir = Path(f"/opt/blender-{version}-linux-x64")
+        # Marker file indicates successful installation, avoiding redundant reinstalls
         blender_marker = blender_dir / ".installed"
 
         if blender_marker.exists():
             print(f"Blender {version} already installed")
             continue
 
+        # Lock file prevents concurrent installations that could corrupt the installation
         lock_file = Path(f"/tmp/blender-{version}.lock")
         if lock_file.exists():
             print(f"Waiting for concurrent Blender {version} install...")
@@ -112,44 +152,69 @@ def setup_linux(python_version, install_x11=False):
             if not USE_PUBLIC_URLS and download_from_s3(
                 f"blender/blender-{version}-linux-x64.tar.xz", blender_archive
             ):
-                pass
+                verify_checksum(blender_archive, BLENDER_CHECKSUMS[f"{version}-linux-x64"])
             elif USE_PUBLIC_URLS:
                 run(
-                    f"wget -q -O {blender_archive} https://download.blender.org/release/Blender{major_minor}/blender-{version}-linux-x64.tar.xz",
-                    shell=True,
+                    [
+                        "wget",
+                        "-q",
+                        "-O",
+                        str(blender_archive),
+                        f"https://download.blender.org/release/Blender{major_minor}/blender-{version}-linux-x64.tar.xz",
+                    ]
                 )
                 verify_checksum(blender_archive, BLENDER_CHECKSUMS[f"{version}-linux-x64"])
 
-            run(f"tar -xf {blender_archive} -C /opt", shell=True)
-            run(f"chmod -R 755 {blender_dir}", shell=True)
+            run(["tar", "-xf", str(blender_archive), "-C", "/opt"])
+            run(["chmod", "-R", "755", str(blender_dir)])
             blender_marker.touch()
             blender_archive.unlink(missing_ok=True)
         finally:
             lock_file.unlink(missing_ok=True)
 
     print("Installing Blender submitter...")
-    run("hatch build", shell=True)
-
-    submitter_path = Path("./DeadlineCloudSubmitter")
-    if submitter_path.exists():
-        run(f"rm -rf {submitter_path}", shell=True, check=False)
-
-    Path("./DeadlineCloudSubmitter/Submitters/Blender/python").mkdir(parents=True, exist_ok=True)
-    run(
-        "cp -r src/deadline/blender_submitter/addons/ ./DeadlineCloudSubmitter/Submitters/Blender/python/addons",
-        shell=True,
-    )
-
-    run(
-        f'pip install --upgrade --python-version {python_version} --only-binary=:all: "deadline[gui]" blender-qt-stylesheet -t ./DeadlineCloudSubmitter/Submitters/Blender/python/modules',
-        shell=True,
-    )
+    run(["hatch", "build"])
 
     for version in BLENDER_VERSIONS:
+        major_minor = ".".join(version.split(".")[:2])
+        submitter_path = Path(f"./DeadlineCloudSubmitter/Submitters/Blender{major_minor}")
+
+        Path(f"{submitter_path}/python").mkdir(parents=True, exist_ok=True)
+        run(
+            [
+                "cp",
+                "-r",
+                "src/deadline/blender_submitter/addons/",
+                f"{submitter_path}/python/addons",
+            ]
+        )
+
+        run(
+            [
+                "pip",
+                "install",
+                "--upgrade",
+                "--python-version",
+                python_version,
+                "--only-binary=:all:",
+                "deadline[gui]",
+                "blender-qt-stylesheet",
+                "-t",
+                f"{submitter_path}/python/modules",
+            ]
+        )
+
         blender_exe = f"/opt/blender-{version}-linux-x64/blender"
         run(
-            f"{blender_exe} --background --python ./installer/add_submitter_to_pref.py -- --deadline_cloud_install_path $(pwd)/DeadlineCloudSubmitter/Submitters/Blender/python",
-            shell=True,
+            [
+                blender_exe,
+                "--background",
+                "--python",
+                "./installer/add_submitter_to_pref.py",
+                "--",
+                "--deadline_cloud_install_path",
+                f"{os.getcwd()}/{submitter_path}/python",
+            ]
         )
 
 
@@ -157,12 +222,14 @@ def setup_windows(python_version):
     for version in BLENDER_VERSIONS:
         major_minor = ".".join(version.split(".")[:2])
         blender_dir = Path(f"C:/Tools/blender-{version}-windows-x64")
+        # Marker file indicates successful installation, avoiding redundant reinstalls
         blender_marker = blender_dir / ".installed"
 
         if blender_marker.exists():
             print(f"Blender {version} already installed")
             continue
 
+        # Lock file prevents concurrent installations that could corrupt the installation
         lock_file = Path(f"C:/Temp/blender-{version}.lock")
         lock_file.parent.mkdir(parents=True, exist_ok=True)
 
@@ -183,17 +250,23 @@ def setup_windows(python_version):
             if not USE_PUBLIC_URLS and download_from_s3(
                 f"blender/blender-{version}-windows-x64.zip", blender_zip
             ):
-                pass
+                verify_checksum(blender_zip, BLENDER_CHECKSUMS[f"{version}-windows-x64"])
             elif USE_PUBLIC_URLS:
                 run(
-                    f"powershell -Command \"Invoke-WebRequest -Uri 'https://download.blender.org/release/Blender{major_minor}/blender-{version}-windows-x64.zip' -OutFile '{blender_zip}'\"",
-                    shell=True,
+                    [
+                        "powershell",
+                        "-Command",
+                        f"Invoke-WebRequest -Uri 'https://download.blender.org/release/Blender{major_minor}/blender-{version}-windows-x64.zip' -OutFile '{blender_zip}'",
+                    ]
                 )
                 verify_checksum(blender_zip, BLENDER_CHECKSUMS[f"{version}-windows-x64"])
 
             run(
-                f"powershell -Command \"Expand-Archive -Path '{blender_zip}' -DestinationPath 'C:/Tools' -Force\"",
-                shell=True,
+                [
+                    "powershell",
+                    "-Command",
+                    f"Expand-Archive -Path '{blender_zip}' -DestinationPath 'C:/Tools' -Force",
+                ]
             )
             blender_marker.touch()
             blender_zip.unlink(missing_ok=True)
@@ -201,36 +274,66 @@ def setup_windows(python_version):
             lock_file.unlink(missing_ok=True)
 
     print("Installing Blender submitter...")
-    run("hatch build", shell=True)
-
-    submitter_path = Path("./DeadlineCloudSubmitter")
-    if submitter_path.exists():
-        run("rmdir /s /q DeadlineCloudSubmitter", shell=True, check=False)
-
-    Path("./DeadlineCloudSubmitter/Submitters/Blender/python").mkdir(parents=True, exist_ok=True)
-    run(
-        "xcopy /E /I src\\deadline\\blender_submitter\\addons DeadlineCloudSubmitter\\Submitters\\Blender\\python\\addons",
-        shell=True,
-    )
-
-    run(
-        f'pip install --upgrade --python-version {python_version} --only-binary=:all: "deadline[gui]" blender-qt-stylesheet pywin32 -t DeadlineCloudSubmitter\\Submitters\\Blender\\python\\modules',
-        shell=True,
-    )
+    run(["hatch", "build"])
 
     for version in BLENDER_VERSIONS:
-        blender_python_site = f"C:/Tools/blender-{version}-windows-x64/{version.split('.')[0]}.{version.split('.')[1]}/python/lib/site-packages"
+        major_minor = ".".join(version.split(".")[:2])
+        submitter_path = f"DeadlineCloudSubmitter\\Submitters\\Blender{major_minor}"
+
+        Path(f"{submitter_path}\\python").mkdir(parents=True, exist_ok=True)
         run(
-            f"pip install --upgrade -r requirements-integ-testing.txt --python-version={python_version} --only-binary=:all: --target {blender_python_site}",
-            shell=True,
+            [
+                "xcopy",
+                "/E",
+                "/I",
+                "src\\deadline\\blender_submitter\\addons",
+                f"{submitter_path}\\python\\addons",
+            ]
         )
 
-    cwd = os.getcwd().replace("/", "\\")
-    for version in BLENDER_VERSIONS:
+        run(
+            [
+                "pip",
+                "install",
+                "--upgrade",
+                "--python-version",
+                python_version,
+                "--only-binary=:all:",
+                "deadline[gui]",
+                "blender-qt-stylesheet",
+                "pywin32",
+                "-t",
+                f"{submitter_path}\\python\\modules",
+            ]
+        )
+
+        blender_python_site = f"C:/Tools/blender-{version}-windows-x64/{version.split('.')[0]}.{version.split('.')[1]}/python/lib/site-packages"
+        run(
+            [
+                "pip",
+                "install",
+                "--upgrade",
+                "-r",
+                "requirements-integ-testing.txt",
+                f"--python-version={python_version}",
+                "--only-binary=:all:",
+                "--target",
+                blender_python_site,
+            ]
+        )
+
+        cwd = os.getcwd().replace("/", "\\")
         blender_exe = f"C:/Tools/blender-{version}-windows-x64/blender.exe"
         run(
-            f'"{blender_exe}" --background --python installer\\add_submitter_to_pref.py -- --deadline_cloud_install_path {cwd}\\DeadlineCloudSubmitter\\Submitters\\Blender\\python',
-            shell=True,
+            [
+                blender_exe,
+                "--background",
+                "--python",
+                "installer\\add_submitter_to_pref.py",
+                "--",
+                "--deadline_cloud_install_path",
+                f"{cwd}\\{submitter_path}\\python",
+            ]
         )
 
 
@@ -238,51 +341,101 @@ def setup_macos(python_version):
     for version in BLENDER_VERSIONS:
         major_minor = ".".join(version.split(".")[:2])
         blender_app = Path(f"/Applications/Blender-{version}.app")
+        # Marker file indicates successful installation, avoiding redundant reinstalls
+        # Stored outside app directory to prevent corruption
+        blender_marker = Path(
+            f"~/Library/Application Support/.blender-{version}-installed"
+        ).expanduser()
+        blender_marker.parent.mkdir(parents=True, exist_ok=True)
 
-        print(f"Installing Blender {version}...")
-        blender_dmg = Path(f"/tmp/blender-{version}.dmg")
+        if blender_marker.exists():
+            print(f"Blender {version} already installed")
+            continue
 
-        if not USE_PUBLIC_URLS and download_from_s3(
-            f"blender/blender-{version}-macos-arm64.dmg", blender_dmg
-        ):
-            pass
-        elif USE_PUBLIC_URLS:
-            run(
-                f"curl -L -o {blender_dmg} https://download.blender.org/release/Blender{major_minor}/blender-{version}-macos-arm64.dmg",
-                shell=True,
-            )
-            verify_checksum(blender_dmg, BLENDER_CHECKSUMS[f"{version}-macos-arm64"])
+        # Lock file prevents concurrent installations that could corrupt the installation
+        lock_file = Path(f"/tmp/blender-{version}.lock")
+        if lock_file.exists():
+            print(f"Waiting for concurrent Blender {version} install...")
+            for _ in range(60):
+                time.sleep(1)
+                if blender_marker.exists():
+                    break
+            continue
 
-        run(f"hdiutil attach {blender_dmg}", shell=True)
-        run(f"sudo rm -rf {blender_app}", shell=True, check=False)
-        run(f"sudo cp -R /Volumes/Blender/Blender.app {blender_app}", shell=True)
-        run("hdiutil detach /Volumes/Blender", shell=True)
+        lock_file.touch()
+        try:
+            print(f"Installing Blender {version}...")
+            blender_dmg = Path(f"/tmp/blender-{version}.dmg")
 
-        blender_dmg.unlink(missing_ok=True)
+            if not USE_PUBLIC_URLS and download_from_s3(
+                f"blender/blender-{version}-macos-arm64.dmg", blender_dmg
+            ):
+                verify_checksum(blender_dmg, BLENDER_CHECKSUMS[f"{version}-macos-arm64"])
+            elif USE_PUBLIC_URLS:
+                run(
+                    [
+                        "curl",
+                        "-L",
+                        "-o",
+                        str(blender_dmg),
+                        f"https://download.blender.org/release/Blender{major_minor}/blender-{version}-macos-arm64.dmg",
+                    ]
+                )
+                verify_checksum(blender_dmg, BLENDER_CHECKSUMS[f"{version}-macos-arm64"])
+
+            run(["hdiutil", "attach", str(blender_dmg)])
+            run(["sudo", "rm", "-rf", str(blender_app)], check=False)
+            run(["sudo", "cp", "-R", "/Volumes/Blender/Blender.app", str(blender_app)])
+            run(["hdiutil", "detach", "/Volumes/Blender"])
+
+            blender_marker.touch()
+            blender_dmg.unlink(missing_ok=True)
+        finally:
+            lock_file.unlink(missing_ok=True)
 
     print("Installing Blender submitter...")
-    run("hatch build", shell=True)
-
-    submitter_path = Path("./DeadlineCloudSubmitter")
-    if submitter_path.exists():
-        run(f"rm -rf {submitter_path}", shell=True, check=False)
-
-    Path("./DeadlineCloudSubmitter/Submitters/Blender/python").mkdir(parents=True, exist_ok=True)
-    run(
-        "cp -r src/deadline/blender_submitter/addons/ ./DeadlineCloudSubmitter/Submitters/Blender/python/addons",
-        shell=True,
-    )
-
-    run(
-        f'pip install --upgrade --python-version {python_version} --only-binary=:all: "deadline[gui]" blender-qt-stylesheet -t ./DeadlineCloudSubmitter/Submitters/Blender/python/modules',
-        shell=True,
-    )
+    run(["hatch", "build"])
 
     for version in BLENDER_VERSIONS:
+        major_minor = ".".join(version.split(".")[:2])
+        submitter_path = Path(f"./DeadlineCloudSubmitter/Submitters/Blender{major_minor}")
+
+        Path(f"{submitter_path}/python").mkdir(parents=True, exist_ok=True)
+        run(
+            [
+                "cp",
+                "-r",
+                "src/deadline/blender_submitter/addons/",
+                f"{submitter_path}/python/addons",
+            ]
+        )
+
+        run(
+            [
+                "pip",
+                "install",
+                "--upgrade",
+                "--python-version",
+                python_version,
+                "--only-binary=:all:",
+                "deadline[gui]",
+                "blender-qt-stylesheet",
+                "-t",
+                f"{submitter_path}/python/modules",
+            ]
+        )
+
         blender_exe = f"/Applications/Blender-{version}.app/Contents/MacOS/Blender"
         run(
-            f"{blender_exe} --background --python ./installer/add_submitter_to_pref.py -- --deadline_cloud_install_path $(pwd)/DeadlineCloudSubmitter/Submitters/Blender/python",
-            shell=True,
+            [
+                blender_exe,
+                "--background",
+                "--python",
+                "./installer/add_submitter_to_pref.py",
+                "--",
+                "--deadline_cloud_install_path",
+                f"{os.getcwd()}/{submitter_path}/python",
+            ]
         )
 
 
@@ -306,7 +459,15 @@ if __name__ == "__main__":
 
     USE_PUBLIC_URLS = args.public_urls
     if args.versions:
-        BLENDER_VERSIONS = args.versions
+        BLENDER_VERSIONS = [validate_version(v) for v in args.versions]
+
+    # Validate all versions have checksums
+    for version in BLENDER_VERSIONS:
+        system_suffix = {"Linux": "linux-x64", "Windows": "windows-x64", "Darwin": "macos-arm64"}
+        key = f"{version}-{system_suffix.get(platform.system())}"
+        if key not in BLENDER_CHECKSUMS:
+            print(f"ERROR: No checksum available for {key}")
+            sys.exit(1)
 
     # Use provided python version or infer from first Blender version
     if args.python_version:
