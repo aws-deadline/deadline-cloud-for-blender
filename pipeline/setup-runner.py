@@ -120,7 +120,8 @@ def setup_linux(python_version, install_x11=False):
             ]
         )
         if run(["pgrep", "Xvfb"], check=False).returncode != 0:
-            run(["Xvfb", ":99", "-screen", "0", "1024x768x24"], check=False)
+            # Start Xvfb in background
+            subprocess.Popen(["Xvfb", ":99", "-screen", "0", "1024x768x24"])
             run(["sleep", "2"])
         print("\nXvfb started. Run this before tests:")
         print("  export DISPLAY=:99")

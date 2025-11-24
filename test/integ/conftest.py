@@ -12,20 +12,6 @@ from pathlib import Path
 
 _BLENDER_VERSION_RE = re.compile(r"^Blender (?P<version>\d+\.\d+)\..*$")
 
-# Set BLENDER_EXECUTABLE based on platform and version
-blender_version_env = os.environ.get("BLENDER_VERSION")
-if blender_version_env and not os.environ.get("BLENDER_EXECUTABLE"):
-    if os.name == "nt":
-        os.environ["BLENDER_EXECUTABLE"] = (
-            f"C:\\Tools\\blender-{blender_version_env}-windows-x64\\blender.exe"
-        )
-    elif sys.platform == "darwin":
-        os.environ["BLENDER_EXECUTABLE"] = (
-            f"/Applications/Blender-{blender_version_env}.app/Contents/MacOS/Blender"
-        )
-    else:  # Linux
-        os.environ["BLENDER_EXECUTABLE"] = f"/opt/blender-{blender_version_env}-linux-x64/blender"
-
 
 @pytest.fixture
 def blender_location() -> Path:
@@ -33,6 +19,22 @@ def blender_location() -> Path:
     location = os.environ.get("BLENDER_EXECUTABLE")
     if location:
         return Path(location)
+
+    # If BLENDER_VERSION is set, use platform-specific path
+    blender_version_env = os.environ.get("BLENDER_VERSION")
+    if blender_version_env:
+        if os.name == "nt":
+            location = f"C:\\Tools\\blender-{blender_version_env}-windows-x64\\blender.exe"
+            if os.path.exists(location):
+                return Path(location)
+        elif sys.platform == "darwin":
+            location = f"/Applications/Blender-{blender_version_env}.app/Contents/MacOS/Blender"
+            if os.path.exists(location):
+                return Path(location)
+        else:  # Linux
+            location = f"/opt/blender-{blender_version_env}-linux-x64/blender"
+            if os.path.exists(location):
+                return Path(location)
 
     # If Blender is in the PATH, use that
     location = shutil.which("blender")
