@@ -9,7 +9,7 @@ jobs:
     permissions:
       id-token: write
       contents: read
-    uses: moorec-aws/.github/.github/workflows/reusable_integration_test.yml@mainline
+    uses: aws-deadline/.github/.github/workflows/reusable_integration_test.yml@mainline
     secrets: inherit
     with:
       repository: ${{ github.event.repository.name }}
@@ -21,7 +21,7 @@ jobs:
     permissions:
       id-token: write
       contents: read
-    uses: moorec-aws/.github/.github/workflows/reusable_integration_test.yml@mainline
+    uses: aws-deadline/.github/.github/workflows/reusable_integration_test.yml@mainline
     secrets: inherit
     with:
       repository: ${{ github.event.repository.name }}
@@ -33,7 +33,7 @@ jobs:
     permissions:
       id-token: write
       contents: read
-    uses: moorec-aws/.github/.github/workflows/reusable_integration_test.yml@mainline
+    uses: aws-deadline/.github/.github/workflows/reusable_integration_test.yml@mainline
     secrets: inherit
     with:
       repository: ${{ github.event.repository.name }}
