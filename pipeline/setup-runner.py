@@ -38,9 +38,9 @@ def run(cmd, check=True):
 
 
 def download_from_s3(s3_path, local_path):
-    bucket = os.environ.get("DEPENDENCY_BUCKET")
+    bucket = os.environ.get("INSTALLER_BUCKET")
     if not bucket:
-        print("DEPENDENCY_BUCKET not set")
+        print("INSTALLER_BUCKET not set")
         return False
     run(["aws", "s3", "cp", f"s3://{bucket}/{s3_path}", str(local_path), "--no-progress"])
     return True
@@ -151,7 +151,7 @@ def setup_linux(python_version, install_x11=False):
             print(f"Installing Blender {version}...")
             blender_archive = Path(f"/tmp/blender-{version}.tar.xz")
             if not USE_PUBLIC_URLS and download_from_s3(
-                f"blender/blender-{version}-linux-x64.tar.xz", blender_archive
+                f"blender/{major_minor}/blender-{version}-linux-x64.tar.xz", blender_archive
             ):
                 verify_checksum(blender_archive, BLENDER_CHECKSUMS[f"{version}-linux-x64"])
             elif USE_PUBLIC_URLS:
@@ -172,9 +172,6 @@ def setup_linux(python_version, install_x11=False):
             blender_archive.unlink(missing_ok=True)
         finally:
             lock_file.unlink(missing_ok=True)
-
-    print("Installing Blender submitter...")
-    run(["hatch", "build"])
 
     for version in BLENDER_VERSIONS:
         major_minor = ".".join(version.split(".")[:2])
@@ -249,7 +246,7 @@ def setup_windows(python_version):
             blender_zip.parent.mkdir(parents=True, exist_ok=True)
 
             if not USE_PUBLIC_URLS and download_from_s3(
-                f"blender/blender-{version}-windows-x64.zip", blender_zip
+                f"blender/{major_minor}/blender-{version}-windows-x64.zip", blender_zip
             ):
                 verify_checksum(blender_zip, BLENDER_CHECKSUMS[f"{version}-windows-x64"])
             elif USE_PUBLIC_URLS:
@@ -273,9 +270,6 @@ def setup_windows(python_version):
             blender_zip.unlink(missing_ok=True)
         finally:
             lock_file.unlink(missing_ok=True)
-
-    print("Installing Blender submitter...")
-    run(["hatch", "build"])
 
     for version in BLENDER_VERSIONS:
         major_minor = ".".join(version.split(".")[:2])
@@ -369,7 +363,7 @@ def setup_macos(python_version):
             blender_dmg = Path(f"/tmp/blender-{version}.dmg")
 
             if not USE_PUBLIC_URLS and download_from_s3(
-                f"blender/blender-{version}-macos-arm64.dmg", blender_dmg
+                f"blender/{major_minor}/blender-{version}-macos-arm64.dmg", blender_dmg
             ):
                 verify_checksum(blender_dmg, BLENDER_CHECKSUMS[f"{version}-macos-arm64"])
             elif USE_PUBLIC_URLS:
@@ -393,9 +387,6 @@ def setup_macos(python_version):
             blender_dmg.unlink(missing_ok=True)
         finally:
             lock_file.unlink(missing_ok=True)
-
-    print("Installing Blender submitter...")
-    run(["hatch", "build"])
 
     for version in BLENDER_VERSIONS:
         major_minor = ".".join(version.split(".")[:2])

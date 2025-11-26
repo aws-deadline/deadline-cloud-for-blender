@@ -75,6 +75,7 @@ The `integ-ci` hatch environment is designed for automated testing in CI/CD pipe
 
 **Usage:**
 ```bash
+hatch build # The package must be built first
 hatch run integ-ci:setup 
 hatch run integ-ci:test
 
