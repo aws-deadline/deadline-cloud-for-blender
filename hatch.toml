@@ -27,14 +27,10 @@ build-addon = "python scripts/build_addon.py {args}"
 python = ["3.9", "3.10", "3.11", "3.12"]
 
 [envs.default.env-vars]
-SKIP_BOOTSTRAP_TEST_RESOURCES="True"
 DEADLINE_ENABLE_DEVELOPER_OPTIONS="True"
 
 [envs.installer.scripts]
 build-installer = "python {root}/scripts/build_installer_cli.py --installer-source-path {root}/installer/DeadlineCloudForBlenderSubmitter.xml {args:}"
-
-[envs.codebuild.scripts]
-build = "hatch build"
 
 [envs.integ]
 pre-install-commands = [

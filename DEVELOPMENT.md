@@ -12,7 +12,7 @@ The deadline.blender_adaptor package is an adaptor that renders blender scenes t
 ### Build the package
 
 ```bash
-hatch run build
+hatch build
 ```
 
 ### Build the installer
