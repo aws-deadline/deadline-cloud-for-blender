@@ -2,7 +2,28 @@ name: Blender Integration Tests
 
 on:
   workflow_dispatch:
-
+    inputs:
+      ref_type:
+        description: 'Reference type to test'
+        required: true
+        default: 'branch'
+        type: choice
+        options:
+          - branch
+          - tag
+      branch:
+        description: 'Branch to test (e.g., mainline, feature-branch)'
+        required: false
+        default: 'mainline'
+        type: string
+      tag:
+        description: 'Tag to test (only used when ref_type is "tag")'
+        required: false
+        type: string
+  push:
+    branches:
+      - 'mainline'
+      
 jobs:  
   MainlineLinuxIntegrationTest:
     name: Linux Integration Tests
@@ -13,8 +34,8 @@ jobs:
     secrets: inherit
     with:
       repository: ${{ github.event.repository.name }}
-      branch: mainline
-      environment: mainline
+      branch: ${{ github.event.inputs.ref_type == 'branch' && github.event.inputs.branch || 'mainline' }}
+      tag: ${{ github.event.inputs.ref_type == 'tag' && github.event.inputs.tag || '' }}
       os: linux
   MainlineWindowsIntegrationTest:
     name: Windows Integration Tests
@@ -25,8 +46,8 @@ jobs:
     secrets: inherit
     with:
       repository: ${{ github.event.repository.name }}
-      branch: mainline
-      environment: mainline
+      branch: ${{ github.event.inputs.ref_type == 'branch' && github.event.inputs.branch || 'mainline' }}
+      tag: ${{ github.event.inputs.ref_type == 'tag' && github.event.inputs.tag || '' }}
       os: windows
   MainlineMacOsIntegrationTest:
     name: MacOS Integration Tests
@@ -37,6 +58,6 @@ jobs:
     secrets: inherit
     with:
       repository: ${{ github.event.repository.name }}
-      branch: mainline
-      environment: mainline
+      branch: ${{ github.event.inputs.ref_type == 'branch' && github.event.inputs.branch || 'mainline' }}
+      tag: ${{ github.event.inputs.ref_type == 'tag' && github.event.inputs.tag || '' }}
       os: macos
