@@ -1,2 +1,2 @@
-hatch == 1.15.*
+hatch == 1.16.*
 hatch-vcs == 0.5.*
