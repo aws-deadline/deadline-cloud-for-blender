@@ -49,7 +49,7 @@ def run_sanity_checks(settings, prompt_for_saving=True):
     # Ensure the selected camera is still in the scene
     if (
         settings.camera_selection
-        not in [ssw.COMBO_DEFAULT_ALL_RENDERABLE_CAMERAS, ssw.COMBO_USE_CAMERA_MARKERS]
+        not in [ssw.COMBO_DEFAULT_ALL_RENDERABLE_CAMERAS, ssw.COMBO_USE_DEFAULT_CAMERA]
         and settings.camera_selection not in renderable_cameras
     ):
         raise RuntimeError(
