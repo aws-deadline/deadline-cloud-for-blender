@@ -207,7 +207,7 @@ class TestSubmitters:
 
         self.assert_asset_references(job_history_dir, expected_asset_references)
 
-    @pytest.mark.scene_files(Path("gpu_test") / "scene" / "GPU-cube.blend")
+    @pytest.mark.scene_files(Path("gpu_test") / "scene" / "car-gpu-test.blend")
     def test_gpu_scene_submitter(
         self, blender_location: Path, script_location: Path, tmp_path: Path
     ) -> None:
@@ -215,7 +215,7 @@ class TestSubmitters:
         output_path_in_scene = tmp_path / "output"
         output_dir_in_submitter = tmp_path / "output_submitter"
         test_artifact_dir = script_location / "gpu_test"
-        scene_location = test_artifact_dir / "scene" / "GPU-cube.blend"
+        scene_location = test_artifact_dir / "scene" / "car-gpu-test.blend"
 
         detected_gpu_file = job_history_dir / "detected_gpu_type.txt"
 

@@ -19,7 +19,7 @@ def main(job_history_dir: str, output_dir_in_scene: str, output_dir_in_submitter
     detected_gpu_file = Path(job_history_dir) / "detected_gpu_type.txt"
 
     try:
-        bpy.ops.wm.open_mainfile(filepath=str(Path(__file__).parent / "scene" / "GPU-cube.blend"))
+        bpy.ops.wm.open_mainfile(filepath=str(Path(__file__).parent / "scene" / "car-gpu-test.blend"))
 
         bpy.context.scene.frame_start = 1
         bpy.context.scene.frame_end = 2
@@ -60,7 +60,7 @@ def main(job_history_dir: str, output_dir_in_scene: str, output_dir_in_submitter
         widget.shared_job_settings.update_settings(settings)
         widget.job_settings.update_settings(settings)
 
-        settings.view_layer_selection = "ViewLayer"
+        settings.view_layer_selection = "RenderLayer"
         settings.camera_selection = "Camera"
         settings.description = "host_test"
         settings.include_adaptor_wheels = False

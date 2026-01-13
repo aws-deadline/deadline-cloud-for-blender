@@ -87,7 +87,7 @@ class TestAdaptors:
         blender_version: str,
     ) -> None:
         test_file_location = script_location / "gpu_test"
-        scene_location = test_file_location / "scene" / "GPU-cube.blend"
+        scene_location = test_file_location / "scene" / "car-gpu-test.blend"
         output_path = tmp_path / "output_submitter"
 
         job_params = {

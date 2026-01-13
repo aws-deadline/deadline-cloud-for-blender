@@ -1,6 +1,6 @@
 parameterValues:
 - name: BlenderFile
-  value: deadline-cloud-for-blender/test/integ/scenes/GPU-cube.blend
+  value: deadline-cloud-for-blender/test/integ/scenes/car-gpu-test.blend
 - name: OutputFileName
   value: image_####.png
 - name: OutputDir
