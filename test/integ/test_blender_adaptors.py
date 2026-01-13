@@ -78,7 +78,8 @@ class TestAdaptors:
             expected_image_directory=test_file_location / "expected_images" / blender_version,
             actual_image_directory=output_path,
         )
-    
+
+    @pytest.mark.gpu
     def test_gpu_scene_adaptor(
         self,
         script_location: Path,

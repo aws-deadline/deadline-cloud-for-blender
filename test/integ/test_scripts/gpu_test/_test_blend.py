@@ -19,7 +19,9 @@ def main(job_history_dir: str, output_dir_in_scene: str, output_dir_in_submitter
     detected_gpu_file = Path(job_history_dir) / "detected_gpu_type.txt"
 
     try:
-        bpy.ops.wm.open_mainfile(filepath=str(Path(__file__).parent / "scene" / "car-gpu-test.blend"))
+        bpy.ops.wm.open_mainfile(
+            filepath=str(Path(__file__).parent / "scene" / "car-gpu-test.blend")
+        )
 
         bpy.context.scene.frame_start = 1
         bpy.context.scene.frame_end = 2
@@ -30,8 +32,6 @@ def main(job_history_dir: str, output_dir_in_scene: str, output_dir_in_submitter
         cycles_prefs = bpy.context.preferences.addons["cycles"].preferences
         detected_device_type = None
 
-        # for device_type in cycles_prefs.get_device_types(bpy.context):
-        #     cycles_prefs.compute_device_type = device_type[0]
         cycles_prefs.get_devices()
         devices = cycles_prefs.devices
         non_cpu_device = next((d for d in devices if d.type != "CPU"), None)

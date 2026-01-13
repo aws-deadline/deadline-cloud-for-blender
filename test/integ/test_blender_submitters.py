@@ -207,6 +207,7 @@ class TestSubmitters:
 
         self.assert_asset_references(job_history_dir, expected_asset_references)
 
+    @pytest.mark.gpu
     @pytest.mark.scene_files(Path("gpu_test") / "scene" / "car-gpu-test.blend")
     def test_gpu_scene_submitter(
         self, blender_location: Path, script_location: Path, tmp_path: Path
