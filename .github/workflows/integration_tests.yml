@@ -25,39 +25,25 @@ on:
       - 'mainline'
       
 jobs:  
-  MainlineLinuxIntegrationTest:
-    name: Linux Integration Tests
+  IntegrationTests:
+    name: ${{ matrix.name }} Integration Tests
     permissions:
       id-token: write
       contents: read
+    strategy:
+      matrix:
+        fail-fast: false
+        include:
+          - os: linux
+            name: Linux
+          - os: windows
+            name: Windows
+          - os: macos
+            name: MacOS
     uses: aws-deadline/.github/.github/workflows/reusable_integration_test.yml@mainline
     secrets: inherit
     with:
       repository: ${{ github.event.repository.name }}
       branch: ${{ github.event.inputs.ref_type == 'branch' && github.event.inputs.branch || 'mainline' }}
       tag: ${{ github.event.inputs.ref_type == 'tag' && github.event.inputs.tag || '' }}
-      os: linux
-  MainlineWindowsIntegrationTest:
-    name: Windows Integration Tests
-    permissions:
-      id-token: write
-      contents: read
-    uses: aws-deadline/.github/.github/workflows/reusable_integration_test.yml@mainline
-    secrets: inherit
-    with:
-      repository: ${{ github.event.repository.name }}
-      branch: ${{ github.event.inputs.ref_type == 'branch' && github.event.inputs.branch || 'mainline' }}
-      tag: ${{ github.event.inputs.ref_type == 'tag' && github.event.inputs.tag || '' }}
-      os: windows
-  MainlineMacOsIntegrationTest:
-    name: MacOS Integration Tests
-    permissions:
-      id-token: write
-      contents: read
-    uses: aws-deadline/.github/.github/workflows/reusable_integration_test.yml@mainline
-    secrets: inherit
-    with:
-      repository: ${{ github.event.repository.name }}
-      branch: ${{ github.event.inputs.ref_type == 'branch' && github.event.inputs.branch || 'mainline' }}
-      tag: ${{ github.event.inputs.ref_type == 'tag' && github.event.inputs.tag || '' }}
-      os: macos
+      os: ${{ matrix.os }}
