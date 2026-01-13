@@ -31,8 +31,8 @@ jobs:
       id-token: write
       contents: read
     strategy:
+      fail-fast: false
       matrix:
-        fail-fast: false
         include:
           - os: linux
             name: Linux
