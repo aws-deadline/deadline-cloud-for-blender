@@ -141,7 +141,7 @@ steps:
           render_engine: {{Param.RenderEngine}}
           gpu_device: {{Param.GPUDevice}}
           render_scene: {{Param.RenderScene}}
-          view_layer: ViewLayer_001
+          view_layer: RenderLayer
           output_dir: {{Param.OutputDir}}
           output_file_name: {{Param.OutputFileName}}
           output_format: {{Param.OutputFormat}}
