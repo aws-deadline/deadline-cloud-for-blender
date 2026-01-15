@@ -20,6 +20,9 @@ wheels/
 installer/components/
 DeadlineCloudSubmitter/
 
+# docs site
+site/
+
 # License file for InstallBuilder
 license.xml
 

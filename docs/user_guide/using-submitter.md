@@ -27,7 +27,7 @@ The **Job-specific settings** tab has options specific to jobs created in Blende
   - *Scene* - The scene from the current project to render.
   - *Render Engine* - The render engine (Cycles, EEVEE, or Workbench) to use.
   - *View Layers* - The layer to render, or "All Renderable Layers" to render each applicable layer in the scene separately.
-  - *Cameras* - The camera to render, or "All Renderable Cameras" to render each camera in the scene separately.
+  - *Cameras* - The camera to render, "All Renderable Cameras" to render each camera in the scene separately, or "Use Default Camera" to use the scene's default camera or cameras bound to timeline markers.
   - *Cycles GPU Rendering* - Select this to enable GPU rendering. Choose a device type supported by Blender or specify your own. If this device type is not supported on your rendering machine, the adaptor will attempt to use a compatible device type before falling back to CPU rendering.
   - *Override Frame Range* - Select this to render a different frame or frame range than is set in the scene file. Frame ranges follow the [Open Job Description](https://github.com/OpenJobDescription/openjd-specifications/wiki/2023-09-Template-Schemas#34111-intrangeexpr) pattern.
 
