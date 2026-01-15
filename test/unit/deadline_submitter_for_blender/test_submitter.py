@@ -489,3 +489,27 @@ def test_sort_auto_detected_assets():
 
         assert auto_detected_assets.input_filenames == expected_input_filenames
         assert auto_detected_assets.input_directories == expected_input_dirs
+
+
+def test_fill_job_template_use_default_camera(submitter_settings, common_layer_settings):
+    """Test filling the job template when camera_selection is 'Use Default Camera'."""
+
+    # Set camera_selection to "Use Default Camera"
+    submitter_settings.camera_selection = "Use Default Camera"
+
+    filled = template_filling.fill_job_template(
+        submitter_settings, ["layer_1"], common_layer_settings, host_requirements=None
+    )
+
+    # Check that Camera parameter is NOT in taskParameterDefinitions
+    task_param_defs = filled["steps"][0]["parameterSpace"]["taskParameterDefinitions"]
+    camera_params = [param for param in task_param_defs if param.get("name") == "Camera"]
+    assert (
+        len(camera_params) == 0
+    ), "Camera parameter should not be defined when using default camera"
+
+    # Check that camera is NOT set in the embedded RunData file
+    run_data = filled["steps"][0]["script"]["embeddedFiles"][0]["data"]
+    assert (
+        "camera:" not in run_data
+    ), "Camera should not be set in RunData when using default camera"

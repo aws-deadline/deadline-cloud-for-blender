@@ -354,11 +354,15 @@ def _fill_step_template(
     # NOTE this string var cross-references the constant defined in `scene_settings_widget.py`. Duplicated to avoid importing that file.
     if settings.camera_selection == "All Renderable Cameras":
         cameras = common_layer_settings.renderable_camera_names
+    elif settings.camera_selection == "Use Default Camera":
+        cameras = None
     else:
         cameras = [settings.camera_selection]
-    param_defs.append({"name": "Camera", "type": "STRING", "range": cameras})
-    run_data = step["script"]["embeddedFiles"][0]
-    run_data["data"] += "camera: '{{Task.Param.Camera}}'\n"
+
+    if cameras:
+        param_defs.append({"name": "Camera", "type": "STRING", "range": cameras})
+        run_data = step["script"]["embeddedFiles"][0]
+        run_data["data"] += "camera: '{{Task.Param.Camera}}'\n"
 
     # If host requirements are provided, inject them into the step template.
     if host_requirements:

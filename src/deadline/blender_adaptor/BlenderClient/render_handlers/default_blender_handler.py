@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import cast
+from typing import cast, Optional
 
 import bpy  # type: ignore
 
@@ -41,7 +41,7 @@ class DefaultBlenderHandler:
 
         _logger.debug(f"Initialized {self.__class__.__name__}")
 
-    def _ensure_camera(self, data: dict) -> str:
+    def _ensure_camera(self, data: dict) -> Optional[str]:
         """
         Ensure that the camera provided in `data` exists in the scene and is renderable.
         Raises a RuntimeError otherwise.
@@ -50,7 +50,7 @@ class DefaultBlenderHandler:
         """
         camera: str = cast(str, data.get("camera", self.camera_name))
         if camera is None:
-            raise RuntimeError(f"No camera specified in data: {data}")
+            return None
 
         # The ls function returns all cameras if they are set to renderable.
         scene_cameras = [
@@ -103,9 +103,7 @@ class DefaultBlenderHandler:
         # Add submitter settings to the output filepath.
         # This includes output directory, view layer, camera, and frame.
         try:
-            bpy.context.scene.render.filepath = (
-                f"{self.output_dir}/{self.view_layer_name}_{camera}_{self.output_file_name}"
-            )
+            bpy.context.scene.render.filepath = f"{self.output_dir}/{self.view_layer_name}{'_' + camera if camera else ''}_{self.output_file_name}"
         except Exception:
             _logger.error(
                 f"Could not set the output file path. Please verify that the following are correct:\nOutput directory: {self.output_dir}\nView layer: {self.view_layer_name}\nCamera:{camera}\nOutput file prefix:{self.output_file_name}"
@@ -140,8 +138,15 @@ class DefaultBlenderHandler:
         """
         self.camera_name = data.get("camera")
         camera = self._ensure_camera(data)
-        assert self.camera_name == camera, "Camera name mismatch: this should never happen."
-        bpy.context.scene.camera = bpy.data.objects[camera]
+
+        if camera:
+            scene = bpy.context.scene
+            assert self.camera_name == camera, "Camera name mismatch: this should never happen."
+            scene.camera = bpy.data.objects[camera]
+
+            # Iterate through all markers in the scene and set the bound camera to be the selected camera
+            for marker in scene.timeline_markers:
+                marker.camera = scene.camera
 
     def set_render_scene(self, data: dict) -> None:
         """
