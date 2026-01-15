@@ -13,7 +13,6 @@
         }
     },
     "required": [
-        "frame",
-        "camera"
+        "frame"
     ]
 }

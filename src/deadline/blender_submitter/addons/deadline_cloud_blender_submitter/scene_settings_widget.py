@@ -32,6 +32,7 @@ _logger = logging.getLogger(__name__)
 # Default values for combo boxes in the addon UI.
 COMBO_DEFAULT_ALL_RENDERABLE_CAMERAS = "All Renderable Cameras"
 COMBO_DEFAULT_ALL_RENDERABLE_LAYERS = "All Renderable Layers"
+COMBO_USE_DEFAULT_CAMERA = "Use Default Camera"
 
 
 class SceneSettingsWidget(QWidget):
@@ -161,6 +162,8 @@ class SceneSettingsWidget(QWidget):
             self.cameras_box.addItem(
                 COMBO_DEFAULT_ALL_RENDERABLE_CAMERAS, COMBO_DEFAULT_ALL_RENDERABLE_CAMERAS
             )
+            self.cameras_box.addItem(COMBO_USE_DEFAULT_CAMERA, COMBO_USE_DEFAULT_CAMERA)
+
             for cam in selectable_cameras:
                 self.cameras_box.addItem(cam, cam)
 
