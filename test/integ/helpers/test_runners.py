@@ -3,6 +3,7 @@
 import os
 import subprocess
 import json
+import getpass
 
 from pathlib import Path
 from typing import Any
@@ -61,6 +62,10 @@ def run_adaptor_test(template_path: Path, job_params: dict[str, Any], blender_lo
         template = yaml.safe_load(f)
 
     steps = [step["name"] for step in template.get("steps", [])]
+
+    # Print out environment debug information
+    print(f"Current User: {getpass.getuser()}")
+    print(f"Current Environment: {json.dumps(dict(os.environ), indent=2)}\n")
 
     # Run each step separately to avoid connection file race condition
     for step_name in steps:
