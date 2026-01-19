@@ -1,3 +1,17 @@
+## 0.6.0 (2026-01-19)
+
+### BREAKING CHANGES
+
+* Selecting a specific camera in the submitter now overrides markers when rendering (#308) ([`369e368`](https://github.com/aws-deadline/deadline-cloud-for-blender/commit/369e36870e4793181dc7c342bf7783e061b7eaa5))
+
+
+### Features
+* Added option to render with the scene's default camera (#308) ([`369e368`](https://github.com/aws-deadline/deadline-cloud-for-blender/commit/369e36870e4793181dc7c342bf7783e061b7eaa5))
+
+### Bug Fixes
+* gpu_device isn't marked as required in init-data (#274) ([`778cc11`](https://github.com/aws-deadline/deadline-cloud-for-blender/commit/778cc11d8a75409e2c31b7efbe21ff9a2388b54b))
+
+
 ## 0.5.5 (2025-08-06)
 
 
