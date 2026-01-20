@@ -1,4 +1,4 @@
-## 0.6.0 (2026-01-19)
+## 0.6.0 (2026-01-20)
 
 ### BREAKING CHANGES
 
@@ -7,6 +7,7 @@
 
 ### Features
 * Added option to render with the scene's default camera (#308) ([`369e368`](https://github.com/aws-deadline/deadline-cloud-for-blender/commit/369e36870e4793181dc7c342bf7783e061b7eaa5))
+* Added Blender submitter version info to the about dialog (#316) ([`3d6cbbd`](https://github.com/aws-deadline/deadline-cloud-for-blender/commit/3d6cbbdeec5379be62c459d6530ca135dbedb86b))
 
 ### Bug Fixes
 * gpu_device isn't marked as required in init-data (#274) ([`778cc11`](https://github.com/aws-deadline/deadline-cloud-for-blender/commit/778cc11d8a75409e2c31b7efbe21ff9a2388b54b))
