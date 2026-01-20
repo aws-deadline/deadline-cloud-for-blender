@@ -15,6 +15,7 @@ from deadline.client.ui.dialogs.submit_job_to_deadline_dialog import (
     SubmitJobToDeadlineDialog,
     JobBundlePurpose,
 )
+from deadline.client.dataclasses import SubmitterInfo
 
 from . import blender_utils as bu
 from . import sanity_checks as sc
@@ -105,6 +106,15 @@ def create_deadline_dialog(parent=None) -> SubmitJobToDeadlineDialog:
     rez_packages = f"blender-{blender_version} deadline_cloud_for_blender"
     conda_packages = f"blender={blender_version}.* blender-openjd={adaptor_version}.*"
 
+    # Create submitter info with Blender-specific information
+    submitter_info = SubmitterInfo(
+        submitter_name="Blender",
+        submitter_package_name="deadline-cloud-for-blender",
+        submitter_package_version=version,
+        host_application_name="Blender",
+        host_application_version=bpy.app.version_string,
+    )
+
     # Create and return the dialog widget.
     # dialog = SubmitJobToDeadlineDialog(
     dialog = SubmitJobToDeadlineDialog(
@@ -120,6 +130,7 @@ def create_deadline_dialog(parent=None) -> SubmitJobToDeadlineDialog:
         parent=parent,
         f=Qt.Tool,
         show_host_requirements_tab=True,
+        submitter_info=submitter_info,
     )
     dialog.setWindowFlags(Qt.WindowStaysOnTopHint)
     return dialog
