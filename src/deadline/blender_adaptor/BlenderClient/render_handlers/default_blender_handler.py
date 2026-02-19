@@ -12,7 +12,10 @@ _logger = logging.getLogger(__name__)
 
 
 class DefaultBlenderHandler:
-    RENDER_ENGINE_NAME = "BLENDER_EEVEE_NEXT" if bpy.app.version >= (4, 2, 0) else "BLENDER_EEVEE"
+    # Blender 4.2-4.x renamed EEVEE to EEVEE_NEXT, but 5.0+ reverted back to EEVEE
+    RENDER_ENGINE_NAME = (
+        "BLENDER_EEVEE_NEXT" if (4, 2, 0) <= bpy.app.version < (5, 0, 0) else "BLENDER_EEVEE"
+    )
 
     def __init__(self):
         """Initialize this handler."""
