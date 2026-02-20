@@ -1,3 +1,11 @@
+## 0.6.1 (2026-02-20)
+
+
+### Features
+* Add support for Blender 5.0 ([`da1e5c9`](https://github.com/aws-deadline/deadline-cloud-for-blender/commit/da1e5c9e2d9469a9d1aa52f3111819db7e7b1b31))
+
+
+
 ## 0.6.0 (2026-01-20)
 
 ### BREAKING CHANGES
