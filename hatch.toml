@@ -38,9 +38,10 @@ pre-install-commands = [
 ]
 
 [envs.integ.scripts]
-test = "pytest --no-cov {args:test/integ} -vvv --numprocesses=1"
+test = "pytest --no-cov {args:test/integ} -vvv --numprocesses=1 -m 'not gpu'"
 test_submitters = "pytest --no-cov {args:test/integ} -vvv --numprocesses=1 -m submitter"
 test_adaptors = "pytest --no-cov {args:test/integ} -vvv --numprocesses=1 -m adaptor"
+test_gpu = "pytest --no-cov {args:test/integ} -vvv --numprocesses=1 -m gpu"
 
 [envs.integ-ci]
 pre-install-commands = [

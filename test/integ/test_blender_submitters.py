@@ -206,3 +206,77 @@ class TestSubmitters:
         }
 
         self.assert_asset_references(job_history_dir, expected_asset_references)
+
+    @pytest.mark.gpu
+    @pytest.mark.scene_files(Path("gpu_test") / "scene" / "car-gpu-test.blend")
+    def test_gpu_scene_submitter(
+        self, blender_location: Path, script_location: Path, tmp_path: Path
+    ) -> None:
+        job_history_dir = tmp_path / "jobhistory"
+        output_path_in_scene = tmp_path / "output"
+        output_dir_in_submitter = tmp_path / "output_submitter"
+        test_artifact_dir = script_location / "gpu_test"
+        scene_location = test_artifact_dir / "scene" / "car-gpu-test.blend"
+
+        detected_gpu_file = job_history_dir / "detected_gpu_type.txt"
+
+        os.makedirs(job_history_dir, exist_ok=True)
+        os.makedirs(output_path_in_scene, exist_ok=True)
+        os.makedirs(output_dir_in_submitter, exist_ok=True)
+
+        try:
+            output = run_blender_submitter_test(
+                blender_location,
+                test_artifact_dir / "_test_blend.py",
+                str(job_history_dir),
+                str(output_path_in_scene),
+                str(output_dir_in_submitter),
+            )
+
+            assert output.returncode == 0
+            assert is_valid_template(job_history_dir / "template.yaml")
+
+            # Read detected GPU type from test script
+            assert detected_gpu_file.exists()
+
+            with open(detected_gpu_file) as f:
+                detected_type = f.read().strip()
+                assert detected_type != "NONE"
+                gpu_device_value = detected_type
+
+            expected_parameter_values = {
+                "parameterValues": [
+                    {"name": "BlenderFile", "value": str(scene_location)},
+                    {"name": "OutputFileName", "value": "image_####.png"},
+                    {"name": "OutputDir", "value": str(output_dir_in_submitter)},
+                    {"name": "RenderScene", "value": "Scene"},
+                    {"name": "RenderEngine", "value": "cycles"},
+                    {"name": "GPUDevice", "value": gpu_device_value},
+                    {"name": "Frames", "value": "3-5"},
+                    {"name": "ResolutionX", "value": 640},
+                    {"name": "ResolutionY", "value": 480},
+                    {"name": "deadline:targetTaskRunStatus", "value": "READY"},
+                    {"name": "deadline:maxFailedTasksCount", "value": 20},
+                    {"name": "deadline:maxRetriesPerTask", "value": 5},
+                    {"name": "deadline:priority", "value": 50},
+                ]
+            }
+
+            self.assert_parameter_values(job_history_dir, expected_parameter_values)
+
+            expected_asset_references: dict[str, dict[str, Any]] = {
+                "assetReferences": {
+                    "inputs": {
+                        "directories": [],
+                        "filenames": {str(scene_location)},
+                    },
+                    "outputs": {
+                        "directories": [],
+                    },
+                    "referencedPaths": [],
+                }
+            }
+
+            self.assert_asset_references(job_history_dir, expected_asset_references)
+        finally:
+            detected_gpu_file.unlink(missing_ok=True)

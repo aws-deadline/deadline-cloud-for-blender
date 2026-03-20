@@ -129,6 +129,7 @@ markers = [
     "submitter: mark a test as using the submitter.",
     "adaptor: mark test as using the adaptor.",
     "scene_files: used to mark which scene files a test uses.",
+    "gpu: used to mark a test that requires a gpu.",
 ]
 
 # --- COVERAGE ---

@@ -78,3 +78,37 @@ class TestAdaptors:
             expected_image_directory=test_file_location / "expected_images" / blender_version,
             actual_image_directory=output_path,
         )
+
+    @pytest.mark.gpu
+    def test_gpu_scene_adaptor(
+        self,
+        script_location: Path,
+        tmp_path: Path,
+        blender_location: Path,
+        blender_version: str,
+    ) -> None:
+        test_file_location = script_location / "gpu_test"
+        scene_location = test_file_location / "scene" / "car-gpu-test.blend"
+        output_path = tmp_path / "output_submitter"
+
+        job_params = {
+            "BlenderFile": str(scene_location),
+            "OutputFileName": "image_####.png",
+            "OutputDir": str(output_path),
+            "RenderScene": "Scene",
+            "RenderEngine": "cycles",
+            "GPUDevice": "GPU",
+            "Frames": "5",
+            "ResolutionX": 640,
+            "ResolutionY": 480,
+        }
+
+        run_adaptor_test(
+            test_file_location / "expected_job_bundle" / "template.yaml",
+            job_params,
+            blender_location,
+        )
+        assert_all_images_close(
+            expected_image_directory=test_file_location / "expected_images" / blender_version,
+            actual_image_directory=output_path,
+        )
