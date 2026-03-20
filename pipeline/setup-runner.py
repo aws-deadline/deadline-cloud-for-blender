@@ -6,6 +6,7 @@ import argparse
 import hashlib
 import os
 import platform
+import shutil
 import subprocess
 import sys
 import time
@@ -276,6 +277,13 @@ def setup_windows(python_version):
         submitter_path = f"DeadlineCloudSubmitter\\Submitters\\Blender{major_minor}"
 
         Path(f"{submitter_path}\\python").mkdir(parents=True, exist_ok=True)
+
+        # Remove stale addons directory from previous runs on reserved capacity instances.
+        # Windows xcopy fails with exit code 4 when copying into an existing destination.
+        addons_path = Path(f"{submitter_path}\\python\\addons")
+        if addons_path.exists():
+            shutil.rmtree(addons_path)
+
         run(
             [
                 "xcopy",
