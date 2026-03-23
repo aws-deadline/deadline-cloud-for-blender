@@ -8,6 +8,7 @@ import sys
 
 import bpy  # noqa
 from bpy.types import Operator
+from .update_utils import check_and_show_update_dialog
 
 from . import logutil
 
@@ -53,6 +54,9 @@ class DEADLINE_CLOUD_OT_open_dialog(Operator):
         self.app = QtWidgets.QApplication.instance()
         if not self.app:
             self.app = QtWidgets.QApplication(sys.argv)
+
+        if check_and_show_update_dialog():
+            return {"FINISHED"}
 
         try:
             # optionally use the blender_stylesheet if it exists

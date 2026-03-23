@@ -35,7 +35,7 @@ classifiers = [
 # Blender 5.1+ uses Python version 3.13
 
 dependencies = [
-    "deadline >= 0.54,< 0.55",
+    "deadline >= 0.55.1,< 0.56",
     "openjd-adaptor-runtime >= 0.7,< 0.10",
 ]
 
