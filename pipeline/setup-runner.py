@@ -6,16 +6,16 @@ import argparse
 import hashlib
 import os
 import platform
-import shutil
 import subprocess
 import sys
 import time
 from pathlib import Path
 
-BLENDER_VERSIONS = ["4.2.12", "4.5.4"]
+BLENDER_VERSIONS = ["4.2.12", "4.5.4", "5.0.1"]
 BLENDER_PYTHON_VERSIONS = {
     "4.2.12": "3.11",
     "4.5.4": "3.11",
+    "5.0.1": "3.11",
 }
 USE_PUBLIC_URLS = False
 
@@ -27,6 +27,9 @@ BLENDER_CHECKSUMS = {
     "4.5.4-windows-x64": "0de55df1d99e4e7152605022cb648e795d5d49209c5c5c4889e1a19fb401a054",
     "4.2.12-macos-arm64": "810bc64b89af7f9028b9d7544a34f32ad900ac6d913fd2f288895f10dc6c2527",
     "4.5.4-macos-arm64": "7d6bd807563f0af65735cf9e21b788f6ac78bc5ceb87b96c424459785a13cd60",
+    "5.0.1-linux-x64": "8019580ee1b7262e505f4196a00237ccf743c88d205b38d34201510676e60b09",
+    "5.0.1-windows-x64": "921d77f6c505a35b2c2f6e67d4ad1c10b72418338ba0e0d3ea7f582a5e5fe46e",
+    "5.0.1-macos-arm64": "102a81ddee5346c96339c6a529069a2d52df05f330eb9bfd431c8dd79fb4afb6",
 }
 
 
@@ -274,15 +277,7 @@ def setup_windows(python_version):
 
     for version in BLENDER_VERSIONS:
         major_minor = ".".join(version.split(".")[:2])
-        submitter_path = f"DeadlineCloudSubmitter\\Submitters\\Blender{major_minor}"
-
-        Path(f"{submitter_path}\\python").mkdir(parents=True, exist_ok=True)
-
-        # Remove stale addons directory from previous runs on reserved capacity instances.
-        # Windows xcopy fails with exit code 4 when copying into an existing destination.
-        addons_path = Path(f"{submitter_path}\\python\\addons")
-        if addons_path.exists():
-            shutil.rmtree(addons_path)
+        submitter_path = f"DCS\\Blender{major_minor}"
 
         run(
             [

@@ -56,8 +56,13 @@ python = ["3.11"]
 blender = ["4.2.12"]
 python = ["3.11"]
 
+[[envs.integ-ci.matrix]]
+blender = ["5.0.1"]
+python = ["3.11"]
+
 [envs.integ-ci.env-vars]
 BLENDER_VERSION = "{matrix:blender}"
+BLENDER_TEMP_ALLOWLIST = "{root}"
 
 [envs.integ-ci.scripts]
 setup = "python ./pipeline/setup-runner.py --versions {matrix:blender} --python-version {matrix:python} {args}"
