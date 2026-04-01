@@ -1,3 +1,11 @@
+## 0.6.2 (2026-04-01)
+
+
+### Features
+* bundle GUI dependencies in the installer (#331) ([`89716ae`](https://github.com/aws-deadline/deadline-cloud-for-blender/commit/89716aea8855721e96f4bfb4feb7f99aa2a45189))
+
+
+
 ## 0.6.1 (2026-02-20)
 
 
