@@ -12,7 +12,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any
 
-SUPPORTED_PYTHON_VERSIONS = ["3.10", "3.11"]
+SUPPORTED_PYTHON_VERSIONS = ["3.10", "3.11", "3.13"]
 NATIVE_DEPENDENCIES = ["xxhash", "psutil"]
 
 PYSIDE6_VERSION = "6.8.3"

@@ -16,6 +16,7 @@ BLENDER_PYTHON_VERSIONS = {
     "4.2.12": "3.11",
     "4.5.4": "3.11",
     "5.0.1": "3.11",
+    "5.1.0": "3.13",
 }
 USE_PUBLIC_URLS = False
 

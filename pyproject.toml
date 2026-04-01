@@ -21,6 +21,7 @@ classifiers = [
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
   "Operating System :: POSIX :: Linux",
   "Operating System :: Microsoft :: Windows",
   "Operating System :: MacOS",
@@ -28,8 +29,10 @@ classifiers = [
   "Intended Audience :: Developers",
   "Intended Audience :: End Users/Desktop",
 ]
+# Blender 2.9 uses Python version 3.9
 # Blender 3.1-4.0 uses Python version 3.10
-# Blender 4.1+ uses Python version 3.11
+# Blender 4.1-5.0 uses Python version 3.11
+# Blender 5.1+ uses Python version 3.13
 
 dependencies = [
     "deadline >= 0.54,< 0.55",
