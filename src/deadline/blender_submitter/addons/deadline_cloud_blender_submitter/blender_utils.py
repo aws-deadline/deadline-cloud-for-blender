@@ -82,6 +82,19 @@ def find_files(project_path, skip_temp=True, skip_nonexistent=True) -> list[Path
 
     files = bpy.utils.blend_paths(absolute=True)
     files.append(project_path)
+
+    # For UDIM tiled images, add the parent directory as an input directory
+    # rather than individual files. blend_paths() returns pattern paths for
+    # UDIM images which don't exist as literal files on disk, so they get
+    # filtered out. Adding the directory ensures all tile files are included.
+    for image in bpy.data.images:
+        if image.source == "TILED":
+            filepath = bpy.path.abspath(image.filepath, library=image.library)
+            if filepath:
+                parent_dir = str(Path(filepath).parent)
+                if parent_dir not in files:
+                    files.append(parent_dir)
+
     files = set(Path(f) for f in files)
 
     temp_dirs = []
