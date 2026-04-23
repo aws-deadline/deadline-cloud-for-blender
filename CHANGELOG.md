@@ -1,3 +1,10 @@
+## 0.6.3 (2026-04-23)
+
+### Features
+* You will now be notified within Blender if a newer version of the submitter is available. (#329)
+
+### Bug Fixes
+* UDIM tiled image files are now correctly resolved and included in job attachments. Previously, textures using UDIM tiling may not have been uploaded with the job. (#339)
 ## 0.6.2 (2026-04-01)
 
 
