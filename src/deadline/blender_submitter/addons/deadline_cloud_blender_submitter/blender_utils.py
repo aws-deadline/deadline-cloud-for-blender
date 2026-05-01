@@ -82,6 +82,27 @@ def find_files(project_path, skip_temp=True, skip_nonexistent=True) -> list[Path
 
     files = bpy.utils.blend_paths(absolute=True)
     files.append(project_path)
+
+    # blend_paths() returns paths with <UDIM>/<UVTILE> tokens that don't exist
+    # on disk, so they get filtered out later. We use Blender's tile data to
+    # construct the real file paths for each tile instead.
+    for image in bpy.data.images:
+        if image.source == "TILED":
+            filepath = bpy.path.abspath(image.filepath, library=image.library)
+            if filepath:
+                parent_dir = os.path.normpath(str(Path(filepath).parent))
+                filename = Path(filepath).name
+                for tile in image.tiles:
+                    u = (tile.number - 1001) % 10
+                    v = (tile.number - 1001) // 10
+                    tile_name = filename.replace("<UDIM>", str(tile.number))
+                    tile_name = tile_name.replace("<UVTILE>", f"u{u + 1}_v{v + 1}")
+                    files.append(os.path.join(parent_dir, tile_name))
+
+    # Remove unresolved tile token paths — blend_paths() includes these but
+    # they aren't real files. The resolved tile paths were added above.
+    files = [f for f in files if "<UDIM>" not in str(f) and "<UVTILE>" not in str(f)]
+
     files = set(Path(f) for f in files)
 
     temp_dirs = []
