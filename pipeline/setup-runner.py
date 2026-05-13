@@ -11,12 +11,12 @@ import sys
 import time
 from pathlib import Path
 
-BLENDER_VERSIONS = ["4.2.12", "4.5.4", "5.0.1"]
+BLENDER_VERSIONS = ["4.2.12", "4.5.4", "5.0.1", "5.1.2"]
 BLENDER_PYTHON_VERSIONS = {
     "4.2.12": "3.11",
     "4.5.4": "3.11",
     "5.0.1": "3.11",
-    "5.1.0": "3.13",
+    "5.1.2": "3.13",
 }
 USE_PUBLIC_URLS = False
 
@@ -31,6 +31,9 @@ BLENDER_CHECKSUMS = {
     "5.0.1-linux-x64": "8019580ee1b7262e505f4196a00237ccf743c88d205b38d34201510676e60b09",
     "5.0.1-windows-x64": "921d77f6c505a35b2c2f6e67d4ad1c10b72418338ba0e0d3ea7f582a5e5fe46e",
     "5.0.1-macos-arm64": "102a81ddee5346c96339c6a529069a2d52df05f330eb9bfd431c8dd79fb4afb6",
+    "5.1.2-linux-x64": "aaccb355f50183979b698bcce7467103a76261b5fa59f4972295842662a285fb",
+    "5.1.2-windows-x64": "345bedea7b0acf7cc9666423d8553f9129622aea34ded65c23e8cb70f83f14ff",
+    "5.1.2-macos-arm64": "f104ffee2ba6aee32328e5c203b7e4608d8a1745f7bbcf2766f3b9777e8fbe17",
 }
 
 

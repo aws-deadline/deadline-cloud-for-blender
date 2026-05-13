@@ -4,6 +4,16 @@ import bpy
 from pathlib import Path
 import sys
 import argparse
+import os
+
+# Blender 5.1+ auto-populates the OCIO env var with its bundled default config.
+# The submitter treats any OCIO env var as a user-configured custom path, so
+# under 5.1+ a default-install submission would ship ~19 MB of Blender's
+# bundled colormanagement tree and emit extra template entries not present in
+# the baseline fixture. Force 5.1+ to match the 5.0 "no OCIO override" baseline
+# by clearing OCIO before the submitter reads it.
+if bpy.app.version >= (5, 1):
+    os.environ.pop("OCIO", None)
 
 from deadline_cloud_blender_submitter.open_deadline_cloud_dialog import (
     create_deadline_dialog,

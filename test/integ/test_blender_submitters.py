@@ -236,6 +236,15 @@ class TestSubmitters:
             assert output.returncode == 0
             assert is_valid_template(job_history_dir / "template.yaml")
 
+            # Check that the template is as expected.
+            with (
+                open(
+                    script_location / "gpu_test" / "expected_job_bundle" / "template.yaml"
+                ) as expected,
+                open(job_history_dir / "template.yaml") as actual,
+            ):
+                assert yaml.safe_load(expected) == yaml.safe_load(actual)
+
             # Read detected GPU type from test script
             assert detected_gpu_file.exists()
 

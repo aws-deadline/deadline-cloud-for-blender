@@ -18,8 +18,8 @@ AWS Deadline Cloud for Blender is a python package that allows users to create [
 
 This library requires:
 
-1. Blender 3.6 - 5.0,
-1. Python 3.9 to 3.12; and
+1. Blender 3.6 - 5.1,
+1. Python 3.9 to 3.13; and
 1. Linux, Windows, or a macOS operating system.
    * Adaptor only supports Linux and macOS
 

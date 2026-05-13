@@ -43,7 +43,7 @@ def blender_location() -> Path:
 
     # On Windows and MacOS, look for Blender in the default install location
     if os.name == "nt":
-        for version in ("5.0", "4.5", "4.4", "4.3", "4.2", "4.1", "4.0", "3.6"):
+        for version in ("5.1", "5.0", "4.5", "4.4", "4.3", "4.2", "4.1", "4.0", "3.6"):
             location = os.path.join(
                 os.environ["ProgramFiles"],
                 "Blender Foundation",
