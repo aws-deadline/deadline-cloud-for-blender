@@ -288,7 +288,7 @@ For testing with multiple Blender versions in CI:
 
 ```bash
 # Setup (downloads Blender versions)
-hatch run integ-ci:setup --public-urls --versions "4.2.12 4.5.4"
+hatch run integ-ci:setup --public-urls --versions "4.2.21 4.5.10"
 
 # Run tests
 hatch run integ-ci:test

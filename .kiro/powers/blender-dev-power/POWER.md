@@ -25,7 +25,7 @@ This project is a Python package that provides:
 ## Prerequisites
 
 - Python 3.9-3.12
-- Blender 3.6-5.0 (Blender 3.6-4.0 uses Python 3.10, Blender 4.1+ uses Python 3.11)
+- Blender 3.6-5.1 (Blender 3.6-4.0 uses Python 3.10, Blender 4.1+ uses Python 3.11)
 - Hatch (Python build tool): `pip install hatch`
 
 ## Quick Commands

@@ -11,10 +11,10 @@ import sys
 import time
 from pathlib import Path
 
-BLENDER_VERSIONS = ["4.2.12", "4.5.4", "5.0.1", "5.1.2"]
+BLENDER_VERSIONS = ["4.2.21", "4.5.10", "5.0.1", "5.1.2"]
 BLENDER_PYTHON_VERSIONS = {
-    "4.2.12": "3.11",
-    "4.5.4": "3.11",
+    "4.2.21": "3.11",
+    "4.5.10": "3.11",
     "5.0.1": "3.11",
     "5.1.2": "3.13",
 }
@@ -22,12 +22,12 @@ USE_PUBLIC_URLS = False
 
 # SHA256 checksums from https://www.blender.org/download/
 BLENDER_CHECKSUMS = {
-    "4.2.12-linux-x64": "953717011e00a21bfd4ccf0e8af0d901b4c3ef09c48f14c16a18c146d858bcf7",
-    "4.5.4-linux-x64": "2e6ef8e99fc36327270429ddc8e7bad2859dd878a5a137d2e0bf0f02f6792505",
-    "4.2.12-windows-x64": "d7b77bf3a925722be87e5b5e429b584d7baa3bcc82579afa7952fc1f8c19d2e1",
-    "4.5.4-windows-x64": "0de55df1d99e4e7152605022cb648e795d5d49209c5c5c4889e1a19fb401a054",
-    "4.2.12-macos-arm64": "810bc64b89af7f9028b9d7544a34f32ad900ac6d913fd2f288895f10dc6c2527",
-    "4.5.4-macos-arm64": "7d6bd807563f0af65735cf9e21b788f6ac78bc5ceb87b96c424459785a13cd60",
+    "4.2.21-linux-x64": "b9ee313018de52697eeabcb76fc2cd6d404dbb670be9b0d3a5847a09ca325981",
+    "4.5.10-linux-x64": "198a4248b38899af661aa9241cebd746394eaddbfafbeb53152440de80b118f7",
+    "4.2.21-windows-x64": "917254620e2528d032c1c93c149f25f0cfc8ab9b37c9aa117f05fc8eccdc7b24",
+    "4.5.10-windows-x64": "ef6d846b8015f47ade6df3f9322ce17419080a5d922fa562b6c966064fe30dce",
+    "4.2.21-macos-arm64": "ead53e078ce3102bdc0dc3aa5636b926a82058344c5b8f1bc210b34799c5af1d",
+    "4.5.10-macos-arm64": "cf3076fd531e74713f858830b558e71ffae7b26f104608c5c2cb2fc123535f16",
     "5.0.1-linux-x64": "8019580ee1b7262e505f4196a00237ccf743c88d205b38d34201510676e60b09",
     "5.0.1-windows-x64": "921d77f6c505a35b2c2f6e67d4ad1c10b72418338ba0e0d3ea7f582a5e5fe46e",
     "5.0.1-macos-arm64": "102a81ddee5346c96339c6a529069a2d52df05f330eb9bfd431c8dd79fb4afb6",

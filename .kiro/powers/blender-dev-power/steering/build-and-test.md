@@ -103,7 +103,7 @@ hatch run integ-ci:test
 Setup script options:
 - `--public-urls`: Download from blender.org with SHA256 verification
 - `--install-x11`: Install X11 libraries and start Xvfb on Linux (for headless rendering)
-- `--versions 4.2.12 4.5.4`: Specify Blender versions to install
+- `--versions 4.2.21 4.5.10`: Specify Blender versions to install
 - `--python-version 3.11`: Specify Python version for pip installs
 
 ## Step 5: Build Portable Add-on

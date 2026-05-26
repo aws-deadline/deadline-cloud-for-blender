@@ -89,7 +89,7 @@ hatch run integ-ci:setup --install-x11
 **Setup Script Options:**
 - `--public-urls`: Download from blender.org instead of S3 with SHA256 checksum verification
 - `--install-x11`: Install X11 libraries and start Xvfb on Linux (for headless rendering)
-- `--versions`: Specify Blender versions to install (e.g., `4.5.4 4.2.12`)
+- `--versions`: Specify Blender versions to install (e.g., `4.5.10 4.2.21`)
 - `--python-version`: Specify Python version for pip installs (e.g., `3.11`).
 
 The `pipeline/setup-runner.py` script downloads and installs Blender versions, then installs the submitter addon.
