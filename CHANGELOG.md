@@ -1,3 +1,7 @@
+## 0.6.4 (2026-06-03)
+
+### Features
+* Added support for Blender 5.1. `9a54a02`
 ## 0.6.3 (2026-04-23)
 
 ### Features
