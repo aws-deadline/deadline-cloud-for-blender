@@ -405,7 +405,8 @@ class BlenderAdaptor(Adaptor[AdaptorConfiguration]):
             #  waiting for the next command. If the thread finished, then we cannot continue
             exit_code = self._blender_client.returncode
             self._get_deadline_telemetry_client().record_error(
-                {"exit_code": exit_code, "exception_scope": "on_run"}, str(RuntimeError)
+                {"exit_code": exit_code, "exception_scope": "caught", "error_operation": "on_run"},
+                str(RuntimeError),
             )
             raise RuntimeError(
                 "Blender exited early and did not render successfully, please check render logs. "
