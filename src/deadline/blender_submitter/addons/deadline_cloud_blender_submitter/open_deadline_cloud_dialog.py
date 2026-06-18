@@ -131,6 +131,7 @@ def create_deadline_dialog(parent=None) -> SubmitJobToDeadlineDialog:
         f=Qt.WindowType.Tool,
         show_host_requirements_tab=True,
         submitter_info=submitter_info,
+        use_deadline_cloud_v2_channel=True,
     )
     dialog.setWindowFlags(Qt.WindowType.WindowStaysOnTopHint)
     return dialog
