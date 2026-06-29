@@ -9,7 +9,7 @@
 - [Discussions](https://github.com/aws-deadline/deadline-cloud-for-blender/discussions) - Community discussions
 
 ### Documentation
-- [User Guide](https://aws-deadline.github.io/) - End-user documentation
+- [User Guide](https://docs.aws.amazon.com/deadline-cloud/latest/userguide/blender.html) - End-user documentation
 - [AWS Deadline Cloud Service Docs](https://docs.aws.amazon.com/deadline-cloud/) - Service documentation
 - [Development Guide](https://github.com/aws-deadline/deadline-cloud-for-blender/blob/mainline/DEVELOPMENT.md) - Developer setup and workflows
 
