@@ -2,6 +2,7 @@
 
 #!/usr/bin/env python3
 """Setup runner for Blender integration tests in CodeBuild."""
+
 import argparse
 import hashlib
 import os

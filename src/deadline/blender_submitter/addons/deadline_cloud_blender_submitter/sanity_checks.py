@@ -3,6 +3,7 @@
 """
 Sanity checks done on submit or export bundle
 """
+
 from typing import Union
 from pathlib import Path
 
