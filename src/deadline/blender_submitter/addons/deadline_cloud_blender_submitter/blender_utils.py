@@ -1,7 +1,6 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 """Set of shortcut functions to query Blender scene data."""
 
-
 from __future__ import annotations
 
 import logging

@@ -9,7 +9,6 @@ import sys
 
 from pathlib import Path
 
-
 _BLENDER_VERSION_RE = re.compile(r"^Blender (?P<version>\d+\.\d+)\..*$")
 
 
