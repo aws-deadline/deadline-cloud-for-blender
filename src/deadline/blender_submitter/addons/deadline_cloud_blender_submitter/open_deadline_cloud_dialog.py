@@ -8,12 +8,19 @@ import bpy
 from qtpy.QtCore import Qt  # type: ignore
 
 from deadline.client import api
+from deadline.client.config import get_setting, str2bool
 from deadline.client.job_bundle._yaml import deadline_yaml_dump
 from deadline.client.job_bundle.parameters import JobParameter
 from deadline.client.job_bundle.submission import AssetReferences
 from deadline.client.ui.dialogs.submit_job_to_deadline_dialog import (
     SubmitJobToDeadlineDialog,
     JobBundlePurpose,
+)
+from deadline.client.ui.pre_gui_hooks import (  # pylint: disable=import-error
+    PreGuiHookContext,
+    apply_pre_gui_output,
+    qt_hook_confirmation,
+    run_pre_gui_hooks,
 )
 from deadline.client.dataclasses import SubmitterInfo
 
@@ -115,15 +122,37 @@ def create_deadline_dialog(parent=None) -> SubmitJobToDeadlineDialog:
         host_application_version=bpy.app.version_string,
     )
 
+    shared_parameter_values = {
+        "RezPackages": rez_packages,
+        "CondaPackages": conda_packages,
+    }
+
+    # Run pre-GUI hooks so studios can pre-populate dialog fields before it opens. Blender has
+    # no on-disk job bundle at this point, so hooks are sourced from DEADLINE_HOOKS_DIR only
+    # (bundle_dir=None), gated by settings.allow_environment_hooks. The confirmation prompt is
+    # skipped when auto_accept is set; otherwise the standard dialog is shown.
+    confirm_callback = (
+        None if str2bool(get_setting("settings.auto_accept")) else qt_hook_confirmation(parent)
+    )
+    pre_gui_output = run_pre_gui_hooks(
+        PreGuiHookContext(
+            bundle_dir=None,
+            job_name=settings.name,
+            submitter_name="blender",
+            parameters=dict(shared_parameter_values),
+        ),
+        confirm_callback=confirm_callback,
+    )
+    # BlenderSubmitterUISettings has no .parameters list, so apply_pre_gui_output writes
+    # name/description onto it and routes every hook parameter into shared_parameter_values.
+    apply_pre_gui_output(pre_gui_output, settings, shared_parameter_values)
+
     # Create and return the dialog widget.
     # dialog = SubmitJobToDeadlineDialog(
     dialog = SubmitJobToDeadlineDialog(
         job_setup_widget_type=ssw.SceneSettingsWidget,
         initial_job_settings=settings,
-        initial_shared_parameter_values={
-            "RezPackages": rez_packages,
-            "CondaPackages": conda_packages,
-        },
+        initial_shared_parameter_values=shared_parameter_values,
         auto_detected_attachments=auto_detected_attachments,
         attachments=attachments,
         on_create_job_bundle_callback=_create_bundle,

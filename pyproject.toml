@@ -35,13 +35,16 @@ classifiers = [
 # Blender 5.1+ uses Python version 3.13
 
 dependencies = [
-    "deadline >= 0.55.1,< 0.58",
+    # run_pre_gui_hooks / PreGuiHookContext are required for the pre-GUI hook integration
+    # in open_deadline_cloud_dialog; they ship in deadline-cloud 0.60.x. Confirm the exact
+    # release before merging.
+    "deadline >= 0.60.0,< 0.61",
     "openjd-adaptor-runtime >= 0.7,< 0.10",
 ]
 
 [project.optional-dependencies]
 gui = [
-    "deadline[gui] >= 0.54,< 0.58",
+    "deadline[gui] >= 0.60.0,< 0.61",
 ]
 
 [project.urls]
