@@ -8,9 +8,12 @@ runs:
   steps:
   - name: Update plugin Version
     shell: bash
+    env:
+      # Pass context via env, not inline ${{ }}, to avoid template injection.
+      SEMVER: ${{ inputs.semver }}
     run: |
-      major=$(printf ${{inputs.semver}} | cut -d '.' -f1)
-      minor=$(printf ${{inputs.semver}} | cut -d '.' -f2)
-      patch=$(printf ${{inputs.semver}} | cut -d '.' -f3)
+      major=$(printf "%s" "$SEMVER" | cut -d '.' -f1)
+      minor=$(printf "%s" "$SEMVER" | cut -d '.' -f2)
+      patch=$(printf "%s" "$SEMVER" | cut -d '.' -f3)
       sed -i "s/\"version\": ([0-9]*, [0-9]*, [0-9]*)/\"version\": ($major, $minor, $patch)/" ./src/deadline/blender_submitter/addons/deadline_cloud_blender_submitter/__init__.py
       git add ./src/deadline/blender_submitter/addons/deadline_cloud_blender_submitter/__init__.py
