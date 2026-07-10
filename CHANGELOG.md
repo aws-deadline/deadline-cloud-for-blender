@@ -1,3 +1,7 @@
+## 0.6.5 (2026-06-22)
+
+### Features
+* The submitter now enables the deadline-cloud-v2 conda channel, allowing jobs to use packages from this channel when rendering on Deadline Cloud. `7ccbc75`
 ## 0.6.4 (2026-06-03)
 
 ### Features

@@ -1,6 +1,6 @@
 # AWS Deadline Cloud for Blender
 
-### [User guide](https://aws-deadline.github.io/) | [Service documentation](https://docs.aws.amazon.com/deadline-cloud/) | [Deadline Cloud on GitHub](https://github.com/aws-deadline/) 
+### [User guide](https://docs.aws.amazon.com/deadline-cloud/latest/userguide/blender.html) | [Service documentation](https://docs.aws.amazon.com/deadline-cloud/) | [Deadline Cloud on GitHub](https://github.com/aws-deadline/) 
 
 [![pypi](https://img.shields.io/pypi/v/deadline-cloud-for-blender.svg?style=flat)](https://pypi.python.org/pypi/deadline-cloud-for-blender)
 [![python](https://img.shields.io/pypi/pyversions/deadline-cloud-for-blender.svg?style=flat)](https://pypi.python.org/pypi/deadline-cloud-for-blender)
@@ -38,10 +38,10 @@ The Blender submitter can be installed and updated within Blender. Requires Blen
 1. Open Blender. Click the **Edit** menu then click **Preferences...**. In the **Preferences** window, click on **Get Extensions** on the left side bar. In the top right of the **Preferences** window, click **Repositories**, click the **+** icon, then click **Add Remote Repository**.
 2. Set the **URL** to `https://github.com/aws-deadline/deadline-cloud-for-blender/releases/latest/download/index.json` and check the box for **Check for Updates on Startup**. Click **Create**.
 
-   <img alt="Screenshot of the Blender preferences window with an open pop-up for adding an extension repository" src="./docs/install-01-adding-repo.png" width="300" />
+   <img alt="Screenshot of the Blender preferences window with an open pop-up for adding an extension repository" src="./docs/user_guide/images/install-01-adding-repo.png" width="300" />
 3. Now, under the **Available** list, there should be an entry for **AWS Deadline Cloud**. Click its **Install** button. A progress bar will track the download then disappear when the installation is complete.
 
-   <img alt="Screenshot of the Blender preferences window with the AWS Deadline Cloud add-on available for installation" src="./docs/install-02-repo-added.png" width="300" />
+   <img alt="Screenshot of the Blender preferences window with the AWS Deadline Cloud add-on available for installation" src="./docs/user_guide/images/install-02-repo-added.png" width="300" />
 3. The add-on is now installed! You can now use the new Submit to AWS Deadline Cloud option in the Render menu. If later there's an update available, an **Update** button will appear next to the **AWS Deadline Cloud** entry in the **Get Extensions** section.
 
 ## Adaptor
@@ -85,7 +85,7 @@ See [CONTRIBUTING](https://github.com/aws-deadline/deadline-cloud-for-blender/bl
 
 ## Telemetry
 
-See [telemetry](https://github.com/aws-deadline/deadline-cloud-for-blender/blob/release/docs/telemetry.md) for more information.
+See [telemetry](https://docs.aws.amazon.com/deadline-cloud/latest/userguide/opt-out.html) for more information.
 
 ## License
 

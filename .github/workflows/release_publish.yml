@@ -57,13 +57,6 @@ jobs:
       tag: ${{ needs.TagRelease.outputs.tag }}
       os: ${{ matrix.os }}
       
-  ManualTestGate:
-    needs: [TagRelease, BuildInstaller]
-    runs-on: ubuntu-latest
-    environment: release-gate
-    steps:
-      - run: echo "Manual testing approved for ${{ needs.TagRelease.outputs.tag }}"
-
   PreRelease:
       needs: [TagRelease, UnitTests, IntegrationTests]
       uses: aws-deadline/.github/.github/workflows/reusable_prerelease.yml@mainline
@@ -107,7 +100,7 @@ jobs:
          :
 
   ReleaseInstaller:
-    needs: [TagRelease, IsCondaReady, ManualTestGate]
+    needs: [TagRelease, IsCondaReady]
     uses: aws-deadline/.github/.github/workflows/reusable_release_installers.yml@mainline
     secrets: inherit
     permissions:
@@ -138,12 +131,12 @@ jobs:
         id-token: write
       steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           ref: ${{ needs.TagRelease.outputs.tag }}
           fetch-depth: 0
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: ${{ needs.TagRelease.outputs.build-python-version }}
       - name: Install dependencies
@@ -153,5 +146,5 @@ jobs:
         run: hatch -v build
       # # See https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/configuring-openid-connect-in-pypi
       - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # v1.14.0
 

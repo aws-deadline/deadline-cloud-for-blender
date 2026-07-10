@@ -11,13 +11,18 @@ runs:
   steps:
     - name: Zip submitter plugin
       shell: bash
+      env:
+        # Pass context via env, not inline ${{ }}, to avoid template injection.
+        SEMVER: ${{ inputs.semver }}
       run: |
         mkdir -p dist_extras
         cd src/deadline/blender_submitter/addons
-        zip -r  ../../../../dist_extras/blender_submitter_plugin_${{inputs.semver}}.zip .
+        zip -r  "../../../../dist_extras/blender_submitter_plugin_$SEMVER.zip" .
         cd ../../../../
 
     - name: Build Blender add-on and extension respository index
       shell: bash
+      env:
+        SEMVER: ${{ inputs.semver }}
       run: |
-        hatch run build-addon --version ${{ inputs.semver }}
+        hatch run build-addon --version "$SEMVER"

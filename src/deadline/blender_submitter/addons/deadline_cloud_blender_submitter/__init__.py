@@ -3,8 +3,10 @@
 """
 Registration of Deadline Cloud Submitter Addon + activate logger
 """
+
 import logging
 import sys
+from typing import Any
 
 import bpy  # noqa
 from bpy.types import Operator
@@ -20,7 +22,7 @@ bl_info = {
     "name": "Deadline Cloud for Blender",
     "description": "Submit to AWS Deadline Cloud",
     "author": "AWS",
-    "version": (0, 6, 4),
+    "version": (0, 6, 5),
     "blender": (3, 6, 0),
     "category": "Render",
 }
@@ -30,7 +32,7 @@ logutil.add_file_handler()
 
 _logger = logging.getLogger(__name__)
 
-addon_keymaps = []
+addon_keymaps: list[tuple[Any, Any]] = []
 
 
 class DEADLINE_CLOUD_OT_open_dialog(Operator):
