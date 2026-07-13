@@ -16,7 +16,7 @@ from deadline.client.ui.dialogs.submit_job_to_deadline_dialog import (
     SubmitJobToDeadlineDialog,
     JobBundlePurpose,
 )
-from deadline.client.ui.pre_gui_hooks import (  # pylint: disable=import-error
+from deadline.client.ui.pre_gui_hooks import (
     PreGuiHookContext,
     apply_pre_gui_output,
     qt_hook_confirmation,
@@ -31,6 +31,18 @@ from . import template_filling as tf
 from . import ocio_utils as ocio
 from ._version import version
 from ._version import version_tuple as adaptor_version_tuple
+
+
+def _pre_gui_hook_confirm_callback(parent):
+    """Choose the confirmation callback for pre-GUI hooks based on the auto_accept setting.
+
+    Returns ``None`` (run hooks without prompting) when ``settings.auto_accept`` is enabled,
+    otherwise the standard Qt confirmation dialog from ``qt_hook_confirmation``. Kept as a small
+    helper so the auto_accept branch can be unit-tested headlessly.
+    """
+    if str2bool(get_setting("settings.auto_accept")):
+        return None
+    return qt_hook_confirmation(parent)
 
 
 def create_deadline_dialog(parent=None) -> SubmitJobToDeadlineDialog:
@@ -131,9 +143,6 @@ def create_deadline_dialog(parent=None) -> SubmitJobToDeadlineDialog:
     # no on-disk job bundle at this point, so hooks are sourced from DEADLINE_HOOKS_DIR only
     # (bundle_dir=None), gated by settings.allow_environment_hooks. The confirmation prompt is
     # skipped when auto_accept is set; otherwise the standard dialog is shown.
-    confirm_callback = (
-        None if str2bool(get_setting("settings.auto_accept")) else qt_hook_confirmation(parent)
-    )
     pre_gui_output = run_pre_gui_hooks(
         PreGuiHookContext(
             bundle_dir=None,
@@ -141,7 +150,7 @@ def create_deadline_dialog(parent=None) -> SubmitJobToDeadlineDialog:
             submitter_name="blender",
             parameters=dict(shared_parameter_values),
         ),
-        confirm_callback=confirm_callback,
+        confirm_callback=_pre_gui_hook_confirm_callback(parent),
     )
     # BlenderSubmitterUISettings has no .parameters list, so apply_pre_gui_output writes
     # name/description onto it and routes every hook parameter into shared_parameter_values.
