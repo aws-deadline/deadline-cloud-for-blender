@@ -35,13 +35,13 @@ classifiers = [
 # Blender 5.1+ uses Python version 3.13
 
 dependencies = [
-    "deadline >= 0.59.0,< 0.60",
+    "deadline >= 0.60.1,< 0.61",
     "openjd-adaptor-runtime >= 0.7,< 0.10",
 ]
 
 [project.optional-dependencies]
 gui = [
-    "deadline[gui] >= 0.59.0,< 0.60",
+    "deadline[gui] >= 0.60.1,< 0.61",
 ]
 
 [project.urls]
