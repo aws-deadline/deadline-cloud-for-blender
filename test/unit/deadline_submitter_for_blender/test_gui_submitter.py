@@ -1,0 +1,657 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+
+"""Tests for the GUI submitter (open_deadline_cloud_dialog + template_filling).
+
+Covers the dialog flow's template/param builders, asset classification, and the
+adapter that delegates to the unified BlenderSubmitter. The headless
+BlenderSubmitter engine itself is tested in test_submitter.py.
+"""
+
+import sys
+from pathlib import Path
+
+import pytest
+from unittest.mock import Mock, patch
+
+from deadline.blender_submitter.addons.deadline_cloud_blender_submitter.open_deadline_cloud_dialog import (
+    _get_auto_detected_assets,
+)
+from deadline.blender_submitter.addons.deadline_cloud_blender_submitter.submitter import (
+    BlenderSubmitterSettings,
+)
+
+
+from deadline.client.exceptions import DeadlineOperationError
+
+# Ensure the submitter can be imported.
+SUBMITTER_DIR = (
+    Path(__file__).parent.parent.parent.parent
+    / "src"
+    / "deadline"
+    / "blender_submitter"
+    / "addons"
+    / "deadline_cloud_blender_submitter"
+)
+sys.path.append(str(SUBMITTER_DIR))
+import template_filling  # noqa: E402
+
+
+@pytest.fixture
+def submitter_settings():
+    """Return a submitter settings object.
+
+    The builders now consume the unified BlenderSubmitterSettings directly (no
+    BlenderSubmitterUISettings translation). job_name is set to the old
+    UISettings default so the template-name assertion below is unchanged.
+    """
+    # camera_selection="Camera" mirrors the old BlenderSubmitterUISettings
+    # default (a specific named camera), keeping the template assertions stable.
+    return BlenderSubmitterSettings(job_name="Blender Submission", camera_selection="Camera")
+
+
+@pytest.fixture
+def common_layer_settings():
+    """Return a common layer settings object."""
+    settings = template_filling.CommonLayerSettings(
+        renderer_name="dummy_renderer",
+        frame_range="1-10",
+        frames_parameter_name=None,
+        renderable_camera_names=["dummy_camera"],
+        output_directories=["/dummy/output/directory"],
+        output_file_prefix="dummy_prefix",
+        output_file_prefix_parameter_name=None,
+        ui_group_label="dummy_group_label",
+        image_width_parameter_name=None,
+        image_height_parameter_name=None,
+        image_resolution=(1920, 1080),
+        scene_name="dummy_scene_name",
+    )
+    print(settings)
+    return settings
+
+
+LAYER_NAMES = ["layer_1", "layer_2"]
+
+
+def test_fill_job_template(submitter_settings, common_layer_settings):
+    """Test filling the job template."""
+
+    # NOTE This is not the most elegant way to test this; brittle to changes in the template.
+
+    expected = {
+        "specificationVersion": "jobtemplate-2023-09",
+        "name": "Blender Submission",
+        "description": None,
+        "parameterDefinitions": [
+            {
+                "name": "BlenderFile",
+                "type": "PATH",
+                "objectType": "FILE",
+                "dataFlow": "IN",
+                "userInterface": {
+                    "control": "CHOOSE_INPUT_FILE",
+                    "label": "Blender File",
+                    "fileFilters": [
+                        {"label": "Blender Files", "patterns": ["*.blend"]},
+                        {"label": "All Files", "patterns": ["*"]},
+                    ],
+                },
+                "description": "The Blender scene file you want to render.",
+            },
+            {
+                "name": "RenderEngine",
+                "type": "STRING",
+                "default": "cycles",
+                "allowedValues": ["eevee", "workbench", "cycles"],
+            },
+            {
+                "name": "RenderScene",
+                "type": "STRING",
+                "userInterface": {
+                    "control": "LINE_EDIT",
+                    "label": "Scene",
+                    "groupLabel": "Blender Settings",
+                },
+                "default": "Scene",
+                "description": "The scene you want to render (scene name).",
+            },
+            {
+                "name": "ViewLayer",
+                "type": "STRING",
+                "userInterface": {"control": "LINE_EDIT", "label": "view_layer"},
+                "description": "The layer to render.",
+                "default": "ViewLayer",
+            },
+            {
+                "name": "Frames",
+                "type": "STRING",
+                "userInterface": {
+                    "control": "LINE_EDIT",
+                    "label": "Frames",
+                    "groupLabel": "Blender Settings",
+                },
+                "default": "1-1",
+                "description": "The frames to render. E.g. 1-3,8,11-15",
+            },
+            {
+                "name": "OutputDir",
+                "type": "PATH",
+                "objectType": "DIRECTORY",
+                "dataFlow": "OUT",
+                "userInterface": {"control": "CHOOSE_DIRECTORY", "label": "Output Directory"},
+                "description": "The render output directory.",
+            },
+            {
+                "name": "OutputFileName",
+                "type": "STRING",
+                "userInterface": {"control": "LINE_EDIT", "label": "Output File Name"},
+                "default": "output_####",
+                "description": "The output filename (without extension).",
+            },
+            {
+                "name": "OutputFormat",
+                "type": "STRING",
+                "userInterface": {"control": "DROPDOWN_LIST", "label": "Output File Format"},
+                "description": "The file format to render as.",
+                "default": "PNG",
+                "allowedValues": [
+                    "TARGA",
+                    "TARGA_RAW",
+                    "JPEG",
+                    "IRIS",
+                    "PNG",
+                    "HDR",
+                    "TIFF",
+                    "OPEN_EXR",
+                    "OPEN_EXR_MULTILAYER",
+                    "CINEON",
+                    "DPX",
+                    "JPEG2000",
+                    "WEBP",
+                ],
+            },
+            {
+                "name": "GPUDevice",
+                "type": "STRING",
+                "userInterface": {
+                    "control": "LINE_EDIT",
+                    "label": "GPU Device",
+                },
+                "description": "The GPU device type to render with when using the cycles engine.",
+                "default": "NONE",
+            },
+            {
+                "name": "StrictErrorChecking",
+                "type": "STRING",
+                "userInterface": {
+                    "control": "CHECK_BOX",
+                    "label": "Strict Error Checking",
+                    "groupLabel": "Blender Settings",
+                },
+                "description": "Fail when errors occur.",
+                "default": "false",
+                "allowedValues": ["true", "false"],
+            },
+            {
+                "name": None,
+                "type": "INT",
+                "userInterface": {
+                    "control": "SPIN_BOX",
+                    "label": "Image Width",
+                    "groupLabel": "dummy_group_label",
+                },
+                "minValue": 1,
+                "description": "The image width.",
+            },
+            {
+                "name": None,
+                "type": "INT",
+                "userInterface": {
+                    "control": "SPIN_BOX",
+                    "label": "Image Height",
+                    "groupLabel": "dummy_group_label",
+                },
+                "minValue": 1,
+                "description": "The image height.",
+            },
+        ],
+        "steps": [
+            {
+                "name": "layer_1",
+                "parameterSpace": {
+                    "taskParameterDefinitions": [
+                        {"name": "Frame", "type": "INT", "range": "{{Param.Frames}}"},
+                        {"name": "Camera", "type": "STRING", "range": ["Camera"]},
+                    ]
+                },
+                "stepEnvironments": [
+                    {
+                        "name": "Blender",
+                        "description": "Runs Blender in the background.",
+                        "script": {
+                            "embeddedFiles": [
+                                {
+                                    "name": "initData",
+                                    "filename": "init-data.yaml",
+                                    "type": "TEXT",
+                                    "data": "scene_file: {{Param.BlenderFile}}\nrender_engine: {{Param.RenderEngine}}\ngpu_device: {{Param.GPUDevice}}\nrender_scene: {{Param.RenderScene}}\nview_layer: layer_1\noutput_dir: {{Param.OutputDir}}\noutput_file_name: {{Param.OutputFileName}}\noutput_format: {{Param.OutputFormat}}\nrenderer: dummy_renderer\noutput_file_prefix: {{Param.OutputFilePrefix}}\nimage_width: {{Param.ImageWidth}}\nimage_height: {{Param.ImageHeight}}",
+                                }
+                            ],
+                            "actions": {
+                                "onEnter": {
+                                    "command": "blender-openjd",
+                                    "args": [
+                                        "daemon",
+                                        "start",
+                                        "--connection-file",
+                                        "{{Session.WorkingDirectory}}/connection.json",
+                                        "--init-data",
+                                        "file://{{Env.File.initData}}",
+                                    ],
+                                    "cancelation": {"mode": "NOTIFY_THEN_TERMINATE"},
+                                    "timeout": 3720,
+                                },
+                                "onExit": {
+                                    "command": "blender-openjd",
+                                    "args": [
+                                        "daemon",
+                                        "stop",
+                                        "--connection-file",
+                                        "{{ Session.WorkingDirectory }}/connection.json",
+                                    ],
+                                    "cancelation": {"mode": "NOTIFY_THEN_TERMINATE"},
+                                    "timeout": 120,
+                                },
+                            },
+                        },
+                    }
+                ],
+                "script": {
+                    "embeddedFiles": [
+                        {
+                            "name": "runData",
+                            "filename": "run-data.yaml",
+                            "type": "TEXT",
+                            "data": "frame: {{Task.Param.Frame}}\ncamera: '{{Task.Param.Camera}}'\n",
+                        }
+                    ],
+                    "actions": {
+                        "onRun": {
+                            "command": "blender-openjd",
+                            "args": [
+                                "daemon",
+                                "run",
+                                "--connection-file",
+                                "{{ Session.WorkingDirectory }}/connection.json",
+                                "--run-data",
+                                "file://{{ Task.File.runData }}",
+                            ],
+                            "cancelation": {"mode": "NOTIFY_THEN_TERMINATE"},
+                        }
+                    },
+                },
+            },
+            {
+                "name": "layer_2",
+                "parameterSpace": {
+                    "taskParameterDefinitions": [
+                        {"name": "Frame", "type": "INT", "range": "{{Param.Frames}}"},
+                        {"name": "Camera", "type": "STRING", "range": ["Camera"]},
+                    ]
+                },
+                "stepEnvironments": [
+                    {
+                        "name": "Blender",
+                        "description": "Runs Blender in the background.",
+                        "script": {
+                            "embeddedFiles": [
+                                {
+                                    "name": "initData",
+                                    "filename": "init-data.yaml",
+                                    "type": "TEXT",
+                                    "data": "scene_file: {{Param.BlenderFile}}\nrender_engine: {{Param.RenderEngine}}\ngpu_device: {{Param.GPUDevice}}\nrender_scene: {{Param.RenderScene}}\nview_layer: layer_2\noutput_dir: {{Param.OutputDir}}\noutput_file_name: {{Param.OutputFileName}}\noutput_format: {{Param.OutputFormat}}\nrenderer: dummy_renderer\noutput_file_prefix: {{Param.OutputFilePrefix}}\nimage_width: {{Param.ImageWidth}}\nimage_height: {{Param.ImageHeight}}",
+                                }
+                            ],
+                            "actions": {
+                                "onEnter": {
+                                    "command": "blender-openjd",
+                                    "args": [
+                                        "daemon",
+                                        "start",
+                                        "--connection-file",
+                                        "{{Session.WorkingDirectory}}/connection.json",
+                                        "--init-data",
+                                        "file://{{Env.File.initData}}",
+                                    ],
+                                    "cancelation": {"mode": "NOTIFY_THEN_TERMINATE"},
+                                    "timeout": 3720,
+                                },
+                                "onExit": {
+                                    "command": "blender-openjd",
+                                    "args": [
+                                        "daemon",
+                                        "stop",
+                                        "--connection-file",
+                                        "{{ Session.WorkingDirectory }}/connection.json",
+                                    ],
+                                    "cancelation": {"mode": "NOTIFY_THEN_TERMINATE"},
+                                    "timeout": 120,
+                                },
+                            },
+                        },
+                    }
+                ],
+                "script": {
+                    "embeddedFiles": [
+                        {
+                            "name": "runData",
+                            "filename": "run-data.yaml",
+                            "type": "TEXT",
+                            "data": "frame: {{Task.Param.Frame}}\ncamera: '{{Task.Param.Camera}}'\n",
+                        }
+                    ],
+                    "actions": {
+                        "onRun": {
+                            "command": "blender-openjd",
+                            "args": [
+                                "daemon",
+                                "run",
+                                "--connection-file",
+                                "{{ Session.WorkingDirectory }}/connection.json",
+                                "--run-data",
+                                "file://{{ Task.File.runData }}",
+                            ],
+                            "cancelation": {"mode": "NOTIFY_THEN_TERMINATE"},
+                        }
+                    },
+                },
+            },
+        ],
+    }
+
+    filled = template_filling.fill_job_template(
+        submitter_settings, LAYER_NAMES, common_layer_settings, host_requirements=None
+    )
+    assert filled == expected
+
+    # Adding host requirements to the call adds them to each step.
+    host_reqs = {"GPU": "1"}
+    filled = template_filling.fill_job_template(
+        submitter_settings, LAYER_NAMES, common_layer_settings, host_requirements=host_reqs
+    )
+    for step in filled["steps"]:
+        assert step["hostRequirements"] == host_reqs
+
+
+def test_get_param_values(submitter_settings, common_layer_settings):
+    """Test getting param values."""
+    expected_settings = {
+        "BlenderFile": submitter_settings.project_path,
+        "OutputFileName": common_layer_settings.output_file_prefix,
+        "OutputDir": common_layer_settings.output_directories,
+        "RenderScene": common_layer_settings.scene_name,
+        "RenderEngine": common_layer_settings.renderer_name,
+        "GPUDevice": submitter_settings.gpu_device,
+    }
+    expected = [{"name": k, "value": v} for k, v in expected_settings.items()]
+
+    # Patching this scene setting causes GPUDevice to use the default value
+    with patch("bpy.context.scene.cycles.device", "CPU"):
+        filled = template_filling.get_parameter_values(
+            submitter_settings, common_layer_settings, queue_params=[]
+        )
+        assert filled == expected
+
+
+def test_conflicting_queue_params_error(submitter_settings, common_layer_settings):
+    # If queue params are passed, their keys should not conflict with existing keys. Expect an error if they do.
+    queue_params = [
+        {"name": "RenderScene", "value": common_layer_settings.scene_name + "_some_value"}
+    ]
+    with pytest.raises(DeadlineOperationError):
+        template_filling.get_parameter_values(
+            submitter_settings, common_layer_settings, queue_params=queue_params
+        )
+
+
+def test_get_queue_params(submitter_settings, common_layer_settings):
+    # If queue params are passed, and they don't conflict with existing keys, they should be added.
+    queue_params = [{"name": "SomeParam", "value": "some_value"}]
+    filled = template_filling.get_parameter_values(
+        submitter_settings, common_layer_settings, queue_params=queue_params
+    )
+    assert filled[-1] == queue_params[0]
+
+
+@pytest.mark.parametrize(
+    "queue_param_name,package_name",
+    [
+        pytest.param("RezPackages", "deadline_cloud_for_blender"),
+        pytest.param("CondaPackages", "blender-openjd"),
+    ],
+)
+def test_use_adaptor_wheels(
+    submitter_settings, common_layer_settings, queue_param_name, package_name
+):
+    """
+    Tests that default packages are excluded from CondaPackages and RezPackages if `include_adaptor_wheels` is true.
+    """
+
+    # GIVEN
+    queue_params = [
+        {
+            "name": queue_param_name,
+            "value": f"some_other_package {package_name} another_package",
+        }
+    ]
+
+    # WHEN
+    submitter_settings.include_adaptor_wheels = True
+    filled = template_filling.get_parameter_values(
+        submitter_settings, common_layer_settings, queue_params=queue_params
+    )
+
+    # THEN
+    assert filled[-1]["value"] == "some_other_package another_package"
+
+
+def test_add_ocio_template_data(submitter_settings, common_layer_settings):
+    """
+    Certain information should only be added to the template if an OCIO environment variable is set.
+    There should be an extra job environment and corresponding parameter.
+    """
+
+    expected_ocio_env = {"name": "Set OCIO Path", "variables": {"OCIO": "{{Param.OCIOConfigPath}}"}}
+    expected_ocio_param = {"name": "OCIOConfigPath", "value": "my_ocio_config.ocio"}
+
+    # GIVEN
+    submitter_settings.ocio_config_path = "my_ocio_config.ocio"
+
+    # WHEN
+    filled_template = template_filling.fill_job_template(
+        submitter_settings, LAYER_NAMES, common_layer_settings, host_requirements=None
+    )
+    params = template_filling.get_parameter_values(submitter_settings, common_layer_settings, [])
+
+    # THEN
+    assert expected_ocio_env in filled_template["jobEnvironments"]
+    assert expected_ocio_param in params
+
+
+def test_sort_auto_detected_assets():
+    """Test that auto-detected assets are properly classified."""
+    expected_input_filenames = set(["file_1.blend", "file_2.abc"])
+    expected_input_dirs = set(["dir_1", "dir_2"])
+
+    # WHEN find_files returns a mix of files and directories, classify them before adding them to the dialog.
+    with (
+        patch(
+            "deadline.blender_submitter.addons.deadline_cloud_blender_submitter.open_deadline_cloud_dialog.bu.find_files",
+            Mock(
+                return_value=[
+                    Path("dir_1"),
+                    Path("file_1.blend"),
+                    Path("dir_2"),
+                    Path("file_2.abc"),
+                ]
+            ),
+        ),
+        patch.object(Path, "is_dir", side_effect=[True, False, True, False]),
+    ):
+
+        auto_detected_assets = _get_auto_detected_assets("test_project_path.blend")
+
+        assert auto_detected_assets.input_filenames == expected_input_filenames
+        assert auto_detected_assets.input_directories == expected_input_dirs
+
+
+def test_fill_job_template_use_default_camera(submitter_settings, common_layer_settings):
+    """Test filling the job template when camera_selection is 'Use Default Camera'."""
+
+    # Set camera_selection to "Use Default Camera"
+    submitter_settings.camera_selection = "Use Default Camera"
+
+    filled = template_filling.fill_job_template(
+        submitter_settings, ["layer_1"], common_layer_settings, host_requirements=None
+    )
+
+    # Check that Camera parameter is NOT in taskParameterDefinitions
+    task_param_defs = filled["steps"][0]["parameterSpace"]["taskParameterDefinitions"]
+    camera_params = [param for param in task_param_defs if param.get("name") == "Camera"]
+    assert (
+        len(camera_params) == 0
+    ), "Camera parameter should not be defined when using default camera"
+
+    # Check that camera is NOT set in the embedded RunData file
+    run_data = filled["steps"][0]["script"]["embeddedFiles"][0]["data"]
+    assert (
+        "camera:" not in run_data
+    ), "Camera should not be set in RunData when using default camera"
+
+
+# ---------------------------------------------------------------------------
+# GUI -> unified submitter delegation
+#
+# The dialog no longer builds the bundle itself; it adapts its UI settings to
+# BlenderSubmitterSettings and delegates to BlenderSubmitter (the single source
+# of truth shared with the AYON/headless path). These cover the adapter.
+# ---------------------------------------------------------------------------
+
+
+def _dialog_module():
+    from deadline.blender_submitter.addons.deadline_cloud_blender_submitter import (
+        open_deadline_cloud_dialog as dlg,
+    )
+
+    return dlg
+
+
+def test_ui_settings_adapter_maps_fields_and_scene_resolution():
+    """UI settings map onto BlenderSubmitterSettings; resolution comes from the scene."""
+    dlg = _dialog_module()
+
+    ui = template_filling.BlenderSubmitterUISettings()
+    ui.name = "my_shot"
+    ui.scene_name = "Scene"
+    ui.renderer_name = "cycles"
+    ui.view_layer_selection = "Beauty"
+    ui.camera_selection = "Use Default Camera"
+    ui.output_file_prefix = "frame_"
+    ui.output_path = "/out"
+    ui.override_frame_range = False
+
+    render = dlg.bpy.context.scene.render
+    render.resolution_x = 640
+    render.resolution_y = 480
+
+    with patch.object(dlg.bu, "get_frames", return_value="1-10"):
+        result = dlg._ui_settings_to_submitter_settings(ui)
+
+    assert result.job_name == "my_shot"  # name -> job_name
+    assert result.scene_name == "Scene"
+    assert result.view_layer_selection == "Beauty"
+    assert result.camera_selection == "Use Default Camera"
+    assert (result.image_width, result.image_height) == (640, 480)
+    # override off -> the scene frame range is used
+    assert result.frame_list == "1-10"
+
+
+def test_ui_settings_adapter_uses_override_frame_range_when_set():
+    """When override is on, the user's explicit frame range wins over the scene range."""
+    dlg = _dialog_module()
+
+    ui = template_filling.BlenderSubmitterUISettings()
+    ui.override_frame_range = True
+    ui.frame_list = "5-8"
+
+    with patch.object(dlg.bu, "get_frames", return_value="1-10"):
+        result = dlg._ui_settings_to_submitter_settings(ui)
+
+    assert result.frame_list == "5-8"
+
+
+def test_create_bundle_delegates_to_blender_submitter(tmp_path):
+    """_create_bundle_internal builds the bundle via BlenderSubmitter, not its own path."""
+    from unittest.mock import MagicMock
+
+    from deadline.client.job_bundle.submission import AssetReferences
+
+    dlg = _dialog_module()
+
+    ui = template_filling.BlenderSubmitterUISettings()
+    # project_path must be writable — sticky settings are saved next to it.
+    ui.project_path = str(tmp_path / "scene.blend")
+    ui.output_path = "/out"
+
+    widget = MagicMock()
+    widget.job_attachments.attachments = AssetReferences()
+
+    fake_template = {"name": "job"}
+    fake_param_values = [{"name": "Frames", "value": "1-10"}]
+
+    with (
+        patch.object(dlg.bpy.path, "abspath", side_effect=lambda p: p),
+        patch.object(dlg.sc, "run_sanity_checks"),
+        patch.object(dlg, "BlenderSubmitter") as submitter_cls,
+    ):
+        submitter = submitter_cls.return_value
+        submitter.get_job_template.return_value = fake_template
+        submitter.get_parameter_values.return_value = fake_param_values
+
+        result = dlg._create_bundle_internal(
+            widget,
+            str(tmp_path),
+            ui,
+            [],
+            AssetReferences(),
+            host_requirements=None,
+            prompt_for_saving=False,
+        )
+
+    # The bundle came from the unified submitter, and the files were written.
+    submitter.get_job_template.assert_called_once()
+    submitter.get_parameter_values.assert_called_once()
+    assert result == {"job_parameters": fake_param_values}
+    assert (tmp_path / "template.yaml").exists()
+    assert (tmp_path / "parameter_values.yaml").exists()
+    assert (tmp_path / "asset_references.yaml").exists()
+
+
+def test_ui_settings_gpu_device_defaults_to_none_sentinel():
+    """UISettings default must be the "NONE" sentinel, not "None"."""
+    assert template_filling.BlenderSubmitterUISettings().gpu_device == "NONE"
+
+
+def test_load_sticky_settings_normalizes_legacy_none_gpu_device(tmp_path):
+    """A legacy sticky file with gpu_device "None" is normalized to "NONE" on
+    load, so it can't resurrect the adaptor GPU-path bug on a CPU scene."""
+    import json
+
+    scene = tmp_path / "scene.blend"
+    sticky = scene.with_suffix(".deadline_render_settings.json")
+    sticky.write_text(json.dumps({"gpu_device": "None"}))
+
+    ui = template_filling.BlenderSubmitterUISettings()
+    ui.load_sticky_settings(str(scene))
+
+    assert ui.gpu_device == "NONE"
