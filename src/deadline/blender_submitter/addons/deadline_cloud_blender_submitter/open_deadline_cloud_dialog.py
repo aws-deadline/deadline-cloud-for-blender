@@ -1,8 +1,7 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 
-import os
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, cast
 
 import bpy
 from qtpy.QtCore import Qt  # type: ignore
@@ -29,6 +28,7 @@ from . import sanity_checks as sc
 from . import scene_settings_widget as ssw
 from . import template_filling as tf
 from . import ocio_utils as ocio
+from .submitter import BlenderSubmitter, BlenderSubmitterSettings
 from ._version import version
 from ._version import version_tuple as adaptor_version_tuple
 
@@ -75,26 +75,14 @@ def create_deadline_dialog(parent=None) -> SubmitJobToDeadlineDialog:
     settings.project_path = bpy.context.blend_data.filepath
     settings.frame_list = bu.get_frames()
 
-    # For the output path, first check for a value in the Scene settings
-    if os.path.dirname(bpy.context.scene.render.filepath):
-        settings.output_path = os.path.dirname(bpy.path.abspath(bpy.context.scene.render.filepath))
-    # If none, use the one in Preferences
-    elif bpy.context.preferences.filepaths.render_output_directory:
-        settings.output_path = bpy.context.preferences.filepaths.render_output_directory
-    # If neither of these are set, use the job bundle directory by default
-    else:
-        settings.output_path = os.path.dirname(bpy.context.blend_data.filepath)
+    # Resolve the output directory + filename prefix via the shared helpers so
+    # the GUI and the unified API path stay in lock-step.
+    settings.output_path = bu.resolve_output_path()
+    if bu.resolve_output_file_prefix():
+        settings.output_file_prefix = bu.resolve_output_file_prefix()
 
-    if bpy.path.basename(bpy.context.scene.render.filepath):
-        settings.output_file_prefix = bpy.path.basename(bpy.context.scene.render.filepath)
-
-    # Read the user's preferences to set GPU settings.
-    settings.enable_gpu = bpy.context.scene.cycles.device == "GPU"
-
-    if bpy.context.preferences.addons["cycles"].preferences.compute_device_type != "NONE":
-        settings.gpu_device = bpy.context.preferences.addons[
-            "cycles"
-        ].preferences.compute_device_type
+    # Read GPU settings from the scene/preferences (shared helper).
+    settings.enable_gpu, settings.gpu_device = bu.resolve_gpu_settings()
 
     # Load and set sticky settings, if any.
     settings.load_sticky_settings(settings.project_path)
@@ -105,11 +93,10 @@ def create_deadline_dialog(parent=None) -> SubmitJobToDeadlineDialog:
     # Set auto-detected attachments.
     auto_detected_attachments = _get_auto_detected_assets(settings.project_path)
 
-    # If the user has an OCIO config file set, we will have to upload any directories referenced by that file as job attachments.
-    if ocio.get_ocio_path():
-        ocio_config = ocio.get_ocio_config(ocio.get_ocio_path())
-        for path in ocio.get_ocio_referenced_dirs(ocio_config):
-            auto_detected_attachments.input_directories.add(str(path))
+    # Add the directories referenced by a custom OCIO config (shared helper) as
+    # job attachments, so custom color management resolves on the farm.
+    for path in ocio.get_current_ocio_referenced_dirs():
+        auto_detected_attachments.input_directories.add(path)
 
     # Set regular attachments.
     attachments = AssetReferences(
@@ -210,6 +197,47 @@ def _create_bundle(
     )
 
 
+def _ui_settings_to_submitter_settings(
+    settings: tf.BlenderSubmitterUISettings,
+) -> BlenderSubmitterSettings:
+    """Adapt the GUI's BlenderSubmitterUISettings to the headless BlenderSubmitterSettings.
+
+    The GUI binds its Qt widgets to BlenderSubmitterUISettings, while the
+    builders now consume BlenderSubmitterSettings (the unified engine's shape),
+    so we convert at the submission boundary — the mirror of the old
+    ``_to_native_settings``. This is the single adaptation point; both the GUI
+    and the unified API path then run the same BlenderSubmitter builders.
+
+    The effective frame range is resolved here (override -> the user's range,
+    otherwise the scene range) so the engine sees a ready-to-use ``frame_list``.
+    """
+    frame_list = settings.frame_list if settings.override_frame_range else bu.get_frames()
+    width, height = bpy.context.scene.render.resolution_x, bpy.context.scene.render.resolution_y
+
+    return BlenderSubmitterSettings(
+        job_name=settings.name,
+        description=settings.description,
+        frame_list=frame_list,
+        project_path=settings.project_path,
+        output_path=settings.output_path,
+        override_frame_range=settings.override_frame_range,
+        input_filenames=list(settings.input_filenames),
+        input_directories=list(settings.input_directories),
+        output_directories=list(settings.output_directories),
+        renderer_name=settings.renderer_name,
+        scene_name=settings.scene_name,
+        view_layer_selection=settings.view_layer_selection,
+        camera_selection=settings.camera_selection,
+        image_width=width,
+        image_height=height,
+        output_file_prefix=settings.output_file_prefix,
+        enable_gpu=settings.enable_gpu,
+        gpu_device=settings.gpu_device,
+        ocio_config_path=settings.ocio_config_path,
+        include_adaptor_wheels=settings.include_adaptor_wheels,
+    )
+
+
 def _create_bundle_internal(
     widget: SubmitJobToDeadlineDialog,
     job_bundle_dir: str,
@@ -222,6 +250,11 @@ def _create_bundle_internal(
 ) -> dict[str, Any]:
     """Create and write Deadline job bundle files to the given directory. Also save sticky settings.
     The internal variation exists so that the functionality can be accessed without a UI.
+
+    The bundle itself is built by the unified :class:`BlenderSubmitter` (the
+    single source of truth shared with the AYON/headless path); this callback
+    only owns the GUI-specific concerns — sanity checks, adapting the UI
+    settings, writing the files, and saving sticky settings.
 
     Args:
         widget: The submitter dialog widget.
@@ -238,41 +271,16 @@ def _create_bundle_internal(
     # Run sanity checks on submission
     sc.run_sanity_checks(settings, prompt_for_saving)
 
-    renderable_cameras = bu.get_renderable_cameras(settings.scene_name)
-
-    common_layer_settings = tf.CommonLayerSettings(
-        renderer_name=settings.renderer_name,
-        frame_range=bu.get_frames(),
-        renderable_camera_names=renderable_cameras,
-        output_directories=settings.output_path,
-        output_file_prefix=settings.output_file_prefix,
-        image_resolution=(
-            bpy.context.scene.render.resolution_x,
-            bpy.context.scene.render.resolution_y,
-        ),
-        ui_group_label=settings.ui_group_label,
-        frames_parameter_name=settings.frames_parameter_name,
-        output_file_prefix_parameter_name=settings.output_file_prefix_parameter_name,
-        image_width_parameter_name=settings.image_width_parameter_name,
-        image_height_parameter_name=settings.image_height_parameter_name,
-        scene_name=settings.scene_name,
+    # Delegate bundle construction to the unified submitter so the GUI and the
+    # headless/AYON path build identical templates and parameter values.
+    submitter = BlenderSubmitter()
+    submitter_settings = _ui_settings_to_submitter_settings(settings)
+    job_template = submitter.get_job_template(submitter_settings, host_requirements)
+    # queue_parameters is list[JobParameter] (a TypedDict); the unified builder
+    # types it as list[dict] — same shape at runtime, so cast to bridge.
+    parameter_values = submitter.get_parameter_values(
+        submitter_settings, cast("list[dict[str, Any]]", queue_parameters)
     )
-
-    # Add selected layers to the list of layers to render.
-    layer_names: list[str] = []
-    if settings.view_layer_selection == ssw.COMBO_DEFAULT_ALL_RENDERABLE_LAYERS:
-        for layer in bu.get_renderable_view_layers(settings.scene_name):
-            layer_names.append(layer)
-    else:
-        layer_names.append(settings.view_layer_selection)
-
-    if settings.override_frame_range:
-        common_layer_settings.frame_range = settings.frame_list
-
-    job_template = tf.fill_job_template(
-        settings, layer_names, common_layer_settings, host_requirements
-    )
-    parameter_values = tf.get_parameter_values(settings, common_layer_settings, queue_parameters)
 
     # Write the job bundle files.
     job_bundle_path = Path(job_bundle_dir)
@@ -298,17 +306,9 @@ def _create_bundle_internal(
 
 
 def _get_auto_detected_assets(project_path: str) -> AssetReferences:
-    files = bu.find_files(project_path)
-
-    # Sort auto-detected attachments to classify files and directories correctly.
-    input_filenames = set()
-    input_directories = set()
-    for f in files:
-        if f.is_dir():
-            input_directories.add(str(f))
-        else:
-            input_filenames.add(str(f))
-
+    # Classify auto-detected dependencies via the shared helper so the GUI and
+    # the unified API path attach identical assets.
+    input_filenames, input_directories = bu.classify_auto_detected_paths(project_path)
     return AssetReferences(input_filenames=input_filenames, input_directories=input_directories)
 
 

@@ -1,515 +1,398 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 
-"""Test the Deadline Cloud Blender Submitter."""
+"""Tests for the unified BlenderSubmitter (…deadline_cloud_blender_submitter.submitter).
 
-import sys
-from pathlib import Path
+`bpy` and the UI dialog are mocked in this package's __init__.py.
+
+The unified BaseSubmitter base class lives in deadline-cloud (PR #1245). This
+module imports it at load, so — matching the Maya submitter's convention — it is
+NOT guarded with a skip: it fails until a `deadline` release carrying
+BaseSubmitter is installed, and passes once it is.
+"""
+
+from __future__ import annotations
+
+from unittest import mock
 
 import pytest
-from unittest.mock import Mock, patch
 
-from deadline.blender_submitter.addons.deadline_cloud_blender_submitter.open_deadline_cloud_dialog import (
-    _get_auto_detected_assets,
-)
+_API = "deadline.blender_submitter.addons.deadline_cloud_blender_submitter.submitter"
 
 
-from deadline.client.exceptions import DeadlineOperationError
+def _import_api():
+    import importlib
 
-# Ensure the submitter can be imported.
-SUBMITTER_DIR = (
-    Path(__file__).parent.parent.parent.parent
-    / "src"
-    / "deadline"
-    / "blender_submitter"
-    / "addons"
-    / "deadline_cloud_blender_submitter"
-)
-sys.path.append(str(SUBMITTER_DIR))
-import template_filling  # noqa: E402
+    return importlib.import_module(_API)
 
 
-@pytest.fixture
-def submitter_settings():
-    """Return a submitter settings object."""
-    settings = template_filling.BlenderSubmitterUISettings()
-    return settings
+def _inputs(refs) -> tuple[set[str], set[str]]:
+    """Return (input_filenames, input_directories) from an AssetReferences."""
+    return set(refs.input_filenames), set(refs.input_directories)
 
 
-@pytest.fixture
-def common_layer_settings():
-    """Return a common layer settings object."""
-    settings = template_filling.CommonLayerSettings(
-        renderer_name="dummy_renderer",
-        frame_range="1-10",
-        frames_parameter_name=None,
-        renderable_camera_names=["dummy_camera"],
-        output_directories=["/dummy/output/directory"],
-        output_file_prefix="dummy_prefix",
-        output_file_prefix_parameter_name=None,
-        ui_group_label="dummy_group_label",
-        image_width_parameter_name=None,
-        image_height_parameter_name=None,
-        image_resolution=(1920, 1080),
-        scene_name="dummy_scene_name",
-    )
-    print(settings)
-    return settings
+def _outputs(refs) -> set[str]:
+    return set(refs.output_directories)
 
 
-LAYER_NAMES = ["layer_1", "layer_2"]
+def test_get_asset_references_includes_auto_detected(tmp_path):
+    api_mod = _import_api()
 
+    tex = tmp_path / "tex.png"
+    sub = tmp_path / "cache"
 
-def test_fill_job_template(submitter_settings, common_layer_settings):
-    """Test filling the job template."""
+    settings = api_mod.BlenderSubmitterSettings()
+    settings.input_directories = []
+    settings.output_directories = ["/out"]
 
-    # NOTE This is not the most elegant way to test this; brittle to changes in the template.
-
-    expected = {
-        "specificationVersion": "jobtemplate-2023-09",
-        "name": "Blender Submission",
-        "description": None,
-        "parameterDefinitions": [
-            {
-                "name": "BlenderFile",
-                "type": "PATH",
-                "objectType": "FILE",
-                "dataFlow": "IN",
-                "userInterface": {
-                    "control": "CHOOSE_INPUT_FILE",
-                    "label": "Blender File",
-                    "fileFilters": [
-                        {"label": "Blender Files", "patterns": ["*.blend"]},
-                        {"label": "All Files", "patterns": ["*"]},
-                    ],
-                },
-                "description": "The Blender scene file you want to render.",
-            },
-            {
-                "name": "RenderEngine",
-                "type": "STRING",
-                "default": "cycles",
-                "allowedValues": ["eevee", "workbench", "cycles"],
-            },
-            {
-                "name": "RenderScene",
-                "type": "STRING",
-                "userInterface": {
-                    "control": "LINE_EDIT",
-                    "label": "Scene",
-                    "groupLabel": "Blender Settings",
-                },
-                "default": "Scene",
-                "description": "The scene you want to render (scene name).",
-            },
-            {
-                "name": "ViewLayer",
-                "type": "STRING",
-                "userInterface": {"control": "LINE_EDIT", "label": "view_layer"},
-                "description": "The layer to render.",
-                "default": "ViewLayer",
-            },
-            {
-                "name": "Frames",
-                "type": "STRING",
-                "userInterface": {
-                    "control": "LINE_EDIT",
-                    "label": "Frames",
-                    "groupLabel": "Blender Settings",
-                },
-                "default": "1-1",
-                "description": "The frames to render. E.g. 1-3,8,11-15",
-            },
-            {
-                "name": "OutputDir",
-                "type": "PATH",
-                "objectType": "DIRECTORY",
-                "dataFlow": "OUT",
-                "userInterface": {"control": "CHOOSE_DIRECTORY", "label": "Output Directory"},
-                "description": "The render output directory.",
-            },
-            {
-                "name": "OutputFileName",
-                "type": "STRING",
-                "userInterface": {"control": "LINE_EDIT", "label": "Output File Name"},
-                "default": "output_####",
-                "description": "The output filename (without extension).",
-            },
-            {
-                "name": "OutputFormat",
-                "type": "STRING",
-                "userInterface": {"control": "DROPDOWN_LIST", "label": "Output File Format"},
-                "description": "The file format to render as.",
-                "default": "PNG",
-                "allowedValues": [
-                    "TARGA",
-                    "TARGA_RAW",
-                    "JPEG",
-                    "IRIS",
-                    "PNG",
-                    "HDR",
-                    "TIFF",
-                    "OPEN_EXR",
-                    "OPEN_EXR_MULTILAYER",
-                    "CINEON",
-                    "DPX",
-                    "JPEG2000",
-                    "WEBP",
-                ],
-            },
-            {
-                "name": "GPUDevice",
-                "type": "STRING",
-                "userInterface": {
-                    "control": "LINE_EDIT",
-                    "label": "GPU Device",
-                },
-                "description": "The GPU device type to render with when using the cycles engine.",
-                "default": "NONE",
-            },
-            {
-                "name": "StrictErrorChecking",
-                "type": "STRING",
-                "userInterface": {
-                    "control": "CHECK_BOX",
-                    "label": "Strict Error Checking",
-                    "groupLabel": "Blender Settings",
-                },
-                "description": "Fail when errors occur.",
-                "default": "false",
-                "allowedValues": ["true", "false"],
-            },
-            {
-                "name": None,
-                "type": "INT",
-                "userInterface": {
-                    "control": "SPIN_BOX",
-                    "label": "Image Width",
-                    "groupLabel": "dummy_group_label",
-                },
-                "minValue": 1,
-                "description": "The image width.",
-            },
-            {
-                "name": None,
-                "type": "INT",
-                "userInterface": {
-                    "control": "SPIN_BOX",
-                    "label": "Image Height",
-                    "groupLabel": "dummy_group_label",
-                },
-                "minValue": 1,
-                "description": "The image height.",
-            },
-        ],
-        "steps": [
-            {
-                "name": "layer_1",
-                "parameterSpace": {
-                    "taskParameterDefinitions": [
-                        {"name": "Frame", "type": "INT", "range": "{{Param.Frames}}"},
-                        {"name": "Camera", "type": "STRING", "range": ["Camera"]},
-                    ]
-                },
-                "stepEnvironments": [
-                    {
-                        "name": "Blender",
-                        "description": "Runs Blender in the background.",
-                        "script": {
-                            "embeddedFiles": [
-                                {
-                                    "name": "initData",
-                                    "filename": "init-data.yaml",
-                                    "type": "TEXT",
-                                    "data": "scene_file: {{Param.BlenderFile}}\nrender_engine: {{Param.RenderEngine}}\ngpu_device: {{Param.GPUDevice}}\nrender_scene: {{Param.RenderScene}}\nview_layer: layer_1\noutput_dir: {{Param.OutputDir}}\noutput_file_name: {{Param.OutputFileName}}\noutput_format: {{Param.OutputFormat}}\nrenderer: dummy_renderer\noutput_file_prefix: {{Param.OutputFilePrefix}}\nimage_width: {{Param.ImageWidth}}\nimage_height: {{Param.ImageHeight}}",
-                                }
-                            ],
-                            "actions": {
-                                "onEnter": {
-                                    "command": "blender-openjd",
-                                    "args": [
-                                        "daemon",
-                                        "start",
-                                        "--connection-file",
-                                        "{{Session.WorkingDirectory}}/connection.json",
-                                        "--init-data",
-                                        "file://{{Env.File.initData}}",
-                                    ],
-                                    "cancelation": {"mode": "NOTIFY_THEN_TERMINATE"},
-                                    "timeout": 3720,
-                                },
-                                "onExit": {
-                                    "command": "blender-openjd",
-                                    "args": [
-                                        "daemon",
-                                        "stop",
-                                        "--connection-file",
-                                        "{{ Session.WorkingDirectory }}/connection.json",
-                                    ],
-                                    "cancelation": {"mode": "NOTIFY_THEN_TERMINATE"},
-                                    "timeout": 120,
-                                },
-                            },
-                        },
-                    }
-                ],
-                "script": {
-                    "embeddedFiles": [
-                        {
-                            "name": "runData",
-                            "filename": "run-data.yaml",
-                            "type": "TEXT",
-                            "data": "frame: {{Task.Param.Frame}}\ncamera: '{{Task.Param.Camera}}'\n",
-                        }
-                    ],
-                    "actions": {
-                        "onRun": {
-                            "command": "blender-openjd",
-                            "args": [
-                                "daemon",
-                                "run",
-                                "--connection-file",
-                                "{{ Session.WorkingDirectory }}/connection.json",
-                                "--run-data",
-                                "file://{{ Task.File.runData }}",
-                            ],
-                            "cancelation": {"mode": "NOTIFY_THEN_TERMINATE"},
-                        }
-                    },
-                },
-            },
-            {
-                "name": "layer_2",
-                "parameterSpace": {
-                    "taskParameterDefinitions": [
-                        {"name": "Frame", "type": "INT", "range": "{{Param.Frames}}"},
-                        {"name": "Camera", "type": "STRING", "range": ["Camera"]},
-                    ]
-                },
-                "stepEnvironments": [
-                    {
-                        "name": "Blender",
-                        "description": "Runs Blender in the background.",
-                        "script": {
-                            "embeddedFiles": [
-                                {
-                                    "name": "initData",
-                                    "filename": "init-data.yaml",
-                                    "type": "TEXT",
-                                    "data": "scene_file: {{Param.BlenderFile}}\nrender_engine: {{Param.RenderEngine}}\ngpu_device: {{Param.GPUDevice}}\nrender_scene: {{Param.RenderScene}}\nview_layer: layer_2\noutput_dir: {{Param.OutputDir}}\noutput_file_name: {{Param.OutputFileName}}\noutput_format: {{Param.OutputFormat}}\nrenderer: dummy_renderer\noutput_file_prefix: {{Param.OutputFilePrefix}}\nimage_width: {{Param.ImageWidth}}\nimage_height: {{Param.ImageHeight}}",
-                                }
-                            ],
-                            "actions": {
-                                "onEnter": {
-                                    "command": "blender-openjd",
-                                    "args": [
-                                        "daemon",
-                                        "start",
-                                        "--connection-file",
-                                        "{{Session.WorkingDirectory}}/connection.json",
-                                        "--init-data",
-                                        "file://{{Env.File.initData}}",
-                                    ],
-                                    "cancelation": {"mode": "NOTIFY_THEN_TERMINATE"},
-                                    "timeout": 3720,
-                                },
-                                "onExit": {
-                                    "command": "blender-openjd",
-                                    "args": [
-                                        "daemon",
-                                        "stop",
-                                        "--connection-file",
-                                        "{{ Session.WorkingDirectory }}/connection.json",
-                                    ],
-                                    "cancelation": {"mode": "NOTIFY_THEN_TERMINATE"},
-                                    "timeout": 120,
-                                },
-                            },
-                        },
-                    }
-                ],
-                "script": {
-                    "embeddedFiles": [
-                        {
-                            "name": "runData",
-                            "filename": "run-data.yaml",
-                            "type": "TEXT",
-                            "data": "frame: {{Task.Param.Frame}}\ncamera: '{{Task.Param.Camera}}'\n",
-                        }
-                    ],
-                    "actions": {
-                        "onRun": {
-                            "command": "blender-openjd",
-                            "args": [
-                                "daemon",
-                                "run",
-                                "--connection-file",
-                                "{{ Session.WorkingDirectory }}/connection.json",
-                                "--run-data",
-                                "file://{{ Task.File.runData }}",
-                            ],
-                            "cancelation": {"mode": "NOTIFY_THEN_TERMINATE"},
-                        }
-                    },
-                },
-            },
-        ],
-    }
-
-    filled = template_filling.fill_job_template(
-        submitter_settings, LAYER_NAMES, common_layer_settings, host_requirements=None
-    )
-    assert filled == expected
-
-    # Adding host requirements to the call adds them to each step.
-    host_reqs = {"GPU": "1"}
-    filled = template_filling.fill_job_template(
-        submitter_settings, LAYER_NAMES, common_layer_settings, host_requirements=host_reqs
-    )
-    for step in filled["steps"]:
-        assert step["hostRequirements"] == host_reqs
-
-
-def test_get_param_values(submitter_settings, common_layer_settings):
-    """Test getting param values."""
-    expected_settings = {
-        "BlenderFile": submitter_settings.project_path,
-        "OutputFileName": common_layer_settings.output_file_prefix,
-        "OutputDir": common_layer_settings.output_directories,
-        "RenderScene": common_layer_settings.scene_name,
-        "RenderEngine": common_layer_settings.renderer_name,
-        "GPUDevice": submitter_settings.gpu_device,
-    }
-    expected = [{"name": k, "value": v} for k, v in expected_settings.items()]
-
-    # Patching this scene setting causes GPUDevice to use the default value
-    with patch("bpy.context.scene.cycles.device", "CPU"):
-        filled = template_filling.get_parameter_values(
-            submitter_settings, common_layer_settings, queue_params=[]
-        )
-        assert filled == expected
-
-
-def test_conflicting_queue_params_error(submitter_settings, common_layer_settings):
-    # If queue params are passed, their keys should not conflict with existing keys. Expect an error if they do.
-    queue_params = [
-        {"name": "RenderScene", "value": common_layer_settings.scene_name + "_some_value"}
-    ]
-    with pytest.raises(DeadlineOperationError):
-        template_filling.get_parameter_values(
-            submitter_settings, common_layer_settings, queue_params=queue_params
-        )
-
-
-def test_get_queue_params(submitter_settings, common_layer_settings):
-    # If queue params are passed, and they don't conflict with existing keys, they should be added.
-    queue_params = [{"name": "SomeParam", "value": "some_value"}]
-    filled = template_filling.get_parameter_values(
-        submitter_settings, common_layer_settings, queue_params=queue_params
-    )
-    assert filled[-1] == queue_params[0]
-
-
-@pytest.mark.parametrize(
-    "queue_param_name,package_name",
-    [
-        pytest.param("RezPackages", "deadline_cloud_for_blender"),
-        pytest.param("CondaPackages", "blender-openjd"),
-    ],
-)
-def test_use_adaptor_wheels(
-    submitter_settings, common_layer_settings, queue_param_name, package_name
-):
-    """
-    Tests that default packages are excluded from CondaPackages and RezPackages if `include_adaptor_wheels` is true.
-    """
-
-    # GIVEN
-    queue_params = [
-        {
-            "name": queue_param_name,
-            "value": f"some_other_package {package_name} another_package",
-        }
-    ]
-
-    # WHEN
-    submitter_settings.include_adaptor_wheels = True
-    filled = template_filling.get_parameter_values(
-        submitter_settings, common_layer_settings, queue_params=queue_params
-    )
-
-    # THEN
-    assert filled[-1]["value"] == "some_other_package another_package"
-
-
-def test_add_ocio_template_data(submitter_settings, common_layer_settings):
-    """
-    Certain information should only be added to the template if an OCIO environment variable is set.
-    There should be an extra job environment and corresponding parameter.
-    """
-
-    expected_ocio_env = {"name": "Set OCIO Path", "variables": {"OCIO": "{{Param.OCIOConfigPath}}"}}
-    expected_ocio_param = {"name": "OCIOConfigPath", "value": "my_ocio_config.ocio"}
-
-    # GIVEN
-    submitter_settings.ocio_config_path = "my_ocio_config.ocio"
-
-    # WHEN
-    filled_template = template_filling.fill_job_template(
-        submitter_settings, LAYER_NAMES, common_layer_settings, host_requirements=None
-    )
-    params = template_filling.get_parameter_values(submitter_settings, common_layer_settings, [])
-
-    # THEN
-    assert expected_ocio_env in filled_template["jobEnvironments"]
-    assert expected_ocio_param in params
-
-
-def test_sort_auto_detected_assets():
-    """Test that auto-detected assets are properly classified."""
-    expected_input_filenames = set(["file_1.blend", "file_2.abc"])
-    expected_input_dirs = set(["dir_1", "dir_2"])
-
-    # WHEN find_files returns a mix of files and directories, classify them before adding them to the dialog.
     with (
-        patch(
-            "deadline.blender_submitter.addons.deadline_cloud_blender_submitter.open_deadline_cloud_dialog.bu.find_files",
-            Mock(
-                return_value=[
-                    Path("dir_1"),
-                    Path("file_1.blend"),
-                    Path("dir_2"),
-                    Path("file_2.abc"),
-                ]
-            ),
+        mock.patch.object(api_mod.bpy, "data") as bpy_data,
+        # classify_auto_detected_paths is the shared helper (blender_utils);
+        # it returns (files, dirs) already split.
+        mock.patch.object(
+            api_mod,
+            "classify_auto_detected_paths",
+            return_value=({str(tex)}, {str(sub)}),
         ),
-        patch.object(Path, "is_dir", side_effect=[True, False, True, False]),
+        mock.patch.object(api_mod.ocio, "get_current_ocio_referenced_dirs", return_value=[]),
     ):
+        bpy_data.filepath = "/proj/scene.blend"
+        api = api_mod.BlenderSubmitter()
+        refs = api.get_asset_references(settings)
 
-        auto_detected_assets = _get_auto_detected_assets("test_project_path.blend")
+    input_filenames, input_directories = _inputs(refs)
+    # the .blend itself plus the auto-detected texture are attached as inputs,
+    # and the auto-detected directory is attached as an input directory.
+    assert "/proj/scene.blend" in input_filenames
+    assert str(tex) in input_filenames
+    assert str(sub) in input_directories
+    assert _outputs(refs) == {"/out"}
 
-        assert auto_detected_assets.input_filenames == expected_input_filenames
-        assert auto_detected_assets.input_directories == expected_input_dirs
+
+def test_get_asset_references_survives_scan_failure():
+    api_mod = _import_api()
+    settings = api_mod.BlenderSubmitterSettings()
+    settings.input_directories = []
+    settings.output_directories = []
+
+    with (
+        mock.patch.object(api_mod.bpy, "data") as bpy_data,
+        mock.patch.object(
+            api_mod,
+            "classify_auto_detected_paths",
+            side_effect=RuntimeError("scan boom"),
+        ),
+        mock.patch.object(api_mod.ocio, "get_current_ocio_referenced_dirs", return_value=[]),
+    ):
+        bpy_data.filepath = "/proj/scene.blend"
+        api = api_mod.BlenderSubmitter()
+        # a scan failure must not blow up the submission; the .blend is still there
+        refs = api.get_asset_references(settings)
+
+    input_filenames, _ = _inputs(refs)
+    assert "/proj/scene.blend" in input_filenames
 
 
-def test_fill_job_template_use_default_camera(submitter_settings, common_layer_settings):
-    """Test filling the job template when camera_selection is 'Use Default Camera'."""
+def test_get_asset_references_honors_caller_input_filenames(tmp_path):
+    """Caller-supplied input_filenames must be preserved, not dropped."""
+    api_mod = _import_api()
 
-    # Set camera_selection to "Use Default Camera"
-    submitter_settings.camera_selection = "Use Default Camera"
+    settings = api_mod.BlenderSubmitterSettings()
+    settings.input_filenames = ["/extra/asset.abc"]
+    settings.input_directories = ["/extra/dir"]
+    settings.output_directories = []
 
-    filled = template_filling.fill_job_template(
-        submitter_settings, ["layer_1"], common_layer_settings, host_requirements=None
-    )
+    with (
+        mock.patch.object(api_mod.bpy, "data") as bpy_data,
+        mock.patch.object(api_mod, "classify_auto_detected_paths", return_value=(set(), set())),
+        mock.patch.object(api_mod.ocio, "get_current_ocio_referenced_dirs", return_value=[]),
+    ):
+        bpy_data.filepath = "/proj/scene.blend"
+        api = api_mod.BlenderSubmitter()
+        refs = api.get_asset_references(settings)
 
-    # Check that Camera parameter is NOT in taskParameterDefinitions
-    task_param_defs = filled["steps"][0]["parameterSpace"]["taskParameterDefinitions"]
-    camera_params = [param for param in task_param_defs if param.get("name") == "Camera"]
-    assert (
-        len(camera_params) == 0
-    ), "Camera parameter should not be defined when using default camera"
+    input_filenames, input_directories = _inputs(refs)
+    assert "/extra/asset.abc" in input_filenames
+    assert "/extra/dir" in input_directories
+    assert "/proj/scene.blend" in input_filenames
 
-    # Check that camera is NOT set in the embedded RunData file
-    run_data = filled["steps"][0]["script"]["embeddedFiles"][0]["data"]
-    assert (
-        "camera:" not in run_data
-    ), "Camera should not be set in RunData when using default camera"
+
+def test_get_asset_references_attaches_ocio_dirs(tmp_path):
+    """Directories referenced by a custom OCIO config are attached as inputs."""
+    api_mod = _import_api()
+
+    settings = api_mod.BlenderSubmitterSettings()
+    settings.input_directories = []
+    settings.output_directories = []
+    settings.ocio_config_path = "/color/config.ocio"
+
+    with (
+        mock.patch.object(api_mod.bpy, "data") as bpy_data,
+        mock.patch.object(api_mod, "classify_auto_detected_paths", return_value=(set(), set())),
+        mock.patch.object(
+            api_mod.ocio, "get_current_ocio_referenced_dirs", return_value=["/color/luts"]
+        ) as get_ocio_dirs,
+    ):
+        bpy_data.filepath = "/proj/scene.blend"
+        api = api_mod.BlenderSubmitter()
+        refs = api.get_asset_references(settings)
+
+    _, input_directories = _inputs(refs)
+    assert "/color/luts" in input_directories
+    # the explicitly-set ocio_config_path is honored (passed to the helper)
+    get_ocio_dirs.assert_called_once_with("/color/config.ocio")
+
+
+def test_get_asset_references_survives_bad_ocio_config():
+    """A broken OCIO config must not block submission."""
+    api_mod = _import_api()
+
+    settings = api_mod.BlenderSubmitterSettings()
+    settings.input_directories = []
+    settings.output_directories = []
+    settings.ocio_config_path = "/color/config.ocio"
+
+    with (
+        mock.patch.object(api_mod.bpy, "data") as bpy_data,
+        mock.patch.object(api_mod, "classify_auto_detected_paths", return_value=(set(), set())),
+        mock.patch.object(
+            api_mod.ocio,
+            "get_current_ocio_referenced_dirs",
+            side_effect=RuntimeError("bad config"),
+        ),
+    ):
+        bpy_data.filepath = "/proj/scene.blend"
+        api = api_mod.BlenderSubmitter()
+        refs = api.get_asset_references(settings)
+
+    input_filenames, _ = _inputs(refs)
+    assert "/proj/scene.blend" in input_filenames
+
+
+def test_get_settings_defaults_camera_when_none():
+    """When the active scene has no camera, fall back to 'Use Default Camera'."""
+    api_mod = _import_api()
+
+    scene = mock.MagicMock()
+    scene.camera = None
+    scene.render.engine = "CYCLES"
+    scene.render.filepath = ""
+    scene.view_layers = []
+
+    with (
+        mock.patch.object(api_mod.bpy, "context") as ctx,
+        mock.patch.object(api_mod.bpy, "data") as bpy_data,
+        mock.patch.object(api_mod, "get_active_scene_name", return_value="Scene"),
+        mock.patch.object(api_mod, "get_frames", return_value="1-1"),
+        mock.patch.object(api_mod.ocio, "get_ocio_path", return_value=""),
+    ):
+        ctx.scene = scene
+        bpy_data.filepath = "/proj/scene.blend"
+        api_mod.bpy.path.basename.return_value = "scene.blend"
+        api = api_mod.BlenderSubmitter()
+        settings = api.get_settings()
+
+    assert settings.camera_selection == "Use Default Camera"
+
+
+def test_get_settings_populates_gpu_from_helper():
+    """get_settings reads GPU settings via resolve_gpu_settings."""
+    api_mod = _import_api()
+
+    scene = mock.MagicMock()
+    scene.camera = None
+    scene.render.engine = "CYCLES"
+    scene.render.filepath = ""
+    scene.view_layers = []
+
+    with (
+        mock.patch.object(api_mod.bpy, "context") as ctx,
+        mock.patch.object(api_mod.bpy, "data") as bpy_data,
+        mock.patch.object(api_mod, "get_active_scene_name", return_value="Scene"),
+        mock.patch.object(api_mod, "get_frames", return_value="1-1"),
+        mock.patch.object(api_mod, "resolve_gpu_settings", return_value=(True, "CUDA")),
+        mock.patch.object(api_mod.ocio, "get_ocio_path", return_value=""),
+    ):
+        ctx.scene = scene
+        bpy_data.filepath = "/proj/scene.blend"
+        api_mod.bpy.path.basename.return_value = "scene.blend"
+        api = api_mod.BlenderSubmitter()
+        settings = api.get_settings()
+
+    assert settings.enable_gpu is True
+    assert settings.gpu_device == "CUDA"
+
+
+def test_blender_submitter_settings_gpu_device_defaults_to_none_sentinel():
+    """The default gpu_device must be the "NONE" sentinel, not "None"."""
+    api_mod = _import_api()
+    assert api_mod.BlenderSubmitterSettings().gpu_device == "NONE"
+
+
+def test_get_settings_uses_scene_camera_when_present():
+    api_mod = _import_api()
+
+    scene = mock.MagicMock()
+    scene.camera.name = "RenderCam"
+    scene.render.engine = "CYCLES"
+    scene.render.filepath = ""
+    scene.view_layers = []
+
+    with (
+        mock.patch.object(api_mod.bpy, "context") as ctx,
+        mock.patch.object(api_mod.bpy, "data") as bpy_data,
+        mock.patch.object(api_mod, "get_active_scene_name", return_value="Scene"),
+        mock.patch.object(api_mod, "get_frames", return_value="1-1"),
+        mock.patch.object(api_mod.ocio, "get_ocio_path", return_value=""),
+    ):
+        ctx.scene = scene
+        bpy_data.filepath = "/proj/scene.blend"
+        api_mod.bpy.path.basename.return_value = "scene.blend"
+        api = api_mod.BlenderSubmitter()
+        settings = api.get_settings()
+
+    assert settings.camera_selection == "RenderCam"
+
+
+def test_get_settings_populates_ocio_config_path():
+    api_mod = _import_api()
+
+    scene = mock.MagicMock()
+    scene.camera = None
+    scene.render.engine = "CYCLES"
+    scene.render.filepath = ""
+    scene.view_layers = []
+
+    with (
+        mock.patch.object(api_mod.bpy, "context") as ctx,
+        mock.patch.object(api_mod.bpy, "data") as bpy_data,
+        mock.patch.object(api_mod, "get_active_scene_name", return_value="Scene"),
+        mock.patch.object(api_mod, "get_frames", return_value="1-1"),
+        mock.patch.object(api_mod.ocio, "get_ocio_path", return_value="/color/config.ocio"),
+    ):
+        ctx.scene = scene
+        bpy_data.filepath = "/proj/scene.blend"
+        api_mod.bpy.path.basename.return_value = "scene.blend"
+        api = api_mod.BlenderSubmitter()
+        settings = api.get_settings()
+
+    assert settings.ocio_config_path == "/color/config.ocio"
+
+
+def test_build_common_layer_settings_populates_renderable_cameras():
+    """renderable_camera_names must be populated so 'All Renderable Cameras' works."""
+    api_mod = _import_api()
+
+    settings = api_mod.BlenderSubmitterSettings()
+    settings.scene_name = "Scene"
+    settings.frame_list = "1-1"
+
+    with mock.patch.object(
+        api_mod, "get_renderable_cameras", return_value=["CamA", "CamB"]
+    ) as get_cams:
+        api = api_mod.BlenderSubmitter()
+        common = api._build_common_layer_settings(settings)
+
+    get_cams.assert_called_once_with("Scene")
+    assert common.renderable_camera_names == ["CamA", "CamB"]
+
+
+def test_build_common_layer_settings_propagates_bad_scene_name():
+    """An unresolvable scene name must surface (KeyError), not be swallowed —
+    a silent [] would hide a real misconfiguration."""
+    api_mod = _import_api()
+
+    settings = api_mod.BlenderSubmitterSettings()
+    settings.scene_name = "Nonexistent"
+    settings.frame_list = "1-1"
+
+    with mock.patch.object(api_mod, "get_renderable_cameras", side_effect=KeyError("Nonexistent")):
+        api = api_mod.BlenderSubmitter()
+        with pytest.raises(KeyError):
+            api._build_common_layer_settings(settings)
+
+
+def test_build_common_layer_settings_empty_when_no_cameras():
+    """A scene with no renderable cameras yields an empty camera dimension."""
+    api_mod = _import_api()
+
+    settings = api_mod.BlenderSubmitterSettings()
+    settings.scene_name = "Scene"
+    settings.frame_list = "1-1"
+
+    with mock.patch.object(api_mod, "get_renderable_cameras", return_value=[]):
+        api = api_mod.BlenderSubmitter()
+        common = api._build_common_layer_settings(settings)
+
+    assert common.renderable_camera_names == []
+
+
+# ---------------------------------------------------------------------------
+# _resolve_view_layer_names — shared by the GUI and the unified API path so
+# both honor view_layer_selection identically (the reviewer's dedup concern).
+# ---------------------------------------------------------------------------
+
+
+def test_resolve_view_layers_empty_selection_renders_all():
+    """Empty selection expands to every renderable view layer."""
+    api_mod = _import_api()
+
+    settings = api_mod.BlenderSubmitterSettings()
+    settings.scene_name = "Scene"
+    settings.view_layer_selection = ""
+
+    with mock.patch.object(
+        api_mod, "get_renderable_view_layers", return_value=["View Layer", "Extra"]
+    ) as get_layers:
+        api = api_mod.BlenderSubmitter()
+        layers = api._resolve_view_layer_names(settings)
+
+    get_layers.assert_called_once_with("Scene")
+    assert layers == ["View Layer", "Extra"]
+
+
+def test_resolve_view_layers_all_sentinel_renders_all():
+    """The 'All Renderable Layers' sentinel expands to every renderable layer."""
+    api_mod = _import_api()
+
+    settings = api_mod.BlenderSubmitterSettings()
+    settings.scene_name = "Scene"
+    settings.view_layer_selection = "All Renderable Layers"
+
+    with mock.patch.object(api_mod, "get_renderable_view_layers", return_value=["A", "B"]):
+        api = api_mod.BlenderSubmitter()
+        layers = api._resolve_view_layer_names(settings)
+
+    assert layers == ["A", "B"]
+
+
+def test_resolve_view_layers_single_selection_renders_only_it():
+    """A specific selection renders only that layer, without scanning all layers."""
+    api_mod = _import_api()
+
+    settings = api_mod.BlenderSubmitterSettings()
+    settings.scene_name = "Scene"
+    settings.view_layer_selection = "Beauty"
+
+    with mock.patch.object(
+        api_mod, "get_renderable_view_layers", side_effect=AssertionError("must not scan")
+    ):
+        api = api_mod.BlenderSubmitter()
+        layers = api._resolve_view_layer_names(settings)
+
+    assert layers == ["Beauty"]
+
+
+def test_resolve_view_layers_empty_scene_name_raises():
+    """An empty scene_name fails fast with an actionable error rather than
+    falling back to job_name and producing a confusing KeyError downstream."""
+    from deadline.client.exceptions import DeadlineOperationError
+
+    api_mod = _import_api()
+
+    settings = api_mod.BlenderSubmitterSettings()
+    settings.job_name = "myfile.blend"  # a .blend name, NOT a scenes key
+    settings.scene_name = ""
+
+    api = api_mod.BlenderSubmitter()
+    with pytest.raises(DeadlineOperationError, match="scene_name"):
+        api._resolve_view_layer_names(settings)

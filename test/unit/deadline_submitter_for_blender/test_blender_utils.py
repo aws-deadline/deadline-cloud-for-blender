@@ -4,6 +4,8 @@ import sys
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+
 # Ensure the submitter can be imported.
 SUBMITTER_DIR = (
     Path(__file__).parent.parent.parent.parent
@@ -205,3 +207,162 @@ class TestFindFiles:
             assert tile_u1_v1 in found_files
             assert tile_u2_v1 in found_files
             assert len(found_files) == 3  # project + 2 tiles
+
+
+class TestSceneName:
+    """get_scene_name (dialog job name) vs get_active_scene_name (bpy.data.scenes key)."""
+
+    def test_get_scene_name_is_derived_from_blend_filename(self):
+        """The dialog uses get_scene_name() as the default job name, so it must
+        stay derived from the .blend file name (not the active scene name)."""
+        with (
+            patch("blender_utils.bpy.context.blend_data.filepath", "/proj/my_shot.blend"),
+            patch("blender_utils.bpy.path.basename", side_effect=lambda p: p.rsplit("/", 1)[-1]),
+        ):
+            assert bu.get_scene_name() == "my_shot"
+
+    def test_get_active_scene_name_returns_active_scene(self):
+        """The API path indexes bpy.data.scenes, so it needs the real scene name."""
+        with patch("blender_utils.bpy.context.scene.name", "Scene.001"):
+            assert bu.get_active_scene_name() == "Scene.001"
+
+
+class TestGetRenderEngine:
+    """get_render_engine maps Blender engine ids to template RenderEngine values."""
+
+    def test_maps_known_engine_ids(self):
+        for engine_id, expected in [
+            ("BLENDER_EEVEE", "eevee"),
+            ("BLENDER_EEVEE_NEXT", "eevee"),
+            ("CYCLES", "cycles"),
+            ("BLENDER_WORKBENCH", "workbench"),
+        ]:
+            with patch("blender_utils.bpy.context.scene.render.engine", engine_id):
+                assert bu.get_render_engine() == expected
+
+    def test_unsupported_engine_raises(self):
+        """A third-party engine (V-Ray/Octane/…) must fail early, not forward an
+        out-of-range RenderEngine value that CreateJob rejects opaquely."""
+        from deadline.client.exceptions import DeadlineOperationError
+
+        with patch("blender_utils.bpy.context.scene.render.engine", "VRAY"):
+            with pytest.raises(DeadlineOperationError, match="not supported"):
+                bu.get_render_engine()
+
+
+class TestResolveOutputPath:
+    """resolve_output_path returns a directory, with scene/prefs/blend fallbacks."""
+
+    def test_uses_render_filepath_directory_when_set(self):
+        with (
+            patch("blender_utils.bpy.context.scene.render.filepath", "/render/frame_"),
+            patch("blender_utils.bpy.path.abspath", side_effect=lambda p: p),
+        ):
+            assert bu.resolve_output_path() == "/render"
+
+    def test_falls_back_to_preferences_render_output_dir(self):
+        with (
+            # No directory part -> skip tier 1.
+            patch("blender_utils.bpy.context.scene.render.filepath", "frame_"),
+            patch(
+                "blender_utils.bpy.context.preferences.filepaths.render_output_directory",
+                "/prefs/out",
+            ),
+        ):
+            assert bu.resolve_output_path() == "/prefs/out"
+
+    def test_falls_back_to_blend_file_directory(self):
+        with (
+            patch("blender_utils.bpy.context.scene.render.filepath", "frame_"),
+            patch(
+                "blender_utils.bpy.context.preferences.filepaths.render_output_directory",
+                "",
+            ),
+            patch("blender_utils.bpy.context.blend_data.filepath", "/proj/scene.blend"),
+        ):
+            assert bu.resolve_output_path() == "/proj"
+
+
+class TestResolveOutputFilePrefix:
+    def test_returns_basename_of_render_filepath(self):
+        with patch(
+            "blender_utils.bpy.path.basename",
+            side_effect=lambda p: p.rsplit("/", 1)[-1],
+        ):
+            with patch("blender_utils.bpy.context.scene.render.filepath", "/render/frame_"):
+                assert bu.resolve_output_file_prefix() == "frame_"
+
+    def test_empty_when_render_filepath_has_no_filename(self):
+        with patch("blender_utils.bpy.path.basename", side_effect=lambda p: ""):
+            with patch("blender_utils.bpy.context.scene.render.filepath", "/render/"):
+                assert bu.resolve_output_file_prefix() == ""
+
+
+class TestClassifyAutoDetectedPaths:
+    """classify_auto_detected_paths splits find_files results into files/dirs."""
+
+    def test_splits_files_and_directories(self, tmp_path):
+        tex = tmp_path / "tex.png"
+        tex.write_text("x")
+        cache = tmp_path / "cache"
+        cache.mkdir()
+
+        with patch("blender_utils.find_files", return_value=[tex, cache]):
+            files, dirs = bu.classify_auto_detected_paths("/proj/scene.blend")
+
+        assert files == {str(tex)}
+        assert dirs == {str(cache)}
+
+
+class TestResolveGpuSettings:
+    """resolve_gpu_settings reads scene/prefs and defaults the device to NONE."""
+
+    def test_gpu_enabled_with_configured_device(self):
+        with (
+            patch("blender_utils.bpy.context.scene.cycles.device", "GPU"),
+            patch(
+                "blender_utils.bpy.context.preferences.addons",
+                {
+                    "cycles": type(
+                        "P", (), {"preferences": type("Q", (), {"compute_device_type": "CUDA"})()}
+                    )()
+                },
+            ),
+        ):
+            enable_gpu, gpu_device = bu.resolve_gpu_settings()
+        assert enable_gpu is True
+        assert gpu_device == "CUDA"
+
+    def test_defaults_to_none_sentinel_when_no_device(self):
+        with (
+            patch("blender_utils.bpy.context.scene.cycles.device", "CPU"),
+            patch(
+                "blender_utils.bpy.context.preferences.addons",
+                {
+                    "cycles": type(
+                        "P", (), {"preferences": type("Q", (), {"compute_device_type": "NONE"})()}
+                    )()
+                },
+            ),
+        ):
+            enable_gpu, gpu_device = bu.resolve_gpu_settings()
+        assert enable_gpu is False
+        assert gpu_device == "NONE"
+
+    def test_cpu_scene_with_configured_gpu_device_stays_none(self):
+        """A CPU scene must yield gpu_device "NONE" even when Preferences have a
+        GPU compute device selected (mirrors the widget's enable_gpu gating)."""
+        with (
+            patch("blender_utils.bpy.context.scene.cycles.device", "CPU"),
+            patch(
+                "blender_utils.bpy.context.preferences.addons",
+                {
+                    "cycles": type(
+                        "P", (), {"preferences": type("Q", (), {"compute_device_type": "CUDA"})()}
+                    )()
+                },
+            ),
+        ):
+            enable_gpu, gpu_device = bu.resolve_gpu_settings()
+        assert enable_gpu is False
+        assert gpu_device == "NONE"

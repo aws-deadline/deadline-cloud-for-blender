@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 
 import bpy
+from deadline.client.exceptions import DeadlineOperationError
 
 _logger = logging.getLogger(__name__)
 
@@ -17,21 +18,20 @@ def get_renderable_view_layers(saved_scene_name) -> list[str]:
     during rendering.
 
     Args:
-        saved_scene_name: The name of the scene.
+        saved_scene_name: The name of the scene (a key in ``bpy.data.scenes``).
     """
-    scene_name = bpy.data.scenes[saved_scene_name].name
-    layers = [layer.name for layer in bpy.data.scenes[scene_name].view_layers if layer.use]
-    return layers
+    scene = bpy.data.scenes[saved_scene_name]
+    return [layer.name for layer in scene.view_layers if layer.use]
 
 
 def get_renderable_cameras(saved_scene_name) -> list[str]:
     """Returns a list of all camera objects in the scene that are marked as renderable.
 
     Args:
-        saved_scene_name: The name of the scene.
+        saved_scene_name: The name of the scene (a key in ``bpy.data.scenes``).
     """
-    scene_name = bpy.data.scenes[saved_scene_name].name
-    camera_names = [cam.name for cam in bpy.data.scenes[scene_name].objects if cam.type == "CAMERA"]
+    scene = bpy.data.scenes[saved_scene_name]
+    camera_names = [obj.name for obj in scene.objects if obj.type == "CAMERA"]
     return [cam for cam in camera_names if not bpy.data.objects[cam].hide_render]
 
 
@@ -53,9 +53,29 @@ def get_scene_resolution(saved_scene_name):
 
 
 def get_scene_name() -> str:
-    """Construct and return a name for the current scene based on the currently opened `.blend` file."""
+    """Construct and return a name for the current scene based on the currently opened `.blend` file.
+
+    The dialog submitter uses this as the default *job* name
+    (``open_deadline_cloud_dialog.py``), so it must stay derived from the
+    ``.blend`` file name. Callers that need the active scene's name as a
+    ``bpy.data.scenes`` key (e.g. the unified ``BlenderSubmitter`` path) must
+    use ``get_active_scene_name()`` instead.
+    """
     scene_name = bpy.path.basename(bpy.context.blend_data.filepath).replace(".blend", "")
     return scene_name
+
+
+def get_active_scene_name() -> str:
+    """Return the name of the active Blender scene.
+
+    This is an actual key in ``bpy.data.scenes`` (unlike ``get_scene_name()``,
+    which derives a label from the ``.blend`` file name). Callers that index
+    ``bpy.data.scenes`` — e.g. ``get_renderable_view_layers`` /
+    ``get_renderable_cameras`` — must use this, since the active scene is not
+    necessarily named identically to the file (the default scene is ``"Scene"``),
+    which would otherwise raise a KeyError during job-template construction.
+    """
+    return bpy.context.scene.name
 
 
 def get_frames() -> str:
@@ -63,6 +83,117 @@ def get_frames() -> str:
     start = bpy.context.scene.frame_start
     end = bpy.context.scene.frame_end
     return str(start) + "-" + str(end)
+
+
+# Maps Blender's internal engine id (e.g. "BLENDER_EEVEE", "CYCLES") to the
+# render-engine names the job template's RenderEngine parameter allows
+# ("eevee"/"cycles"/"workbench"). Emitting the raw "blender_eevee" id fails
+# CreateJob with a ValidationException.
+_RENDER_ENGINE_MAP = {
+    "BLENDER_EEVEE": "eevee",
+    "BLENDER_EEVEE_NEXT": "eevee",
+    "CYCLES": "cycles",
+    "BLENDER_WORKBENCH": "workbench",
+}
+
+
+def get_render_engine() -> str:
+    """Return the active scene's render engine as a template RenderEngine value.
+
+    Shared by the GUI submitter and the unified API path so both map Blender's
+    internal engine id to the template's allowed values identically.
+
+    Raises:
+        DeadlineOperationError: If the active engine is not one of the built-in
+            engines the job template supports (Cycles / EEVEE / Workbench).
+            Third-party engines (V-Ray, Octane, Redshift, …) would otherwise be
+            forwarded as an out-of-range ``RenderEngine`` value that CreateJob
+            rejects with an opaque ValidationException, so fail early with an
+            actionable message instead.
+    """
+    engine = bpy.context.scene.render.engine
+    if engine not in _RENDER_ENGINE_MAP:
+        raise DeadlineOperationError(
+            f"Render engine '{engine}' is not supported. Switch the scene's render "
+            "engine to Cycles, EEVEE, or Workbench before submitting."
+        )
+    return _RENDER_ENGINE_MAP[engine]
+
+
+def resolve_output_path() -> str:
+    """Return the render output *directory* for the active scene.
+
+    The OutputDir job parameter is type PATH / objectType DIRECTORY, so this
+    must be a directory (``scene.render.filepath`` is a directory + filename
+    prefix, e.g. ``//render/frame_``). Falls back, in order, to:
+
+    1. the directory of ``scene.render.filepath`` (if it has a directory part),
+    2. the Preferences "render output directory", then
+    3. the directory containing the ``.blend`` file.
+
+    Shared by the GUI submitter and the unified API path so both resolve the
+    output directory (and its fallbacks) identically.
+    """
+    render_filepath = bpy.context.scene.render.filepath
+    if os.path.dirname(render_filepath):
+        return os.path.dirname(bpy.path.abspath(render_filepath))
+    if bpy.context.preferences.filepaths.render_output_directory:
+        return bpy.context.preferences.filepaths.render_output_directory
+    return os.path.dirname(bpy.context.blend_data.filepath)
+
+
+def resolve_output_file_prefix() -> str:
+    """Return the output filename prefix from ``scene.render.filepath``.
+
+    Empty when the scene's render filepath has no filename part (the caller
+    keeps its own default in that case). Shared by both submission flows.
+    """
+    return bpy.path.basename(bpy.context.scene.render.filepath)
+
+
+def resolve_gpu_settings() -> tuple[bool, str]:
+    """Return ``(enable_gpu, gpu_device)`` read from the scene/preferences.
+
+    ``gpu_device`` defaults to the ``"NONE"`` sentinel (uppercase) — matching
+    ``default_blender_template.yaml`` and the adaptor's ``CyclesHandler`` check
+    — and is set to the Cycles ``compute_device_type`` only when the scene is
+    actually rendering on GPU (``scene.cycles.device == "GPU"``).
+
+    The ``compute_device_type`` preference persists independently of the scene's
+    render device, so gating on ``enable_gpu`` here keeps ``gpu_device`` at
+    ``"NONE"`` for a CPU scene even when a GPU device type is selected in
+    Preferences — mirroring ``scene_settings_widget.update_settings`` so the GUI
+    and unified API paths enable GPU rendering identically.
+    """
+    enable_gpu = bpy.context.scene.cycles.device == "GPU"
+    gpu_device = "NONE"
+    if enable_gpu:
+        compute_device_type = bpy.context.preferences.addons[
+            "cycles"
+        ].preferences.compute_device_type
+        if compute_device_type != "NONE":
+            gpu_device = compute_device_type
+    return enable_gpu, gpu_device
+
+
+def classify_auto_detected_paths(project_path) -> tuple[set[str], set[str]]:
+    """Auto-detect external dependencies and split them into files/directories.
+
+    Runs :func:`find_files` for ``project_path`` and classifies each result as
+    an input filename or input directory. Shared by the GUI submitter and the
+    unified API path so both attach the same auto-detected assets.
+
+    Returns:
+        A ``(input_filenames, input_directories)`` tuple of string sets.
+    """
+    input_filenames: set[str] = set()
+    input_directories: set[str] = set()
+    for f in find_files(project_path):
+        if f.is_dir():
+            input_directories.add(str(f))
+        else:
+            input_filenames.add(str(f))
+    return input_filenames, input_directories
 
 
 def find_files(project_path, skip_temp=True, skip_nonexistent=True) -> list[Path]:

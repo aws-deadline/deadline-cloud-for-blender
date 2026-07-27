@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 import yaml
+from deadline.client.api import BaseSubmitterSettings
 from deadline.client.exceptions import DeadlineOperationError
 from deadline.client.job_bundle.parameters import JobParameter
 
@@ -35,7 +36,11 @@ class BlenderSubmitterUISettings:
     renderer_name: str = field(default="cycles", metadata={"sticky": True})
     scene_name: str = field(default="Scene", metadata={"sticky": True})
     enable_gpu: bool = field(default=False, metadata={"sticky": True})
-    gpu_device: str = field(default="None", metadata={"sticky": True})
+    # "NONE" sentinel (uppercase) — matches default_blender_template.yaml and the
+    # adaptor's CyclesHandler check. Legacy sticky files may hold "None"; those
+    # are normalized on load (see load_sticky_settings) so they can't resurrect
+    # the GPU-path bug on a CPU scene.
+    gpu_device: str = field(default="NONE", metadata={"sticky": True})
 
     ui_group_label: str = field(default="Blender Settings")
 
@@ -114,6 +119,12 @@ class BlenderSubmitterUISettings:
             for name, value in sticky_settings.items():
                 if name in sticky_fields:
                     setattr(self, name, value)
+            # Normalize a legacy "None" gpu_device (written by older addon
+            # versions for CPU scenes) to the "NONE" sentinel the template and
+            # adaptor expect, so a stale sticky file can't re-enable the GPU
+            # path on a CPU scene.
+            if self.gpu_device == "None":
+                self.gpu_device = "NONE"
         except (OSError, json.JSONDecodeError) as e:
             warn(str(e))
 
@@ -153,8 +164,40 @@ class CommonLayerSettings:
     scene_name: str
 
 
+@dataclass
+class BlenderSubmitterSettings(BaseSubmitterSettings):
+    """Blender-specific submission settings.
+
+    Extends the DCC-agnostic :class:`BaseSubmitterSettings` with the fields the
+    Blender job-template/parameter builders consume, so the GUI submitter and
+    the unified API path share one settings shape and one set of builders.
+
+    Defined here (alongside the builders that read it) rather than in
+    ``submitter`` so the module dependency flows one way — ``submitter`` imports
+    the builders, not the reverse — avoiding a module-level import cycle.
+    """
+
+    renderer_name: str = "cycles"
+    scene_name: str = "Scene"
+    # Empty means "all renderable view layers"; otherwise a single layer name.
+    view_layer_selection: str = ""
+    camera_selection: str = ""
+    image_width: int = 1920
+    image_height: int = 1080
+    output_file_prefix: str = "output_####"
+    enable_gpu: bool = False
+    # "NONE" sentinel (uppercase) — matches default_blender_template.yaml and the
+    # adaptor's CyclesHandler check; "None" would slip past both onto the GPU path.
+    gpu_device: str = "NONE"
+    ocio_config_path: str = ""
+    description: str = ""
+
+    # developer option
+    include_adaptor_wheels: bool = False
+
+
 def fill_job_template(
-    settings: BlenderSubmitterUISettings,
+    settings: BlenderSubmitterSettings,
     view_layer_names: list[str],
     common_layer_settings: CommonLayerSettings,
     host_requirements: Optional[dict],
@@ -165,7 +208,7 @@ def fill_job_template(
     with open(Path(__file__).parent / "default_blender_template.yaml") as fh:
         job_template = yaml.safe_load(fh)
 
-    job_template["name"] = settings.name
+    job_template["name"] = settings.job_name
     if settings.description:
         job_template["description"] = settings.description
 
@@ -280,7 +323,7 @@ def _add_ocio_template_data(job_template: dict):
 def _fill_step_template(
     view_layer_name: str,
     default_step_template: dict,
-    settings: BlenderSubmitterUISettings,
+    settings: BlenderSubmitterSettings,
     common_layer_settings: CommonLayerSettings,
     host_requirements: Optional[dict],
 ):
@@ -375,7 +418,7 @@ def _fill_step_template(
 
 
 def get_parameter_values(
-    settings: BlenderSubmitterUISettings,
+    settings: BlenderSubmitterSettings,
     layer_settings: CommonLayerSettings,
     queue_params: list[JobParameter],
 ) -> list[dict[str, Any]]:
