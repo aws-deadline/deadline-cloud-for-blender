@@ -1,3 +1,7 @@
+## 0.6.7 (2026-07-27)
+
+### Features
+* The Blender submitter now uses a unified BaseSubmitter architecture, providing a more consistent and reliable job submission experience. (#366)
 ## 0.6.6 (2026-07-20)
 
 ### Features
