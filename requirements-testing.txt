@@ -8,6 +8,7 @@ pytest == 9.*; python_version >= "3.10"
 pytest == 8.*; python_version < "3.10"
 pytest-cov == 7.*
 pytest-xdist == 3.*
-ruff == 0.15.*
-twine == 6.*
+ruff == 0.16.*
+twine == 7.*; python_version >= "3.10"
+twine == 6.*; python_version < "3.10"
 types-pyyaml == 6.*
