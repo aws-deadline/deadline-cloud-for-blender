@@ -233,7 +233,7 @@ def find_files(project_path, skip_temp=True, skip_nonexistent=True) -> list[Path
     # they aren't real files. The resolved tile paths were added above.
     files = [f for f in files if "<UDIM>" not in str(f) and "<UVTILE>" not in str(f)]
 
-    files = set(Path(f) for f in files)
+    files = {Path(f) for f in files}
 
     temp_dirs = []
     if skip_temp:

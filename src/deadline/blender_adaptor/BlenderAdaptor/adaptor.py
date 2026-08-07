@@ -83,7 +83,7 @@ class BlenderAdaptor(Adaptor[AdaptorConfiguration]):
         return SemanticVersion(major=0, minor=1)
 
     @staticmethod
-    def _get_timer(timeout: int | float) -> Callable[[], bool]:
+    def _get_timer(timeout: float) -> Callable[[], bool]:
         """Given a timeout length, returns a lambda which returns True until the timeout occurs"""
         timeout_time = time.time() + timeout
         return lambda: time.time() < timeout_time

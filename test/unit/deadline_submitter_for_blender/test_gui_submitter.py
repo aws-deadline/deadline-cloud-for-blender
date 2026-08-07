@@ -33,7 +33,7 @@ SUBMITTER_DIR = (
     / "deadline_cloud_blender_submitter"
 )
 sys.path.append(str(SUBMITTER_DIR))
-import template_filling  # noqa: E402
+import template_filling
 
 
 @pytest.fixture
@@ -480,8 +480,8 @@ def test_add_ocio_template_data(submitter_settings, common_layer_settings):
 
 def test_sort_auto_detected_assets():
     """Test that auto-detected assets are properly classified."""
-    expected_input_filenames = set(["file_1.blend", "file_2.abc"])
-    expected_input_dirs = set(["dir_1", "dir_2"])
+    expected_input_filenames = {"file_1.blend", "file_2.abc"}
+    expected_input_dirs = {"dir_1", "dir_2"}
 
     # WHEN find_files returns a mix of files and directories, classify them before adding them to the dialog.
     with (

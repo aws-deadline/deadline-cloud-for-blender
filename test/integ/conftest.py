@@ -64,9 +64,7 @@ def blender_location() -> Path:
 @pytest.fixture
 def blender_version(blender_location) -> str:
     cmd = [str(blender_location), "--version"]
-    result = subprocess.run(
-        cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
-    )
+    result = subprocess.run(cmd, check=True, capture_output=True, text=True)
     first_line = result.stdout.splitlines()[0]
     match = _BLENDER_VERSION_RE.match(first_line)
     if not match:

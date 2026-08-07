@@ -161,7 +161,7 @@ def _get_dependencies(pyproject_dict: dict[str, Any]) -> list[str]:
 
     dependencies = pyproject_dict["project"]["dependencies"]
     deps_noopenjd = filter(lambda dep: not dep.startswith("openjd"), dependencies)
-    return list(map(lambda dep: dep.replace(" ", ""), deps_noopenjd))
+    return [dep.replace(" ", "") for dep in deps_noopenjd]
 
 
 def _get_package_version_regex(package: str) -> re.Pattern:

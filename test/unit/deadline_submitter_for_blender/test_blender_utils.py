@@ -17,7 +17,7 @@ SUBMITTER_DIR = (
 )
 sys.path.append(str(SUBMITTER_DIR))
 
-import blender_utils as bu  # noqa: E402
+import blender_utils as bu
 
 
 class TestFindFiles:
@@ -285,12 +285,14 @@ class TestResolveOutputPath:
 
 class TestResolveOutputFilePrefix:
     def test_returns_basename_of_render_filepath(self):
-        with patch(
-            "blender_utils.bpy.path.basename",
-            side_effect=lambda p: p.rsplit("/", 1)[-1],
+        with (
+            patch(
+                "blender_utils.bpy.path.basename",
+                side_effect=lambda p: p.rsplit("/", 1)[-1],
+            ),
+            patch("blender_utils.bpy.context.scene.render.filepath", "/render/frame_"),
         ):
-            with patch("blender_utils.bpy.context.scene.render.filepath", "/render/frame_"):
-                assert bu.resolve_output_file_prefix() == "frame_"
+            assert bu.resolve_output_file_prefix() == "frame_"
 
     def test_empty_when_render_filepath_has_no_filename(self):
         with patch("blender_utils.bpy.path.basename", side_effect=lambda p: ""):

@@ -1,6 +1,6 @@
+#!/usr/bin/env python3
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 
-#!/usr/bin/env python3
 """Setup runner for Blender integration tests in CodeBuild."""
 
 import argparse

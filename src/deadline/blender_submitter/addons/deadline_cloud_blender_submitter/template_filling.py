@@ -98,7 +98,7 @@ class BlenderSubmitterUISettings:
             msg = f"Failed to load sticky settings from {sticky_file}."
             if cause:
                 msg += " " + cause
-            _logger.warn(msg)
+            _logger.warning(msg)
 
         sticky_file = Path(scene).with_suffix(_SETTINGS_FILE_EXT)
         if not sticky_file.exists() or not sticky_file.is_file():
@@ -282,11 +282,11 @@ def fill_job_template(
                 + f"Actual: {wheels_path_package_names}"
             )
 
-        override_adaptor_name_param = [
+        override_adaptor_name_param = next(
             param
             for param in override_environment["parameterDefinitions"]
             if param["name"] == "OverrideAdaptorName"
-        ][0]
+        )
         override_adaptor_name_param["default"] = "blender-openjd"
 
         # There are no parameter conflicts between these two templates, so this works
@@ -388,9 +388,7 @@ def _fill_step_template(
     # Update the 'Param.Frames' reference in the Frame task parameter.
     param_defs = step["parameterSpace"]["taskParameterDefinitions"]
     if common_layer_settings.frames_parameter_name:
-        param_defs[0]["range"] = "{{{{Param.{}}}}}".format(
-            common_layer_settings.frames_parameter_name
-        )
+        param_defs[0]["range"] = f"{{{{Param.{common_layer_settings.frames_parameter_name}}}}}"
 
     # Create a parameter space dimension for the selected cameras.
     # Should be a list of strings, even if only one camera is selected.

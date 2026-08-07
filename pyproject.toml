@@ -116,35 +116,17 @@ ignore = [
     # Rules newly enforced in ruff 0.16 - suppress to keep upgrade minimal
     "B008",      # function-call-in-default-argument
     "BLE001",    # blind-except
-    "C401",      # unnecessary-generator-set
-    "C405",      # unnecessary-literal-set
-    "C417",      # unnecessary-map
-    "EXE001",    # shebang-not-executable
-    "EXE005",    # shebang-not-first-line
     "FA100",     # future-annotations-import
-    "G010",      # logging-warn
     "I001",      # unsorted-imports
-    "PIE790",    # unnecessary-placeholder
     "PLR1704",   # redefined-argument-from-local
-    "PLW0120",   # useless-else-on-loop
     "PLW1510",   # subprocess-run-without-check
-    "PYI041",    # redundant-numeric-union
-    "RUF010",    # explicit-f-string-type-conversion
     "RUF012",    # mutable-class-default
-    "RUF015",    # unnecessary-iterable-allocation-for-first-element
-    "RUF022",    # unsorted-dunder-all
-    "RUF100",    # unused-noqa
-    "SIM102",    # collapsible-if
     "SIM113",    # enumerate-for-loop
     "SIM117",    # multiple-with-statements
-    "SIM401",    # if-else-block-instead-of-dict-get
     "TRY002",    # raise-vanilla-class
     "UP006",     # non-pep585-annotation
-    "UP022",     # replace-stdout-stderr
-    "UP032",     # f-string
     "UP035",     # deprecated-import
     "UP045",     # non-pep604-annotation
-    "W605",      # invalid-escape-sequence
 ]
 
 [tool.ruff.lint.isort]
