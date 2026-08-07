@@ -58,6 +58,7 @@ output_format: PNG
                     capture_output=True,
                     text=True,
                     timeout=60,
+                    check=False,
                 )
 
                 # Verify daemon started successfully
@@ -87,6 +88,7 @@ output_format: PNG
                         capture_output=True,
                         text=True,
                         timeout=30,
+                        check=False,
                     )
 
                     # Verify daemon stopped successfully
@@ -138,6 +140,7 @@ camera: Camera
                     capture_output=True,
                     text=True,
                     timeout=60,
+                    check=False,
                 )
 
                 assert start_process.returncode == 0, f"Daemon start failed: {start_process.stderr}"
@@ -157,6 +160,7 @@ camera: Camera
                     capture_output=True,
                     text=True,
                     timeout=120,
+                    check=False,
                 )
 
                 # Verify run command succeeded
@@ -174,4 +178,5 @@ camera: Camera
                         ],
                         capture_output=True,
                         timeout=30,
+                        check=False,
                     )

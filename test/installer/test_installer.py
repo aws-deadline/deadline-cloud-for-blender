@@ -167,7 +167,11 @@ def test_default_location(installer_path: Path):
     # Since windows doesn't have text mode, it'll pop-up a gui. We use the timeout to ensure it stops
     try:
         help_result = subprocess.run(
-            [installer_path, *text_mode, "--help"], capture_output=True, text=True, timeout=5
+            [installer_path, *text_mode, "--help"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
         )
         assert (
             help_result.returncode == 0
@@ -434,7 +438,8 @@ class TestUserInstall:
     def test_uninstall(self, per_test_user_installation: Path, uninstaller_path: Path):
         # GIVEN / WHEN
         result = subprocess.run(
-            [per_test_user_installation / uninstaller_path, "--mode", "unattended"]
+            [per_test_user_installation / uninstaller_path, "--mode", "unattended"],
+            check=False,
         )
 
         # THEN
@@ -462,6 +467,7 @@ class TestSystemInstall:
             [per_test_system_installation / uninstaller_path, "--mode", "unattended"],
             capture_output=True,
             text=True,
+            check=False,
         )
 
         # THEN
@@ -513,7 +519,7 @@ class TestVerifySigning:
 
         # WHEN
         result = subprocess.run(
-            [signtool, "verify", "/pa", installer_path], capture_output=True, text=True
+            [signtool, "verify", "/pa", installer_path], capture_output=True, text=True, check=False
         )
 
         # THEN
@@ -533,8 +539,8 @@ class TestVerifySigning:
             [gpg, "--verify", f"{installer_path}.sig", installer_path],
             capture_output=True,
             text=True,
+            check=False,
         )
-
         # THEN
         assert (
             "Can't check signature: No public key" not in result.stderr
@@ -564,6 +570,7 @@ class TestVerifySigning:
             [codesign, "--verify", "--deep", "--verbose", installer_path],
             capture_output=True,
             text=True,
+            check=False,
         )
         assert (
             "code object is not signed at all" not in codesign_result.stdout
@@ -575,6 +582,7 @@ class TestVerifySigning:
             [spctl, "--verbose", "--assess", "--type", "execute", installer_path],
             capture_output=True,
             text=True,
+            check=False,
         )
         assert (
             "rejected" not in spctl_result.stderr
