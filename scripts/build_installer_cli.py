@@ -6,7 +6,8 @@ import platform
 import click
 
 from pathlib import Path
-from typing import Any, Callable, Iterable, Optional
+from typing import Any, Callable, Optional
+from collections.abc import Iterable
 from build_installer import main
 
 
@@ -52,11 +53,10 @@ def _dependency(dependency: str) -> Callable[[click.Context, click.Option, Any],
     """
 
     def _callback(ctx: click.Context, param: click.Option, value: Any) -> Any:
-        if value:
-            if not ctx.params.get(dependency):
-                raise click.BadParameter(
-                    f"Must specify --{_snake_to_kebab(dependency)} when specifying --{param.name}"
-                )
+        if value and not ctx.params.get(dependency):
+            raise click.BadParameter(
+                f"Must specify --{_snake_to_kebab(dependency)} when specifying --{param.name}"
+            )
         return value
 
     return _callback
@@ -70,11 +70,10 @@ def _require_if_false_or_unspecified(
     """
 
     def _callback(ctx: click.Context, param: click.Option, value: Any) -> Any:
-        if not ctx.params.get(other):
-            if not value:
-                raise click.BadParameter(
-                    f"Must specify --{param.name} when --{_snake_to_kebab(other)} is not specified"
-                )
+        if not ctx.params.get(other) and not value:
+            raise click.BadParameter(
+                f"Must specify --{param.name} when --{_snake_to_kebab(other)} is not specified"
+            )
         return value
 
     return _callback

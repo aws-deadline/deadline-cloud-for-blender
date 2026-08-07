@@ -34,8 +34,8 @@ def run_sanity_checks(settings, prompt_for_saving=True):
     # Ensure the selected scene still exists
     if settings.scene_name not in blender_utils.get_all_scenes():
         raise RuntimeError(
-            "The selected scene ({}) no longer exists! \n"
-            "Please select a different scene.".format(settings.scene_name)
+            f"The selected scene ({settings.scene_name}) no longer exists! \n"
+            "Please select a different scene."
         )
 
     renderable_cameras = blender_utils.get_renderable_cameras(settings.scene_name)
@@ -54,8 +54,8 @@ def run_sanity_checks(settings, prompt_for_saving=True):
         and settings.camera_selection not in renderable_cameras
     ):
         raise RuntimeError(
-            "The selected Camera ({}) is no longer in your scene! \n"
-            "Please select a different Camera.".format(settings.camera_selection)
+            f"The selected Camera ({settings.camera_selection}) is no longer in your scene! \n"
+            "Please select a different Camera."
         )
 
     # Ensure the selected layer is still in the scene
@@ -64,8 +64,8 @@ def run_sanity_checks(settings, prompt_for_saving=True):
         and settings.view_layer_selection not in renderable_layers
     ):
         raise RuntimeError(
-            "The selected ViewLayer ({}) is no longer in your scene! \n"
-            "Please select a different ViewLayer.".format(settings.view_layer_selection)
+            f"The selected ViewLayer ({settings.view_layer_selection}) is no longer in your scene! \n"
+            "Please select a different ViewLayer."
         )
 
     # Ensure the specified output directory exists.
@@ -181,19 +181,17 @@ def has_no_duplicate_frames(frames: str) -> list[Union[bool, str]]:
     duplicates = []
     for frames in override_frames:
         try:
-            if frames_to_render:
-                if int(frames) in frames_to_render:
-                    has_no_duplicates = False
-                    duplicates.append(frames)
+            if frames_to_render and int(frames) in frames_to_render:
+                has_no_duplicates = False
+                duplicates.append(frames)
             frames_to_render.append(int(frames))
         # when there is a dash in the frame string it can't be converted to an int
         # this way we can easily split single frames from ranges
         except ValueError:
             numbers = frames.split("-")
             for i in range(int(numbers[0]), int(numbers[1]) + 1):
-                if frames_to_render:
-                    if i in frames_to_render:
-                        has_no_duplicates = False
-                        duplicates.append(str(i))
+                if frames_to_render and i in frames_to_render:
+                    has_no_duplicates = False
+                    duplicates.append(str(i))
                 frames_to_render.append(i)
     return [has_no_duplicates, ", ".join(duplicates)]

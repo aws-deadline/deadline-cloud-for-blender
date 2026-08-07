@@ -8,7 +8,7 @@ import logging
 import sys
 from typing import Any
 
-import bpy  # noqa
+import bpy
 from bpy.types import Operator
 from .update_utils import check_and_show_update_dialog
 

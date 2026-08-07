@@ -7,7 +7,7 @@ import PyOpenColorIO as ocio
 
 
 def get_ocio_path() -> str:
-    return os.environ["OCIO"] if "OCIO" in os.environ else ""
+    return os.environ.get("OCIO", "")
 
 
 def get_ocio_config(filename: str) -> ocio.Config:
