@@ -40,7 +40,7 @@ BLENDER_CHECKSUMS = {
 
 def run(cmd, check=True):
     print(f"Running: {' '.join(cmd)}")
-    result = subprocess.run(cmd)
+    result = subprocess.run(cmd, check=False)
     if check and result.returncode != 0:
         sys.exit(result.returncode)
     return result
@@ -88,7 +88,8 @@ def validate_version(version):
 def setup_linux(python_version, install_x11=False):
     pkg_mgr = (
         "dnf"
-        if subprocess.run(["command", "-v", "dnf"], capture_output=True).returncode == 0
+        if subprocess.run(["command", "-v", "dnf"], capture_output=True, check=False).returncode
+        == 0
         else "yum"
     )
     run([pkg_mgr, "update", "-y"])

@@ -113,20 +113,19 @@ exclude = [".kiro"]
 [tool.ruff.lint]
 ignore = [
     "E501",
-    # Rules newly enforced in ruff 0.16 - suppress to keep upgrade minimal
+    # Rules newly enforced in ruff 0.16 - suppress for Python 3.9 compat or intentional patterns
     "B008",      # function-call-in-default-argument
-    "BLE001",    # blind-except
-    "FA100",     # future-annotations-import
-    "I001",      # unsorted-imports
+    "BLE001",    # blind-except (intentional broad catch)
+    "FA100",     # future-annotations-import (47 files)
+    "I001",      # unsorted-imports (36 files - conflicts with isort config)
     "PLR1704",   # redefined-argument-from-local
-    "PLW1510",   # subprocess-run-without-check
     "RUF012",    # mutable-class-default
     "SIM113",    # enumerate-for-loop
-    "SIM117",    # multiple-with-statements
-    "TRY002",    # raise-vanilla-class
-    "UP006",     # non-pep585-annotation
-    "UP035",     # deprecated-import
-    "UP045",     # non-pep604-annotation
+    "SIM117",    # multiple-with-statements (Python 3.9 compat)
+    "TRY002",    # raise-vanilla-class (scripts)
+    "UP006",     # non-pep585-annotation (Python 3.9 compat)
+    "UP035",     # deprecated-import (Python 3.9 compat)
+    "UP045",     # non-pep604-annotation (Python 3.9 compat)
 ]
 
 [tool.ruff.lint.isort]
