@@ -44,6 +44,25 @@ The Blender submitter can be installed and updated within Blender. Requires Blen
    <img alt="Screenshot of the Blender preferences window with the AWS Deadline Cloud add-on available for installation" src="./docs/user_guide/images/install-02-repo-added.png" width="300" />
 3. The add-on is now installed! You can now use the new Submit to AWS Deadline Cloud option in the Render menu. If later there's an update available, an **Update** button will appear next to the **AWS Deadline Cloud** entry in the **Get Extensions** section.
 
+## Submission Hooks
+
+The Blender submitter supports Deadline Cloud **submission hooks** — studio-provided scripts that run
+at the pre-GUI, pre-submission, and post-submission phases (for example to pre-populate the submitter
+dialog or enforce studio defaults). The submitter, and any pre-GUI hook, opens from **Render > Submit
+to AWS Deadline Cloud**.
+
+Blender has no on-disk job bundle at submission time, so hooks are sourced from the directory named by
+the `DEADLINE_HOOKS_DIR` environment variable (set it before launching Blender). Enable environment
+hooks with:
+
+```
+deadline config set settings.allow_environment_hooks true
+```
+
+For the rest — the `hooks.yaml` format, the per-phase input/output contracts, examples, and security
+considerations — see the AWS Deadline Cloud client docs:
+[**Submission Hooks**](https://github.com/aws-deadline/deadline-cloud/blob/mainline/docs/submission-hooks.md).
+
 ## Adaptor
 
 The Blender Adaptor implements the [OpenJD][openjd-adaptor-runtime] interface that allows render workloads to launch Blender and feed it commands. This gives the following benefits:
