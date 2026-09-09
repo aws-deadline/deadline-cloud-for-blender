@@ -1,15 +1,15 @@
 <!-- Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved. -->
 <componentGroup>
     <name>deadline_cloud_for_blender</name>
-    <description>AWS Deadline Cloud for Blender 3.6-5.1</description>
+    <description>AWS Deadline Cloud for Blender 3.6-5.2</description>
     <detailedDescription>Blender plugin for submitting jobs to AWS Deadline Cloud</detailedDescription>
     <canBeEdited>1</canBeEdited>
     <selected>0</selected>
     <show>1</show>
     <parameterList>
         <stringParameter name="deadline_cloud_for_blender_summary" ask="0" cliOptionShow="0">
-            <value>AWS Deadline Cloud for Blender 3.6-5.1
-- Compatible with Blender 3.6 to 5.1
+            <value>AWS Deadline Cloud for Blender 3.6-5.2
+- Compatible with Blender 3.6 to 5.2
 - Install the integrated Blender submitter files to the installation directory</value>
         </stringParameter>
     </parameterList>
@@ -386,6 +386,38 @@
                 <fnUnsetBlenderPref blenderPath="${blender_51_path}"/>
             </preUninstallationActionList>
         </component>
+        <component>
+            <name>blender_52</name>
+            <description>Blender 5.2</description>
+            <selected>0</selected>
+            <parameterList>
+                <fileParameter>
+                    <name>blender_52_path</name>
+                    <description>Path to Blender 5.2</description>
+                    <explanation>Enter the path to Blender 5.2. For easiest installation, Blender should be installed before installing AWS Deadline Cloud for Blender.</explanation>
+                    <default>${blender_52_default}</default>
+                    <allowEmptyValue>0</allowEmptyValue>
+                    <ask>yes</ask>
+                    <cliOptionName>blender-52-path</cliOptionName>
+                    <cliOptionText>Path to the Blender 5.2</cliOptionText>
+                    <osxBundlesAreFiles>1</osxBundlesAreFiles>
+                </fileParameter>
+            </parameterList>
+            <postInstallationActionList>
+                <if>
+                    <conditionRuleList>
+                        <platformTest type="osx"/>
+                    </conditionRuleList>
+                    <actionList>
+                        <setInstallerVariable name="blender_52_path" value="${blender_52_path}/Contents/MacOS/Blender"/>
+                    </actionList>
+                </if>
+                <fnSetBlenderPref blenderPath="${blender_52_path}"/>
+            </postInstallationActionList>
+            <preUninstallationActionList>
+                <fnUnsetBlenderPref blenderPath="${blender_52_path}"/>
+            </preUninstallationActionList>
+        </component>
     </componentList>
     <preInitializationActionList>
         <setInstallerVariable name="all_components" value="${all_components} deadline_cloud_for_blender" />
@@ -404,6 +436,7 @@
                 <setInstallerVariable name="blender_45_default" value="C:\Program Files\Blender Foundation\Blender 4.5\blender.exe" />
                 <setInstallerVariable name="blender_5_default" value="C:\Program Files\Blender Foundation\Blender 5.0\blender.exe" />
                 <setInstallerVariable name="blender_51_default" value="C:\Program Files\Blender Foundation\Blender 5.1\blender.exe" />
+                <setInstallerVariable name="blender_52_default" value="C:\Program Files\Blender Foundation\Blender 5.2\blender.exe" />
             </actionList>
         </if>
         <if>
@@ -420,6 +453,7 @@
                 <setInstallerVariable name="blender_45_default" value="/usr/local/blender" />
                 <setInstallerVariable name="blender_5_default" value="/usr/local/blender" />
                 <setInstallerVariable name="blender_51_default" value="/usr/local/blender" />
+                <setInstallerVariable name="blender_52_default" value="/usr/local/blender" />
             </actionList>
         </if>
         <if>
@@ -436,6 +470,7 @@
                 <setInstallerVariable name="blender_45_default" value="/Applications/Blender.app" />
                 <setInstallerVariable name="blender_5_default" value="/Applications/Blender.app" />
                 <setInstallerVariable name="blender_51_default" value="/Applications/Blender.app" />
+                <setInstallerVariable name="blender_52_default" value="/Applications/Blender.app" />
             </actionList>
         </if>
     </preInitializationActionList>
