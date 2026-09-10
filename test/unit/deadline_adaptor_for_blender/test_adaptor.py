@@ -97,6 +97,7 @@ class TestBlenderAdaptor:
         """Tests that a Blender crash during the render is raised and recorded as an error"""
         # GIVEN
         adaptor = BlenderAdaptor(init_data)
+        adaptor._action_queue = Mock()
         client = self._blender_client_that_exits(-11)
         adaptor._blender_client = client
         mock_sleep.side_effect = lambda *args: setattr(client, "is_running", False)
@@ -132,6 +133,7 @@ class TestBlenderAdaptor:
         """
         # GIVEN
         adaptor = BlenderAdaptor(init_data)
+        adaptor._action_queue = Mock()
         client = self._blender_client_that_exits(0)
         adaptor._blender_client = client
 
@@ -147,6 +149,44 @@ class TestBlenderAdaptor:
         # THEN
         mock_telemetry_client.return_value.record_error.assert_not_called()
 
+    @patch("time.sleep")
+    @patch(
+        "deadline.blender_adaptor.BlenderAdaptor.adaptor.BlenderAdaptor._get_deadline_telemetry_client"
+    )
+    def test_on_run_blender_exits_nonzero_after_render_completed(
+        self,
+        mock_telemetry_client: Mock,
+        mock_sleep: Mock,
+        init_data: dict,
+        run_data: dict,
+    ) -> None:
+        """Tests that a nonzero exit after render completion is raised and recorded as an error"""
+        # GIVEN
+        adaptor = BlenderAdaptor(init_data)
+        adaptor._action_queue = Mock()
+        client = self._blender_client_that_exits(1)
+        adaptor._blender_client = client
+
+        def complete_render_then_exit(*args) -> None:
+            adaptor._blender_is_rendering = False
+            client.is_running = False
+
+        mock_sleep.side_effect = complete_render_then_exit
+
+        # WHEN
+        with pytest.raises(RuntimeError) as exc_info:
+            adaptor.on_run(run_data)
+
+        # THEN
+        assert str(exc_info.value) == (
+            "Blender reported render completion but exited with a nonzero code. Exit code 1"
+        )
+        mock_telemetry_client.return_value.record_error.assert_called_once_with(
+            {"exit_code": 1, "exception_scope": "caught", "error_operation": "on_run"},
+            str(RuntimeError),
+        )
+
+    @patch.dict("os.environ", {}, clear=False)
     @patch("deadline.blender_adaptor.BlenderAdaptor.adaptor.LoggingSubprocess")
     @patch(
         "deadline.blender_adaptor.BlenderAdaptor.adaptor.BlenderAdaptor.blender_client_path",

@@ -388,7 +388,7 @@ class BlenderAdaptor(Adaptor[AdaptorConfiguration]):
 
         Raises:
             BlenderNotRunningError: If Blender is not running when the render is requested.
-            RuntimeError: If Blender stopped running before it reported the render as complete.
+            RuntimeError: If Blender stopped before completion or exited with a nonzero code.
         """
         if not self._blender_is_running:
             raise BlenderNotRunningError("Cannot render because Blender is not running.")
@@ -409,22 +409,27 @@ class BlenderAdaptor(Adaptor[AdaptorConfiguration]):
             # Wait for the render to finish.
             time.sleep(0.1)
 
-        # The busy wait above also ends when Blender stops running, so only the case where the
-        # completion message was never seen is a failure. A render that did report completion must
-        # never be failed here, even if Blender has exited in the meantime.
-        if self._is_rendering and not self._blender_is_running and self._blender_client:
-            # blender Client will always exist here.
-            #  The blender Client should still be running and waiting for the next command, so the
-            #  frame did not render and we cannot continue.
+        # The busy wait above also ends when Blender stops running. A clean exit after the
+        # completion message is successful, but an early or nonzero exit is a failure.
+        if not self._blender_is_running and self._blender_client:
             exit_code = self._blender_client.returncode
-            self._get_deadline_telemetry_client().record_error(
-                {"exit_code": exit_code, "exception_scope": "caught", "error_operation": "on_run"},
-                str(RuntimeError),
-            )
-            raise RuntimeError(
-                "Blender exited early and did not render successfully, please check render logs. "
-                f"Exit code {exit_code}"
-            )
+            if self._is_rendering or exit_code != 0:
+                self._get_deadline_telemetry_client().record_error(
+                    {
+                        "exit_code": exit_code,
+                        "exception_scope": "caught",
+                        "error_operation": "on_run",
+                    },
+                    str(RuntimeError),
+                )
+                if self._is_rendering:
+                    message = (
+                        "Blender exited early and did not render successfully, please check render "
+                        "logs."
+                    )
+                else:
+                    message = "Blender reported render completion but exited with a nonzero code."
+                raise RuntimeError(f"{message} Exit code {exit_code}")
 
     def on_stop(self) -> None:
         return
