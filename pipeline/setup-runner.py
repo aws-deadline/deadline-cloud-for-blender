@@ -12,29 +12,33 @@ import sys
 import time
 from pathlib import Path
 
-BLENDER_VERSIONS = ["4.2.21", "4.5.10", "5.0.1", "5.1.2"]
+BLENDER_VERSIONS = ["4.2.23", "4.5.13", "5.0.1", "5.1.2", "5.2.1"]
 BLENDER_PYTHON_VERSIONS = {
-    "4.2.21": "3.11",
-    "4.5.10": "3.11",
+    "4.2.23": "3.11",
+    "4.5.13": "3.11",
     "5.0.1": "3.11",
     "5.1.2": "3.13",
+    "5.2.1": "3.13",
 }
 USE_PUBLIC_URLS = False
 
 # SHA256 checksums from https://www.blender.org/download/
 BLENDER_CHECKSUMS = {
-    "4.2.21-linux-x64": "b9ee313018de52697eeabcb76fc2cd6d404dbb670be9b0d3a5847a09ca325981",
-    "4.5.10-linux-x64": "198a4248b38899af661aa9241cebd746394eaddbfafbeb53152440de80b118f7",
-    "4.2.21-windows-x64": "917254620e2528d032c1c93c149f25f0cfc8ab9b37c9aa117f05fc8eccdc7b24",
-    "4.5.10-windows-x64": "ef6d846b8015f47ade6df3f9322ce17419080a5d922fa562b6c966064fe30dce",
-    "4.2.21-macos-arm64": "ead53e078ce3102bdc0dc3aa5636b926a82058344c5b8f1bc210b34799c5af1d",
-    "4.5.10-macos-arm64": "cf3076fd531e74713f858830b558e71ffae7b26f104608c5c2cb2fc123535f16",
+    "4.2.23-linux-x64": "bea0eb3146be13eae6225409a117b215184f41b7f79e799f97cb3abb8f6dc404",
+    "4.5.13-linux-x64": "da4e69b06b75b9e642d106496c50e7e240218b411d2f6e18271c1d1d819cef91",
+    "4.2.23-windows-x64": "243025ed0aad3d9d537f3d58dbf3da2ba55f8251560d3e8ddccbfdb66a6817e5",
+    "4.5.13-windows-x64": "3d5cb2e769215d8d31a4b417ed56c20f25c5139f441faaa85daaef34839af56e",
+    "4.2.23-macos-arm64": "8b6bc5fafd4773e94bb863ca19ba1c9a54d096eecbbc4375eae7dbc3b49fab40",
+    "4.5.13-macos-arm64": "663ce944257c61ff1d6aa09e15c8f57bbd8d59023adb2fa7edde33a9ed960b53",
     "5.0.1-linux-x64": "8019580ee1b7262e505f4196a00237ccf743c88d205b38d34201510676e60b09",
     "5.0.1-windows-x64": "921d77f6c505a35b2c2f6e67d4ad1c10b72418338ba0e0d3ea7f582a5e5fe46e",
     "5.0.1-macos-arm64": "102a81ddee5346c96339c6a529069a2d52df05f330eb9bfd431c8dd79fb4afb6",
     "5.1.2-linux-x64": "aaccb355f50183979b698bcce7467103a76261b5fa59f4972295842662a285fb",
     "5.1.2-windows-x64": "345bedea7b0acf7cc9666423d8553f9129622aea34ded65c23e8cb70f83f14ff",
     "5.1.2-macos-arm64": "f104ffee2ba6aee32328e5c203b7e4608d8a1745f7bbcf2766f3b9777e8fbe17",
+    "5.2.1-linux-x64": "a31f524fa99a527d3d52b7f5aaa68c34e1a19d5a1c9473f79c5cc610fd5b10e9",
+    "5.2.1-windows-x64": "bebb90fc5bf7e3ec7ab4eb34f4c5a5b54e28e582a722152a47fd4ee66ec3c6fa",
+    "5.2.1-macos-arm64": "6409e21de80994db5f4c4a34486b6fd43cea21085b912f7491c53e923acb65a3",
 }
 
 
