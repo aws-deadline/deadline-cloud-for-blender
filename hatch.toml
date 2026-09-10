@@ -49,11 +49,11 @@ pre-install-commands = [
 ]
 
 [[envs.integ-ci.matrix]]
-blender = ["4.5.10"]
+blender = ["4.5.13"]
 python = ["3.11"]
 
 [[envs.integ-ci.matrix]]
-blender = ["4.2.21"]
+blender = ["4.2.23"]
 python = ["3.11"]
 
 [[envs.integ-ci.matrix]]
@@ -62,6 +62,10 @@ python = ["3.11"]
 
 [[envs.integ-ci.matrix]]
 blender = ["5.1.2"]
+python = ["3.13"]
+
+[[envs.integ-ci.matrix]]
+blender = ["5.2.1"]
 python = ["3.13"]
 
 [envs.integ-ci.env-vars]
