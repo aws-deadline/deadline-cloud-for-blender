@@ -26,8 +26,8 @@ USE_PUBLIC_URLS = False
 BLENDER_CHECKSUMS = {
     "4.2.23-linux-x64": "bea0eb3146be13eae6225409a117b215184f41b7f79e799f97cb3abb8f6dc404",
     "4.5.13-linux-x64": "da4e69b06b75b9e642d106496c50e7e240218b411d2f6e18271c1d1d819cef91",
-    "4.2.23-windows-x64": "243025ed0aad3d9d537f3d58dbf3da2ba55f8251560d3e8ddccbfdb66a6817e5",
-    "4.5.13-windows-x64": "3d5cb2e769215d8d31a4b417ed56c20f25c5139f441faaa85daaef34839af56e",
+    "4.2.23-windows-x64": "82e791475779a7342424a480bdde9a20b43710da9264c60346125aa16cd910cb",
+    "4.5.13-windows-x64": "b5fdf800ce65fa2f209e8f68d02667e4d720fa1c42f247c72d1882ab04decba6",
     "4.2.23-macos-arm64": "8b6bc5fafd4773e94bb863ca19ba1c9a54d096eecbbc4375eae7dbc3b49fab40",
     "4.5.13-macos-arm64": "663ce944257c61ff1d6aa09e15c8f57bbd8d59023adb2fa7edde33a9ed960b53",
     "5.0.1-linux-x64": "8019580ee1b7262e505f4196a00237ccf743c88d205b38d34201510676e60b09",
@@ -37,7 +37,7 @@ BLENDER_CHECKSUMS = {
     "5.1.2-windows-x64": "345bedea7b0acf7cc9666423d8553f9129622aea34ded65c23e8cb70f83f14ff",
     "5.1.2-macos-arm64": "f104ffee2ba6aee32328e5c203b7e4608d8a1745f7bbcf2766f3b9777e8fbe17",
     "5.2.1-linux-x64": "a31f524fa99a527d3d52b7f5aaa68c34e1a19d5a1c9473f79c5cc610fd5b10e9",
-    "5.2.1-windows-x64": "bebb90fc5bf7e3ec7ab4eb34f4c5a5b54e28e582a722152a47fd4ee66ec3c6fa",
+    "5.2.1-windows-x64": "0e631dad7d0cad6d5d18abdd2e2550f6c0213215334eda00ddbd3d22b96ecb2c",
     "5.2.1-macos-arm64": "6409e21de80994db5f4c4a34486b6fd43cea21085b912f7491c53e923acb65a3",
 }
 
