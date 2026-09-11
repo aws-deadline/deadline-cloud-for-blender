@@ -1,3 +1,11 @@
+## 0.6.8 (2026-09-11)
+
+### Features
+* Added support for Blender 5.2. (#388)
+
+### Bug Fixes
+* Fixed an issue where Blender script failures during rendering were silently swallowed, causing failed renders to be reported as successful with "exited early ... Exit code 0" and no useful error information. Errors from client scripts are now properly surfaced, and already-completed renders are no longer incorrectly marked as failed. (#387)
+* Fixed named pipe existence checks failing on Windows with Python 3.13, where a CPython refactoring caused `os.path.exists()` to always return `False` for Windows named pipes. A native Windows API check is now used instead. (`2834a44`)
 ## 0.6.7 (2026-07-27)
 
 ### Features
