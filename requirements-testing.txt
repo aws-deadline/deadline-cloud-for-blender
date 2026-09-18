@@ -12,3 +12,6 @@ ruff == 0.16.*
 twine == 7.*; python_version >= "3.10"
 twine == 6.*; python_version < "3.10"
 types-pyyaml == 6.*
+# Both are used by test_console_signin_dependencies.py, which parses pyproject.toml.
+packaging >= 22
+tomli == 2.*; python_version < "3.11"
