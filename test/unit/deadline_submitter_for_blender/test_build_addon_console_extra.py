@@ -9,6 +9,7 @@ together, so a rewrite of one that is not mirrored in the other silently drops a
 whichever channel was missed, and console sign-in breaks only there.
 """
 
+import subprocess
 import sys
 from pathlib import Path
 
@@ -21,7 +22,9 @@ if str(SCRIPTS_DIR) not in sys.path:
     # and prepending would shadow any same-named import for the rest of the pytest session.
     sys.path.append(str(SCRIPTS_DIR))
 
-from build_addon import (  # importable only after the sys.path append
+import build_addon  # importable only after the sys.path append above
+from build_addon import (
+    _download_wheels,
     _get_deadline_requirement,
     _requirement_floor,
     _verify_platform_download,
@@ -120,3 +123,32 @@ def test_verify_platform_download_raises_when_awscrt_is_missing(tmp_path):
 
     with pytest.raises(RuntimeError, match="no awscrt wheel resolved"):
         _verify_platform_download(str(tmp_path), "manylinux2014_x86_64", Version("0.60.4"))
+
+
+def test_download_wheels_leaves_only_wheels_under_temp(tmp_path, monkeypatch):
+    """Regression test: the per-platform staging area used to be nested under `temp`, so it
+    rode along when `temp` was zipped wholesale into the shipped extension archive at
+    build_addon.main() -- including unstripped PySide6/shiboken6 payloads that the allowlist
+    stripping exists to remove, with nothing in blender_manifest.toml to reveal the extra
+    megabytes.
+    """
+    monkeypatch.setattr(build_addon, "SUPPORTED_PLATFORMS", ["win_amd64", "manylinux2014_x86_64"])
+
+    def fake_pip_download(args, **kwargs):
+        dest = Path(args[args.index("--dest") + 1])
+        platform = args[-1].split("=", 1)[1]
+        (dest / "deadline-0.60.7-py3-none-any.whl").touch()
+        (dest / f"awscrt-0.36.0-cp311-abi3-{platform}.whl").touch()
+        return subprocess.CompletedProcess(args, 0)
+
+    monkeypatch.setattr(build_addon.subprocess, "run", fake_pip_download)
+
+    _download_wheels(str(tmp_path), "deadline[console]>=0.60.4,<0.61", Version("0.60.4"))
+
+    assert {entry.name for entry in tmp_path.iterdir()} == {"wheels"}, (
+        "expected only a wheels/ directory directly under temp; anything else nested there "
+        "would be zipped into the shipped extension archive alongside it"
+    )
+    assert (tmp_path / "wheels" / "deadline-0.60.7-py3-none-any.whl").exists()
+    assert (tmp_path / "wheels" / "awscrt-0.36.0-cp311-abi3-win_amd64.whl").exists()
+    assert (tmp_path / "wheels" / "awscrt-0.36.0-cp311-abi3-manylinux2014_x86_64.whl").exists()

@@ -121,6 +121,44 @@ def strip_pyside6_wheel(whl_path: str) -> None:
         os.rename(whl_path.removesuffix(".whl") + ".zip", whl_path)
 
 
+def _download_wheels(temp: str, requirement: str, floor: Version) -> None:
+    """Download `requirement` and its dependencies for every SUPPORTED_PLATFORMS entry into
+    `{temp}/wheels`, verifying each platform's resolution before merging it in.
+
+    Each platform downloads into its own destination under a staging TemporaryDirectory --
+    not `{temp}/wheels` directly, and not anywhere under `temp` at all -- for two reasons:
+    _verify_platform_download needs to see what THIS platform's resolution actually
+    produced (a shared destination would let an earlier, compliant platform's deadline wheel
+    mask a later platform's silent backtrack below the floor), and `temp` is zipped wholesale
+    into the shipped extension archive by the caller. The per-platform staging copies are
+    unstripped (PySide6/shiboken6 stripping only ever runs against `{temp}/wheels`), so
+    staging under `temp` would ship that unstripped payload a second time with nothing in
+    blender_manifest.toml to reveal it.
+    """
+    wheels_dir = Path(f"{temp}/wheels")
+    wheels_dir.mkdir(parents=True, exist_ok=True)
+    with TemporaryDirectory() as staging:
+        for platform in SUPPORTED_PLATFORMS:
+            platform_dest = f"{staging}/{platform}"
+            os.makedirs(platform_dest, exist_ok=True)
+            subprocess.run(
+                [
+                    "pip",
+                    "download",
+                    requirement,
+                    "--dest",
+                    platform_dest,
+                    "--only-binary=:all:",
+                    "--python-version=3.11",
+                    f"--platform={platform}",
+                ],
+                check=True,
+            )
+            _verify_platform_download(platform_dest, platform, floor)
+            for wheel in glob(f"{platform_dest}/*"):
+                shutil.copy(wheel, wheels_dir)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Experimental: Builds a Blender extension")
     parser.add_argument("--version", required=False)
@@ -148,32 +186,8 @@ def main() -> None:
         deadline_version_spec = re.sub(r"\[.*?\]", "", deadline_version_requirement)
         deadline_floor = _requirement_floor(deadline_version_requirement)
 
-        # Download the wheels of the deadline library and its dependencies. Each platform
-        # gets its own destination -- not the shared {temp}/wheels -- so
-        # _verify_platform_download can check what THIS platform's resolution actually
-        # produced; a shared destination would let an earlier, compliant platform's deadline
-        # wheel mask a later platform's silent backtrack below the floor.
-        wheels_dir = Path(f"{temp}/wheels")
-        wheels_dir.mkdir(parents=True, exist_ok=True)
-        for platform in SUPPORTED_PLATFORMS:
-            platform_dest = f"{temp}/wheels_by_platform/{platform}"
-            os.makedirs(platform_dest, exist_ok=True)
-            subprocess.run(
-                [
-                    "pip",
-                    "download",
-                    deadline_version_requirement,
-                    "--dest",
-                    platform_dest,
-                    "--only-binary=:all:",
-                    "--python-version=3.11",
-                    f"--platform={platform}",
-                ],
-                check=True,
-            )
-            _verify_platform_download(platform_dest, platform, deadline_floor)
-            for wheel in glob(f"{platform_dest}/*"):
-                shutil.copy(wheel, wheels_dir)
+        # Download the wheels of the deadline library and its dependencies
+        _download_wheels(temp, deadline_version_requirement, deadline_floor)
 
         # Strip PySide6/shiboken6 wheels to only keep the modules we need
         for whl in glob(f"{temp}/wheels/[Pp][Yy][Ss]ide6*") + glob(f"{temp}/wheels/shiboken6*"):
