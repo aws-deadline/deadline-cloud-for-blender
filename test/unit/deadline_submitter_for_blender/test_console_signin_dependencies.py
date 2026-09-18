@@ -19,8 +19,16 @@ not on the base dependencies: the base list is resolved into the adaptor package
 --platform <tag>``, and no awscrt wheel meeting the floor exists for the
 ``macosx_10_9_x86_64`` tag that script uses, so pip would silently walk back to a
 release with no usable crypto support.
+
+The tests above guard the negative side: the extra and awscrt must be absent from
+project.dependencies. The tests below guard the positive side -- that
+``_add_console_extra`` adds the extra correctly, that ``_build_base_environment``
+still passes it to pip, and that ``NATIVE_DEPENDENCIES`` still carries awscrt and
+pyyaml -- so that removing any of those silently breaks console sign-in in the
+shipped bundle without failing the negative-side tests above.
 """
 
+import subprocess
 import sys
 from pathlib import Path
 
@@ -31,6 +39,14 @@ if sys.version_info >= (3, 11):
     import tomllib
 else:  # pragma: no cover - exercised on Python 3.9/3.10 only
     import tomli as tomllib
+
+SCRIPTS_DIR = Path(__file__).parents[3] / "scripts"
+if str(SCRIPTS_DIR) not in sys.path:
+    # Appended rather than prepended: scripts/ holds generically named modules (common.py),
+    # and prepending would shadow any same-named import for the rest of the pytest session.
+    sys.path.append(str(SCRIPTS_DIR))
+
+import depsBundle  # importable only after the sys.path append above
 
 PYPROJECT = Path(__file__).parents[3] / "pyproject.toml"
 
@@ -104,3 +120,78 @@ def test_deadline_floor_excludes_releases_without_console_signin(table, request)
             f"allows deadline {HIGHEST_DEADLINE_WITHOUT_CONSOLE_SIGNIN}, which has no "
             f"console sign-in support: {req}"
         )
+
+
+def test_native_dependencies_include_awscrt_and_pyyaml():
+    """Pins the packages depsBundle.py fetches per-version for their compiled artifacts.
+
+    Console sign-in needs awscrt to be importable under whichever Python Blender embeds;
+    pyyaml needs the same because it silently falls back to a pure-Python parser otherwise.
+    Dropping either from NATIVE_DEPENDENCIES would ship a bundle where a subset of
+    interpreters cannot load one of them, with nothing here to catch it.
+    """
+    assert "awscrt" in depsBundle.NATIVE_DEPENDENCIES
+    assert "pyyaml" in depsBundle.NATIVE_DEPENDENCIES
+
+
+def test_build_base_environment_requests_the_console_extra(tmp_path, monkeypatch):
+    """Pins the positive half of the console sign-in fix: the extra actually reaches pip.
+
+    test_base_dependencies_do_not_request_the_console_extra guards that the extra is absent
+    from project.dependencies; this guards that _build_base_environment still adds it back
+    before invoking pip, mirroring the subprocess.run monkeypatch already used in
+    test_deps_bundle_native_merge.py. If the _add_console_extra call here were dropped, that
+    other test would stay green while the shipped bundle silently lost console sign-in.
+    """
+    captured_args: list[str] = []
+
+    def record(args, **kwargs):
+        captured_args.extend(args)
+        return subprocess.CompletedProcess(args, 0)
+
+    monkeypatch.setattr(depsBundle.subprocess, "run", record)
+
+    depsBundle._build_base_environment(tmp_path, ["deadline>=0.60.4,<0.61", "xxhash"])
+
+    console_reqs = [arg for arg in captured_args if arg.lower().startswith("deadline[")]
+    assert console_reqs, f"no deadline requirement with an extra was passed to pip: {captured_args}"
+    assert "console" in console_reqs[0], f"console extra missing from pip argv: {console_reqs[0]}"
+
+
+@pytest.mark.parametrize(
+    "requirement,expected",
+    [
+        ("deadline>=0.60.4,<0.61", "deadline[console]>=0.60.4,<0.61"),
+        ("deadline[gui]>=0.60.4", "deadline[gui,console]>=0.60.4"),
+        ("deadline[gui,console]>=0.60.4", "deadline[gui,console]>=0.60.4"),
+        ("deadline[console]>=0.60.4", "deadline[console]>=0.60.4"),
+        ("xxhash>=3.0", "xxhash>=3.0"),
+    ],
+)
+def test_add_console_extra_pins_behavior(requirement, expected):
+    """Pins _add_console_extra's contract: preserve existing extras, be idempotent, and leave
+    non-deadline requirements untouched.
+    """
+    assert depsBundle._add_console_extra(requirement) == expected
+
+
+def test_add_console_extra_changes_the_real_base_dependencies():
+    """Stronger than the parametrized behavior test above: proves the injection takes effect
+    against pyproject.toml's actual dependencies, not just a synthetic requirement string.
+
+    ``_add_console_extra`` no-ops on any requirement it does not recognize as ``deadline``.
+    If that requirement were ever renamed, wrapped, or split -- say the base dependency
+    became ``deadline-cloud`` -- this test fails, whereas
+    ``test_add_console_extra_pins_behavior`` above would keep passing forever since it never
+    exercises the real declaration. A rename passing silently is exactly how the bundle would
+    ship with no awscrt and no build-time signal.
+    """
+    pyproject_dict = tomllib.loads(PYPROJECT.read_text(encoding="utf-8"))
+    dependencies = depsBundle._get_dependencies(pyproject_dict)
+    dependencies_for_pip = [depsBundle._add_console_extra(dep) for dep in dependencies]
+
+    assert dependencies_for_pip != dependencies, (
+        "_add_console_extra left every real base dependency unchanged; the `deadline` "
+        "requirement it targets may have been renamed, wrapped, or removed from "
+        "project.dependencies"
+    )

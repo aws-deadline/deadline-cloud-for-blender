@@ -12,15 +12,18 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any
 
-SUPPORTED_PYTHON_VERSIONS = ["3.10", "3.11", "3.13"]
+SUPPORTED_PYTHON_VERSIONS = ["3.9", "3.10", "3.11", "3.13"]
 # Packages with compiled extension modules, fetched once per supported Python version so the
 # bundle carries a loadable artifact for each interpreter.
 #
-# awscrt is here because its wheels are not uniformly abi3: Python 3.10 gets
-# _awscrt.cpython-310-<platform>.so while 3.11+ get _awscrt.abi3.so. Resolving it only in
-# the base environment would ship whichever the build host produced, so any Blender whose
+# awscrt is here because its wheels are not uniformly abi3: Python 3.9 and 3.10 get
+# _awscrt.cpython-3{9,10}-<platform>.so while 3.11+ get _awscrt.abi3.so. Resolving it only
+# in the base environment would ship whichever the build host produced, so any Blender whose
 # interpreter that single artifact does not cover would fail to import awscrt and AWS
-# Console sign-in would break there.
+# Console sign-in would break there. (Blender 2.9's Python 3.9 is included here even though
+# requires-python's floor is the only place else that version appears: awscrt, pyyaml, and
+# xxhash all publish cp39 wheels for linux/mac/windows at the versions this bundle resolves,
+# verified via `pip download --no-deps --only-binary=:all: --python-version 3.9`.)
 # pyyaml is here because it ships a version-specific `_yaml` extension module: resolved only
 # in the base environment it lands built for a single interpreter, and pyyaml hides that by
 # falling back to its pure-Python parser on the others.
@@ -260,7 +263,12 @@ def _download_native_dependencies(working_directory: Path, base_env: Path) -> li
             # packages' full transitive closures, resolved independently of the base
             # environment's, and clobber whatever it had resolved for anything they share.
             # Today none of NATIVE_DEPENDENCIES has runtime dependencies, but that is a
-            # property of the current graph, not of this code.
+            # property of the current graph, not of this code. --no-deps cuts the other way
+            # too: a compiled transitive dependency of one of these packages would then only
+            # ever reach the bundle from _build_base_environment, built for whatever
+            # interpreter the build host runs, and fail to import on the other supported
+            # versions -- silently, since the artifact is present either way. If one shows up,
+            # add it to NATIVE_DEPENDENCIES.
             "--no-deps",
             *versioned_native_dependencies,
         ]
