@@ -16,9 +16,9 @@ The tests read ``pyproject.toml`` rather than installed distribution metadata.
 Scope matters as much as the versions. ``console`` belongs on the ``gui`` extra and
 not on the base dependencies: the base list is resolved into the adaptor package by
 ``scripts/create_adaptor_packaging_artifact.sh`` under ``--only-binary=:all:
---platform <tag>``, and no awscrt wheel meeting the floor exists for the
-``macosx_10_9_x86_64`` tag that script uses, so pip would silently walk back to a
-release with no usable crypto support.
+--platform <tag>``, and awscrt ships no ``macosx_10_9_*`` wheel at all, so resolving
+the console extra under the ``macosx_10_9_x86_64`` tag that script uses would fail
+the adaptor build outright.
 
 The tests above guard the negative side: the extra and awscrt must be absent from
 project.dependencies. The tests below guard the positive side -- that
@@ -91,10 +91,10 @@ def test_base_dependencies_do_not_request_the_console_extra(base_dependencies):
     """Keeps awscrt out of the adaptor package.
 
     The base list is resolved into the adaptor artifact under --only-binary=:all:
-    --platform <tag>. For macosx_10_9_x86_64 no awscrt wheel meets the floor, so pip
-    resolves backwards to one whose crypto support botocore will not accept -- the build
-    succeeds and console sign-in is quietly broken. The adaptor never signs in
-    interactively, so it has no use for the extra.
+    --platform <tag>. awscrt ships no macosx_10_9_x86_64 wheel at all, so resolving the
+    console extra there has no candidate to fall back to -- the adaptor build fails
+    outright rather than silently shipping broken crypto support. The adaptor never signs
+    in interactively, so it has no use for the extra either way.
     """
     for req in _named(base_dependencies, "deadline"):
         assert (
@@ -158,6 +158,35 @@ def test_build_base_environment_requests_the_console_extra(tmp_path, monkeypatch
     assert "console" in console_reqs[0], f"console extra missing from pip argv: {console_reqs[0]}"
 
 
+def test_build_base_environment_accepts_a_deadline_requirement_already_requesting_console(
+    tmp_path, monkeypatch
+):
+    """_add_console_extra is idempotent, so a `deadline[console]` requirement declared
+    directly in project.dependencies is a correct input, not a config the guard should
+    reject. A changed-something check on the guard would fail this case even though pip
+    ends up asking for the console extra either way.
+    """
+    monkeypatch.setattr(
+        depsBundle.subprocess, "run", lambda args, **kwargs: subprocess.CompletedProcess(args, 0)
+    )
+
+    # Raises if the guard rejects an already-correct dependency list.
+    depsBundle._build_base_environment(tmp_path, ["deadline[console]>=0.60.4,<0.61"])
+
+
+def test_build_base_environment_raises_when_nothing_requests_console(tmp_path, monkeypatch):
+    """The guard still fails loudly on the drift it exists to catch: no requirement that
+    _add_console_extra recognizes as `deadline`, so nothing ends up requesting the console
+    extra.
+    """
+    monkeypatch.setattr(
+        depsBundle.subprocess, "run", lambda args, **kwargs: subprocess.CompletedProcess(args, 0)
+    )
+
+    with pytest.raises(Exception, match="no dependency requests deadline's `console` extra"):
+        depsBundle._build_base_environment(tmp_path, ["deadline-cloud>=0.60.4,<0.61", "xxhash"])
+
+
 @pytest.mark.parametrize(
     "requirement,expected",
     [
@@ -175,23 +204,24 @@ def test_add_console_extra_pins_behavior(requirement, expected):
     assert depsBundle._add_console_extra(requirement) == expected
 
 
-def test_add_console_extra_changes_the_real_base_dependencies():
+def test_add_console_extra_makes_the_real_base_dependencies_request_console():
     """Stronger than the parametrized behavior test above: proves the injection takes effect
     against pyproject.toml's actual dependencies, not just a synthetic requirement string.
 
-    ``_add_console_extra`` no-ops on any requirement it does not recognize as ``deadline``.
-    If that requirement were ever renamed, wrapped, or split -- say the base dependency
-    became ``deadline-cloud`` -- this test fails, whereas
-    ``test_add_console_extra_pins_behavior`` above would keep passing forever since it never
-    exercises the real declaration. A rename passing silently is exactly how the bundle would
-    ship with no awscrt and no build-time signal.
+    Checks the postcondition -- that some entry ends up requesting deadline's ``console``
+    extra -- rather than that ``_add_console_extra`` changed something. ``_add_console_extra``
+    is idempotent, so if ``project.dependencies`` ever declared ``deadline[console]``
+    directly, a changed-something check would fail a config that is already correct. This
+    still fails loudly if the `deadline` requirement is ever renamed, wrapped, or split --
+    say the base dependency became ``deadline-cloud`` -- which is exactly how the bundle
+    would otherwise ship with no awscrt and no build-time signal.
     """
     pyproject_dict = tomllib.loads(PYPROJECT.read_text(encoding="utf-8"))
     dependencies = depsBundle._get_dependencies(pyproject_dict)
     dependencies_for_pip = [depsBundle._add_console_extra(dep) for dep in dependencies]
 
-    assert dependencies_for_pip != dependencies, (
-        "_add_console_extra left every real base dependency unchanged; the `deadline` "
-        "requirement it targets may have been renamed, wrapped, or removed from "
-        "project.dependencies"
+    assert any(depsBundle._requests_console_extra(dep) for dep in dependencies_for_pip), (
+        "no real base dependency requests deadline's `console` extra after "
+        "_add_console_extra; the `deadline` requirement it targets may have been renamed, "
+        "wrapped, or removed from project.dependencies"
     )

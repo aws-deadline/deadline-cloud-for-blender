@@ -7,12 +7,21 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 import tarfile
 from tempfile import TemporaryDirectory
 import hashlib
 import re
 
-from depsBundle import _strip_pyside6, _add_console_extra
+from packaging.requirements import Requirement
+from packaging.version import Version
+
+from depsBundle import _add_console_extra, _get_dependencies, _parse_requirement, _strip_pyside6
+
+if sys.version_info >= (3, 11):
+    import tomllib
+else:  # pragma: no cover - exercised on Python 3.9/3.10 only
+    import tomli as tomllib
 
 SUPPORTED_PLATFORMS = [
     "win_amd64",
@@ -21,9 +30,13 @@ SUPPORTED_PLATFORMS = [
     # --platform manylinux_2_28_x86_64` does not treat those as compatible (pip's tag
     # generation for an explicit --platform only walks to older manylinux aliases, it does
     # not walk up), so requesting the newer tag here would make this download fail outright
-    # once the console extra is requested. manylinux2014_x86_64 resolves every dependency
-    # this script downloads, including awscrt; verified via `pip download --only-binary=:all:
-    # --python-version=3.11 --platform=manylinux2014_x86_64 "deadline[console]>=<floor>"`.
+    # once the console extra is requested. manylinux2014_x86_64 resolved every dependency this
+    # script downloads, including awscrt, at the time of writing; verified via `pip download
+    # --only-binary=:all: --python-version=3.11 --platform=manylinux2014_x86_64
+    # "deadline[console]>=<floor>"`. That is a point-in-time check of today's wheel-publishing
+    # policy for the whole dependency closure, not a guarantee -- _verify_platform_download
+    # below is what catches it if a future dependency stops publishing a compatible wheel and
+    # pip silently backtracks under this narrower tag.
     "manylinux2014_x86_64",
     "macosx_12_0_arm64",
     "macosx_12_0_x86_64",
@@ -33,21 +46,58 @@ ADDON_TAGLINE = "Submit to AWS Deadline Cloud"
 
 
 def _get_deadline_requirement(pyproject_contents: str) -> str:
-    """Extract project.dependencies' `deadline` requirement from pyproject.toml's raw text and
-    add the console extra, mirroring depsBundle.py's _build_base_environment. Without this,
-    the extension's wheels/ directory silently ships without awscrt while the desktop
+    """Find project.dependencies' `deadline` requirement in pyproject.toml and add the
+    console extra, mirroring depsBundle.py's _build_base_environment. Without this, the
+    extension's wheels/ directory silently ships without awscrt while the desktop
     submitter's dependency bundle has it, since the two channels declare the requirement
     independently and neither enforces the other.
 
-    Reads pyproject.toml as text rather than parsing it, matching this script's original
-    behavior: it has always matched the FIRST quoted `"deadline..."` line, which is
-    project.dependencies' unadorned entry (no extras) -- never the `gui` extra's
-    `deadline[gui,console]` line that comes later in the file.
+    Parses project.dependencies via tomllib rather than scanning the file's raw text for the
+    first quoted `"deadline..."` line: the substring scan this replaced picked up whichever
+    `"deadline..."` line appeared first in the file, which would have silently become the
+    `gui` extra's `deadline[gui,console]` line -- pulling PySide6 into the extension -- had
+    pyproject.toml ever been reordered.
     """
-    match = re.search(r"\"deadline\S* .+ .+\"", pyproject_contents)
-    if not match:
-        raise RuntimeError("Could not find the deadline version requirement in project.toml")
-    return _add_console_extra(match.group(0).replace('"', ""))
+    dependencies = _get_dependencies(tomllib.loads(pyproject_contents))
+    for dependency in dependencies:
+        parsed = _parse_requirement(dependency)
+        if parsed and parsed[0].lower() == "deadline":
+            return _add_console_extra(dependency)
+    raise RuntimeError("Could not find a `deadline` requirement in project.dependencies")
+
+
+def _requirement_floor(requirement: str) -> Version:
+    """The version a requirement's `>=` specifier allows as its lowest, used to check pip's
+    resolution didn't silently backtrack below the floor this PR depends on.
+    """
+    for spec in Requirement(requirement).specifier:
+        if spec.operator == ">=":
+            return Version(spec.version)
+    raise ValueError(f"requirement has no >= floor to check against: {requirement}")
+
+
+def _verify_platform_download(dest: str, platform: str, floor: Version) -> None:
+    """Fail the build if pip silently backtracked `deadline` below its floor, or resolved no
+    awscrt wheel, while resolving the console extra's dependency closure for `platform`.
+
+    Both are the same silent-failure mechanism this PR exists to close on macOS/the adaptor,
+    reachable here instead if some future transitive dependency stops publishing a wheel
+    compatible with this platform's tag and pip backtracks to satisfy the rest of the
+    closure. `dest` must hold only this platform's own download (a shared destination across
+    platforms would let an earlier platform's compliant wheel mask a later one's backtrack).
+    """
+    deadline_wheels = glob(f"{dest}/deadline-*-py3-none-any.whl")
+    if not deadline_wheels:
+        raise RuntimeError(f"no deadline wheel resolved for platform {platform}")
+    resolved = [Version(os.path.basename(wheel).split("-")[1]) for wheel in deadline_wheels]
+    if not any(version >= floor for version in resolved):
+        raise RuntimeError(
+            f"deadline resolved to {[str(v) for v in resolved]} for platform {platform}, "
+            f"below the required floor {floor} -- pip silently backtracked instead of "
+            "failing the download"
+        )
+    if not glob(f"{dest}/awscrt-*"):
+        raise RuntimeError(f"no awscrt wheel resolved for platform {platform}")
 
 
 def strip_pyside6_wheel(whl_path: str) -> None:
@@ -96,22 +146,34 @@ def main() -> None:
 
         # Extract the bare version spec (without extras) for downloading the sdist
         deadline_version_spec = re.sub(r"\[.*?\]", "", deadline_version_requirement)
+        deadline_floor = _requirement_floor(deadline_version_requirement)
 
-        # Download the wheels of the deadline library and its dependencies
+        # Download the wheels of the deadline library and its dependencies. Each platform
+        # gets its own destination -- not the shared {temp}/wheels -- so
+        # _verify_platform_download can check what THIS platform's resolution actually
+        # produced; a shared destination would let an earlier, compliant platform's deadline
+        # wheel mask a later platform's silent backtrack below the floor.
+        wheels_dir = Path(f"{temp}/wheels")
+        wheels_dir.mkdir(parents=True, exist_ok=True)
         for platform in SUPPORTED_PLATFORMS:
+            platform_dest = f"{temp}/wheels_by_platform/{platform}"
+            os.makedirs(platform_dest, exist_ok=True)
             subprocess.run(
                 [
                     "pip",
                     "download",
                     deadline_version_requirement,
                     "--dest",
-                    f"{temp}/wheels",
+                    platform_dest,
                     "--only-binary=:all:",
                     "--python-version=3.11",
                     f"--platform={platform}",
                 ],
                 check=True,
             )
+            _verify_platform_download(platform_dest, platform, deadline_floor)
+            for wheel in glob(f"{platform_dest}/*"):
+                shutil.copy(wheel, wheels_dir)
 
         # Strip PySide6/shiboken6 wheels to only keep the modules we need
         for whl in glob(f"{temp}/wheels/[Pp][Yy][Ss]ide6*") + glob(f"{temp}/wheels/shiboken6*"):

@@ -189,17 +189,39 @@ def _get_package_version(package: str, install_path: Path) -> str:
     raise Exception(f"Could not find version for package {package}")
 
 
+_REQUIREMENT_PATTERN = re.compile(
+    r"(?P<name>[A-Za-z0-9._-]+)(?:\[(?P<extras>[^\]]*)\])?(?P<spec>.*)"
+)
+
+
+def _parse_requirement(requirement: str) -> tuple[str, list[str], str] | None:
+    """Split a requirement string into (name, extras, specifier), or None if it doesn't match
+    the `name[extras]spec` shape.
+    """
+    match = _REQUIREMENT_PATTERN.fullmatch(requirement)
+    if not match:
+        return None
+    extras = [extra for extra in (match.group("extras") or "").split(",") if extra]
+    return match.group("name"), extras, match.group("spec")
+
+
 def _add_console_extra(requirement: str) -> str:
     """Add deadline's `console` extra to a requirement string, preserving its specifier."""
-    match = re.fullmatch(
-        r"(?P<name>[A-Za-z0-9._-]+)(?:\[(?P<extras>[^\]]*)\])?(?P<spec>.*)", requirement
-    )
-    if not match or match.group("name").lower() != "deadline":
+    parsed = _parse_requirement(requirement)
+    if not parsed or parsed[0].lower() != "deadline":
         return requirement
-    extras = [extra for extra in (match.group("extras") or "").split(",") if extra]
+    name, extras, spec = parsed
     if "console" not in extras:
-        extras.append("console")
-    return f"{match.group('name')}[{','.join(extras)}]{match.group('spec')}"
+        extras = [*extras, "console"]
+    return f"{name}[{','.join(extras)}]{spec}"
+
+
+def _requests_console_extra(requirement: str) -> bool:
+    """Whether a requirement string is a `deadline` requirement whose extras include
+    `console`.
+    """
+    parsed = _parse_requirement(requirement)
+    return parsed is not None and parsed[0].lower() == "deadline" and "console" in parsed[1]
 
 
 def _build_base_environment(working_directory: Path, dependencies: list[str]) -> Path:
@@ -209,14 +231,16 @@ def _build_base_environment(working_directory: Path, dependencies: list[str]) ->
     # the adaptor package under a platform tag with no usable awscrt wheel (see
     # pyproject.toml).
     dependencies_for_pip = [_add_console_extra(dep) for dep in dependencies]
-    if dependencies_for_pip == dependencies:
-        # _add_console_extra only rewrites a requirement it recognizes as `deadline`. If that
-        # ever stops matching -- a rename, a wrapped requirement, an extra spelling -- this
-        # silently ships the bundle with no awscrt and no build-time signal otherwise. Fail
-        # the build instead.
+    if not any(_requests_console_extra(dep) for dep in dependencies_for_pip):
+        # Checks the postcondition (something ends up requesting the console extra), not
+        # that _add_console_extra changed anything: it is idempotent, so a `deadline`
+        # requirement that already declares [console] in project.dependencies is a correct
+        # input that would otherwise fail this guard. A rename, wrapped requirement, or
+        # missing `deadline` entry still fails loudly here instead of silently shipping the
+        # bundle with no awscrt.
         raise Exception(
-            "_add_console_extra did not change any dependency; expected a requirement on "
-            f"`deadline` in: {dependencies}"
+            "no dependency requests deadline's `console` extra after _add_console_extra; "
+            f"expected a requirement on `deadline` in: {dependencies}"
         )
     base_env_pip_args = [
         "pip",
