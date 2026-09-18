@@ -73,12 +73,14 @@ def merged_bundle(tmp_path, supported_versions) -> Path:
     psutil ships one abi3 wheel that serves all of them, so every tree holds identical bytes.
 
     Each file's content records the version whose install produced it, so the merged tree
-    reports where its own contents came from. The base environment is seeded with the
-    newest version, standing in for a build host whose interpreter is newer than the one
-    the bundle has to serve.
+    reports where its own contents came from. The base environment is seeded with a sentinel
+    rather than a real version, standing in for a build host whose interpreter is not one the
+    bundle targets: a real version could coincide with the expected winner if
+    SUPPORTED_PYTHON_VERSIONS ever held only one version above the abi3 boundary, letting the
+    collision assertion pass even if the merge copied nothing.
     """
     base_env = tmp_path / "base_env"
-    _write(base_env / ABI3_ARTIFACT, supported_versions[-1])
+    _write(base_env / ABI3_ARTIFACT, "build-host")
 
     boundary = _version_key(AWSCRT_LAST_NON_ABI3_VERSION)
     assert any(_version_key(v) <= boundary for v in supported_versions) and any(

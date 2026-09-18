@@ -43,10 +43,10 @@ dependencies = [
     # The console extra is deliberately NOT requested here. It is only needed by the
     # submitter, and it pulls awscrt, a compiled wheel. These base dependencies are
     # resolved into the adaptor package by scripts/create_adaptor_packaging_artifact.sh
-    # with --only-binary=:all: --platform <tag>, and no awscrt wheel satisfying the
-    # 0.28.4 floor exists for the macosx_10_9_x86_64 tag that script uses, so console
-    # sign-in would appear installed and silently not work. The adaptor never takes the
-    # console path anyway: it runs on a worker with host-provided credentials.
+    # with --only-binary=:all: --platform <tag>, and awscrt ships no macosx_10_9_* wheel
+    # at all, so console sign-in would appear installed and silently not work under the
+    # macosx_10_9_x86_64 tag that script uses. The adaptor never takes the console path
+    # anyway: it runs on a worker with host-provided credentials.
     "deadline >= 0.60.4,< 0.61",
     "openjd-adaptor-runtime >= 0.7,< 0.10",
 ]

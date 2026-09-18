@@ -16,17 +16,10 @@ SUPPORTED_PYTHON_VERSIONS = ["3.9", "3.10", "3.11", "3.13"]
 # Packages with compiled extension modules, fetched once per supported Python version so the
 # bundle carries a loadable artifact for each interpreter.
 #
-# awscrt is here because its wheels are not uniformly abi3: Python 3.9 and 3.10 get
-# _awscrt.cpython-3{9,10}-<platform>.so while 3.11+ get _awscrt.abi3.so. Resolving it only
-# in the base environment would ship whichever the build host produced, so any Blender whose
-# interpreter that single artifact does not cover would fail to import awscrt and AWS
-# Console sign-in would break there. (Blender 2.9's Python 3.9 is included here even though
-# requires-python's floor is the only place else that version appears: awscrt, pyyaml, and
-# xxhash all publish cp39 wheels for linux/mac/windows at the versions this bundle resolves,
-# verified via `pip download --no-deps --only-binary=:all: --python-version 3.9`.)
-# pyyaml is here because it ships a version-specific `_yaml` extension module: resolved only
-# in the base environment it lands built for a single interpreter, and pyyaml hides that by
-# falling back to its pure-Python parser on the others.
+# awscrt: wheels are not uniformly abi3 -- 3.9/3.10 get a version-specific
+# _awscrt.cpython-3{9,10}-<platform>.so, 3.11+ get the shared _awscrt.abi3.so.
+# pyyaml: ships a version-specific `_yaml` extension module and silently falls back to a
+# pure-Python parser when the artifact doesn't match, masking the same failure mode.
 NATIVE_DEPENDENCIES = ["xxhash", "psutil", "awscrt", "pyyaml"]
 
 PYSIDE6_VERSION = "6.8.3"
@@ -212,16 +205,19 @@ def _add_console_extra(requirement: str) -> str:
 def _build_base_environment(working_directory: Path, dependencies: list[str]) -> Path:
     (working_directory / "base_env").mkdir()
     base_env_path = working_directory / "base_env"
-    # The bundle is the submitter, which needs AWS Console sign-in. The console extra is
-    # requested here rather than declared in project.dependencies, because those are also
-    # resolved into the adaptor package, where a compiled awscrt wheel is both unusable and
-    # unavailable for one of the platform tags that build targets (see pyproject.toml).
-    #
-    # Requesting the extra rather than installing awscrt directly means the bundle tracks
-    # whatever the extra actually requires -- notably a botocore floor, since the console
-    # login provider lives in botocore, not in deadline -- and takes awscrt from the exact
-    # version botocore's crt extra pins, rather than resolving it independently and drifting.
+    # Requested here rather than declared in project.dependencies: those also resolve into
+    # the adaptor package under a platform tag with no usable awscrt wheel (see
+    # pyproject.toml).
     dependencies_for_pip = [_add_console_extra(dep) for dep in dependencies]
+    if dependencies_for_pip == dependencies:
+        # _add_console_extra only rewrites a requirement it recognizes as `deadline`. If that
+        # ever stops matching -- a rename, a wrapped requirement, an extra spelling -- this
+        # silently ships the bundle with no awscrt and no build-time signal otherwise. Fail
+        # the build instead.
+        raise Exception(
+            "_add_console_extra did not change any dependency; expected a requirement on "
+            f"`deadline` in: {dependencies}"
+        )
     base_env_pip_args = [
         "pip",
         "install",
@@ -258,17 +254,12 @@ def _download_native_dependencies(working_directory: Path, base_env: Path) -> li
             "--python-version",
             version,
             "--only-binary=:all:",
-            # These trees exist only for their compiled artifacts, and they overwrite the
-            # base environment during the merge. Without --no-deps each tree would carry the
-            # packages' full transitive closures, resolved independently of the base
-            # environment's, and clobber whatever it had resolved for anything they share.
-            # Today none of NATIVE_DEPENDENCIES has runtime dependencies, but that is a
-            # property of the current graph, not of this code. --no-deps cuts the other way
-            # too: a compiled transitive dependency of one of these packages would then only
-            # ever reach the bundle from _build_base_environment, built for whatever
-            # interpreter the build host runs, and fail to import on the other supported
-            # versions -- silently, since the artifact is present either way. If one shows up,
-            # add it to NATIVE_DEPENDENCIES.
+            # These trees exist only for their compiled artifacts and overwrite the base
+            # environment during the merge; --no-deps keeps each tree from resolving (and
+            # clobbering) full dependency closures independently. It also guards the other
+            # direction: a compiled transitive dependency of a NATIVE_DEPENDENCIES package
+            # would otherwise reach the bundle only from the base environment's single
+            # build-host artifact. If one shows up, add it to NATIVE_DEPENDENCIES.
             "--no-deps",
             *versioned_native_dependencies,
         ]
@@ -279,23 +270,15 @@ def _download_native_dependencies(working_directory: Path, base_env: Path) -> li
 def _copy_native_to_base_env(base_env: Path, native_dependency_paths: list[Path]) -> None:
     """Flatten the per-version native trees into the bundle, lowest version first.
 
-    ``native_dependency_paths`` is ordered by ascending Python version and the first tree
-    to supply a path wins, overwriting the base environment. The base environment resolved
-    these packages for whatever interpreter the build host happens to run, which is not a
-    version the bundle targets, so it must not decide which artifact ships.
+    ``native_dependency_paths`` is ascending by Python version; the first tree to supply a
+    path wins a filename collision, overwriting the base environment -- which resolved these
+    packages for the build host's interpreter, not one the bundle targets.
 
-    Which artifacts survive follows from how the wheels name their extension modules, so no
-    rule is needed per package. A version-specific name is unique per version and so cannot
-    collide: ``xxhash`` ships one wheel per version and every interpreter keeps its own
-    ``_xxhash.cpython-<tag>-<platform>.so``, and ``pyyaml`` is the same case, one wheel per
-    version installing ``yaml/_yaml.cpython-<tag>-<platform>.so``. An abi3 name is the same
-    for every version and so collides, and there the two cases differ. ``psutil`` publishes
-    a single abi3 wheel
-    that serves all of them, so every tree holds identical bytes and the collision is a
-    no-op. ``awscrt`` publishes a separate abi3 wheel per Python, each installing
-    ``_awscrt.abi3.so``, so the copies differ and only one can ship; abi3 is forward
-    compatible, which makes the one built for the lowest supported Python the only copy
-    that loads on all of them, and taking the first tree is what keeps it.
+    A version-specific name (xxhash's ``_xxhash.cpython-<tag>-*``, pyyaml's
+    ``yaml/_yaml.cpython-<tag>-*``) is unique per version and never collides. An abi3 name
+    (``_awscrt.abi3.so``, psutil's shared wheel) is identical across versions and always
+    collides; abi3 is forward-compatible only, so taking the first (lowest-version) tree is
+    what keeps the one copy every supported interpreter can load.
     """
     copied: set[Path] = set()
     for native_dependency_path in native_dependency_paths:
