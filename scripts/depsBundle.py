@@ -12,8 +12,15 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any
 
-SUPPORTED_PYTHON_VERSIONS = ["3.10", "3.11", "3.13"]
-NATIVE_DEPENDENCIES = ["xxhash", "psutil"]
+SUPPORTED_PYTHON_VERSIONS = ["3.9", "3.10", "3.11", "3.13"]
+# Packages with compiled extension modules, fetched once per supported Python version so the
+# bundle carries a loadable artifact for each interpreter.
+#
+# awscrt: wheels are not uniformly abi3 -- 3.9/3.10 get a version-specific
+# _awscrt.cpython-3{9,10}-<platform>.so, 3.11+ get the shared _awscrt.abi3.so.
+# pyyaml: ships a version-specific `_yaml` extension module and silently falls back to a
+# pure-Python parser when the artifact doesn't match, masking the same failure mode.
+NATIVE_DEPENDENCIES = ["xxhash", "psutil", "awscrt", "pyyaml"]
 
 PYSIDE6_VERSION = "6.8.3"
 PYSIDE6_PACKAGES = [f"PySide6-Essentials=={PYSIDE6_VERSION}", f"shiboken6=={PYSIDE6_VERSION}"]
@@ -165,7 +172,10 @@ def _get_dependencies(pyproject_dict: dict[str, Any]) -> list[str]:
 
 
 def _get_package_version_regex(package: str) -> re.Pattern:
-    return re.compile(rf"^{re.escape(package)} *(.*)$")
+    # Case-insensitive because `pip list` prints the distribution's own casing, which need not
+    # match how the requirement is spelled -- `pyyaml` is reported as `PyYAML`. The required
+    # whitespace keeps a prefix sibling like `pyyaml-env-tag` from matching.
+    return re.compile(rf"^{re.escape(package)}\s+(\S+)\s*$", re.IGNORECASE)
 
 
 def _get_package_version(package: str, install_path: Path) -> str:
@@ -179,19 +189,70 @@ def _get_package_version(package: str, install_path: Path) -> str:
     raise Exception(f"Could not find version for package {package}")
 
 
+_REQUIREMENT_PATTERN = re.compile(
+    r"(?P<name>[A-Za-z0-9._-]+)(?:\[(?P<extras>[^\]]*)\])?(?P<spec>.*)"
+)
+
+
+def _parse_requirement(requirement: str) -> tuple[str, list[str], str] | None:
+    """Split a requirement string into (name, extras, specifier), or None if it doesn't match
+    the `name[extras]spec` shape.
+    """
+    match = _REQUIREMENT_PATTERN.fullmatch(requirement)
+    if not match:
+        return None
+    extras = [extra for extra in (match.group("extras") or "").split(",") if extra]
+    return match.group("name"), extras, match.group("spec")
+
+
+def _add_console_extra(requirement: str) -> str:
+    """Add deadline's `console` extra to a requirement string, preserving its specifier."""
+    parsed = _parse_requirement(requirement)
+    if not parsed or parsed[0].lower() != "deadline":
+        return requirement
+    name, extras, spec = parsed
+    if "console" not in extras:
+        extras = [*extras, "console"]
+    return f"{name}[{','.join(extras)}]{spec}"
+
+
+def _requests_console_extra(requirement: str) -> bool:
+    """Whether a requirement string is a `deadline` requirement whose extras include
+    `console`.
+    """
+    parsed = _parse_requirement(requirement)
+    return parsed is not None and parsed[0].lower() == "deadline" and "console" in parsed[1]
+
+
 def _build_base_environment(working_directory: Path, dependencies: list[str]) -> Path:
     (working_directory / "base_env").mkdir()
     base_env_path = working_directory / "base_env"
+    # Requested here rather than declared in project.dependencies: those also resolve into
+    # the adaptor package under a platform tag with no usable awscrt wheel (see
+    # pyproject.toml).
+    dependencies_for_pip = [_add_console_extra(dep) for dep in dependencies]
+    if not any(_requests_console_extra(dep) for dep in dependencies_for_pip):
+        # Checks that something ends up requesting the console extra, not that
+        # _add_console_extra changed anything -- it's idempotent, so a `deadline[console]`
+        # dependency already in project.dependencies is valid input this guard must accept.
+        raise Exception(
+            "no dependency requests deadline's `console` extra after _add_console_extra; "
+            f"expected a requirement on `deadline` in: {dependencies}"
+        )
     base_env_pip_args = [
         "pip",
         "install",
         "--target",
         str(base_env_path),
         "--only-binary=:all:",
-        *dependencies,
+        *dependencies_for_pip,
     ]
     subprocess.run(base_env_pip_args, check=True)
     return base_env_path
+
+
+def _python_version_key(version: str) -> tuple[int, ...]:
+    return tuple(int(part) for part in version.split("."))
 
 
 def _download_native_dependencies(working_directory: Path, base_env: Path) -> list[Path]:
@@ -200,7 +261,9 @@ def _download_native_dependencies(working_directory: Path, base_env: Path) -> li
         for package_name in NATIVE_DEPENDENCIES
     ]
     native_dependency_paths = []
-    for version in SUPPORTED_PYTHON_VERSIONS:
+    # Ascending order is load-bearing: _copy_native_to_base_env resolves a filename
+    # collision in favour of the tree it sees first.
+    for version in sorted(SUPPORTED_PYTHON_VERSIONS, key=_python_version_key):
         native_dependency_path = working_directory / "native" / f"{version.replace('.', '_')}"
         native_dependency_paths.append(native_dependency_path)
         native_dependency_path.mkdir(parents=True)
@@ -212,6 +275,13 @@ def _download_native_dependencies(working_directory: Path, base_env: Path) -> li
             "--python-version",
             version,
             "--only-binary=:all:",
+            # These trees exist only for their compiled artifacts and overwrite the base
+            # environment during the merge; --no-deps keeps each tree from resolving (and
+            # clobbering) full dependency closures independently. It also guards the other
+            # direction: a compiled transitive dependency of a NATIVE_DEPENDENCIES package
+            # would otherwise reach the bundle only from the base environment's single
+            # build-host artifact. If one shows up, add it to NATIVE_DEPENDENCIES.
+            "--no-deps",
             *versioned_native_dependencies,
         ]
         subprocess.run(native_dependency_pip_args, check=True)
@@ -219,14 +289,29 @@ def _download_native_dependencies(working_directory: Path, base_env: Path) -> li
 
 
 def _copy_native_to_base_env(base_env: Path, native_dependency_paths: list[Path]) -> None:
+    """Flatten the per-version native trees into the bundle, lowest version first.
+
+    ``native_dependency_paths`` is ascending by Python version; the first tree to supply a
+    path wins a filename collision, overwriting the base environment -- which resolved these
+    packages for the build host's interpreter, not one the bundle targets.
+
+    A version-specific name (xxhash's ``_xxhash.cpython-<tag>-*``, pyyaml's
+    ``yaml/_yaml.cpython-<tag>-*``) is unique per version and never collides. An abi3 name
+    (``_awscrt.abi3.so``, psutil's shared wheel) is identical across versions and always
+    collides; abi3 is forward-compatible only, so taking the first (lowest-version) tree is
+    what keeps the one copy every supported interpreter can load.
+    """
+    copied: set[Path] = set()
     for native_dependency_path in native_dependency_paths:
         for file in native_dependency_path.rglob("*"):
             if file.is_file():
                 relative = file.relative_to(native_dependency_path)
+                if relative in copied:
+                    continue
                 in_base_env = base_env / relative
-                if not in_base_env.exists():
-                    in_base_env.parent.mkdir(parents=True, exist_ok=True)
-                    shutil.copy(str(file), str(in_base_env))
+                in_base_env.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy(str(file), str(in_base_env))
+                copied.add(relative)
 
 
 def _get_zip_path(working_directory: Path, project_dict: dict[str, Any]) -> Path:

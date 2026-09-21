@@ -7,27 +7,94 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 import tarfile
 from tempfile import TemporaryDirectory
 import hashlib
 import re
 
-from depsBundle import _strip_pyside6
+from packaging.requirements import Requirement
+from packaging.version import Version
 
-parser = argparse.ArgumentParser(description="Experimental: Builds a Blender extension")
-parser.add_argument("--version", required=False)
-args = parser.parse_args()
-version = args.version or "0.0.0"
+from depsBundle import _add_console_extra, _get_dependencies, _parse_requirement, _strip_pyside6
 
+if sys.version_info >= (3, 11):
+    import tomllib
+else:  # pragma: no cover - exercised on Python 3.9/3.10 only
+    import tomli as tomllib
 
 SUPPORTED_PLATFORMS = [
     "win_amd64",
-    "manylinux_2_28_x86_64",
+    # awscrt (pulled in below via the console extra) publishes manylinux2014_x86_64 /
+    # manylinux_2_17_x86_64 wheels for linux, not manylinux_2_28_x86_64: `pip download
+    # --platform manylinux_2_28_x86_64` does not treat those as compatible (pip's tag
+    # generation for an explicit --platform only walks to older manylinux aliases, it does
+    # not walk up), so requesting the newer tag here would make this download fail outright
+    # once the console extra is requested. manylinux2014_x86_64 resolved every dependency this
+    # script downloads, including awscrt, at the time of writing; verified via `pip download
+    # --only-binary=:all: --python-version=3.11 --platform=manylinux2014_x86_64
+    # "deadline[console]>=<floor>"`. That is a point-in-time check of today's wheel-publishing
+    # policy for the whole dependency closure, not a guarantee -- _verify_platform_download
+    # below is what catches it if a future dependency stops publishing a compatible wheel and
+    # pip silently backtracks under this narrower tag.
+    "manylinux2014_x86_64",
     "macosx_12_0_arm64",
     "macosx_12_0_x86_64",
 ]
 ADDON_NAME = "Deadline Cloud for Blender"
 ADDON_TAGLINE = "Submit to AWS Deadline Cloud"
+
+
+def _get_deadline_requirement(pyproject_contents: str) -> str:
+    """Find project.dependencies' `deadline` requirement in pyproject.toml and add the
+    console extra, mirroring depsBundle.py's _build_base_environment. Without this, the
+    extension's wheels/ directory silently ships without awscrt while the desktop
+    submitter's dependency bundle has it, since the two channels declare the requirement
+    independently and neither enforces the other.
+
+    Parses project.dependencies via tomllib rather than scanning raw text for the first
+    quoted `"deadline..."` line, so the result doesn't depend on file order -- a text scan
+    could pick up the `gui` extra's `deadline[gui,console]` line instead.
+    """
+    dependencies = _get_dependencies(tomllib.loads(pyproject_contents))
+    for dependency in dependencies:
+        parsed = _parse_requirement(dependency)
+        if parsed and parsed[0].lower() == "deadline":
+            return _add_console_extra(dependency)
+    raise RuntimeError("Could not find a `deadline` requirement in project.dependencies")
+
+
+def _requirement_floor(requirement: str) -> Version:
+    """Lowest version a requirement's `>=` specifier allows, used to check pip didn't
+    silently backtrack below it.
+    """
+    for spec in Requirement(requirement).specifier:
+        if spec.operator == ">=":
+            return Version(spec.version)
+    raise ValueError(f"requirement has no >= floor to check against: {requirement}")
+
+
+def _verify_platform_download(dest: str, platform: str, floor: Version) -> None:
+    """Fail the build if pip silently backtracked `deadline` below its floor, or resolved no
+    awscrt wheel, while resolving the console extra's dependency closure for `platform`. Pip
+    exits 0 either way, so nothing else catches a future dependency dropping support for
+    this platform's tag.
+
+    `dest` must hold only this platform's own download -- a shared destination across
+    platforms would let an earlier platform's compliant wheel mask a later one's backtrack.
+    """
+    deadline_wheels = glob(f"{dest}/deadline-*-py3-none-any.whl")
+    if not deadline_wheels:
+        raise RuntimeError(f"no deadline wheel resolved for platform {platform}")
+    resolved = [Version(os.path.basename(wheel).split("-")[1]) for wheel in deadline_wheels]
+    if not any(version >= floor for version in resolved):
+        raise RuntimeError(
+            f"deadline resolved to {[str(v) for v in resolved]} for platform {platform}, "
+            f"below the required floor {floor} -- pip silently backtracked instead of "
+            "failing the download"
+        )
+    if not glob(f"{dest}/awscrt-*"):
+        raise RuntimeError(f"no awscrt wheel resolved for platform {platform}")
 
 
 def strip_pyside6_wheel(whl_path: str) -> None:
@@ -51,81 +118,106 @@ def strip_pyside6_wheel(whl_path: str) -> None:
         os.rename(whl_path.removesuffix(".whl") + ".zip", whl_path)
 
 
-with TemporaryDirectory() as temp:
-    shutil.copytree(
-        Path(__file__).parent.parent
-        / "src"
-        / "deadline"
-        / "blender_submitter"
-        / "addons"
-        / "deadline_cloud_blender_submitter",
-        temp,
-        dirs_exist_ok=True,
-    )
+def _download_wheels(temp: str, requirement: str, floor: Version) -> None:
+    """Download `requirement` and its dependencies for every SUPPORTED_PLATFORMS entry into
+    `{temp}/wheels`, verifying each platform's resolution (see _verify_platform_download)
+    before merging it in.
 
-    # Find the version of the deadline library specified in project.toml
-    project_toml_contents = (Path(__file__).parent.parent / "pyproject.toml").read_text()
-    match = re.search(r"\"deadline\S* .+ .+\"", project_toml_contents)
-    if not match:
-        raise RuntimeError("Could not find the deadline version requirement in project.toml")
-    deadline_version_requirement = match.group(0).replace('"', "")
-    print(f"Found requirement {deadline_version_requirement} in project.toml")
+    Staging lives in its own TemporaryDirectory, not under `temp`: `temp` is zipped
+    wholesale into the shipped extension archive by the caller, and the per-platform copies
+    are unstripped (PySide6/shiboken6 stripping only runs against `{temp}/wheels`), so
+    staging under `temp` would ship that unstripped payload a second time.
+    """
+    wheels_dir = Path(f"{temp}/wheels")
+    wheels_dir.mkdir(parents=True, exist_ok=True)
+    with TemporaryDirectory() as staging:
+        for platform in SUPPORTED_PLATFORMS:
+            platform_dest = f"{staging}/{platform}"
+            os.makedirs(platform_dest, exist_ok=True)
+            subprocess.run(
+                [
+                    "pip",
+                    "download",
+                    requirement,
+                    "--dest",
+                    platform_dest,
+                    "--only-binary=:all:",
+                    "--python-version=3.11",
+                    f"--platform={platform}",
+                ],
+                check=True,
+            )
+            _verify_platform_download(platform_dest, platform, floor)
+            for wheel in glob(f"{platform_dest}/*"):
+                shutil.copy(wheel, wheels_dir)
 
-    # Extract the bare version spec (without extras) for downloading the sdist
-    deadline_version_spec = re.sub(r"\[.*?\]", "", deadline_version_requirement)
 
-    # Download the wheels of the deadline library and its dependencies
-    for platform in SUPPORTED_PLATFORMS:
-        subprocess.run(
-            [
-                "pip",
-                "download",
-                deadline_version_requirement,
-                "--dest",
-                f"{temp}/wheels",
-                "--only-binary=:all:",
-                "--python-version=3.11",
-                f"--platform={platform}",
-            ],
-            check=True,
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Experimental: Builds a Blender extension")
+    parser.add_argument("--version", required=False)
+    args = parser.parse_args()
+    version = args.version or "0.0.0"
+
+    with TemporaryDirectory() as temp:
+        shutil.copytree(
+            Path(__file__).parent.parent
+            / "src"
+            / "deadline"
+            / "blender_submitter"
+            / "addons"
+            / "deadline_cloud_blender_submitter",
+            temp,
+            dirs_exist_ok=True,
         )
 
-    # Strip PySide6/shiboken6 wheels to only keep the modules we need
-    for whl in glob(f"{temp}/wheels/[Pp][Yy][Ss]ide6*") + glob(f"{temp}/wheels/shiboken6*"):
-        print(f"Stripping {os.path.basename(whl)}")
-        strip_pyside6_wheel(whl)
+        # Find the version of the deadline library specified in project.toml
+        project_toml_contents = (Path(__file__).parent.parent / "pyproject.toml").read_text()
+        deadline_version_requirement = _get_deadline_requirement(project_toml_contents)
+        print(f"Found requirement {deadline_version_requirement} in project.toml")
 
-    # Extract THIRD_PARTY_LICENSES files from the deadline sdist
-    licenses_dir = Path(temp) / "THIRD_PARTY_LICENSES"
-    licenses_dir.mkdir()
-    with TemporaryDirectory() as sdist_dir:
-        subprocess.run(
-            [
-                "pip",
-                "download",
-                deadline_version_spec,
-                "--no-binary=:all:",
-                "--no-deps",
-                "--dest",
-                sdist_dir,
-            ],
-            check=True,
-        )
-        sdist_tarball = next(Path(sdist_dir).glob("deadline-*.tar.gz"))
-        with tarfile.open(sdist_tarball) as tar:
-            for member in tar.getmembers():
-                if member.name.endswith("/THIRD_PARTY_LICENSES"):
-                    # e.g. deadline-0.54.2/scripts/attributions/approved_text/Linux/THIRD_PARTY_LICENSES
-                    platform_name = Path(member.name).parent.name
-                    content = tar.extractfile(member)
-                    if content:
-                        (licenses_dir / f"THIRD_PARTY_LICENSES-{platform_name}").write_bytes(
-                            content.read()
-                        )
-    wheel_filenames = [os.path.basename(wheel) for wheel in glob(f"{temp}/wheels/*")]
-    wheel_block = "\n".join([f'"./wheels/{filename}",' for filename in wheel_filenames])
+        # Extract the bare version spec (without extras) for downloading the sdist
+        deadline_version_spec = re.sub(r"\[.*?\]", "", deadline_version_requirement)
+        deadline_floor = _requirement_floor(deadline_version_requirement)
 
-    manifest = f"""schema_version = "1.0.0"
+        # Download the wheels of the deadline library and its dependencies
+        _download_wheels(temp, deadline_version_requirement, deadline_floor)
+
+        # Strip PySide6/shiboken6 wheels to only keep the modules we need
+        for whl in glob(f"{temp}/wheels/[Pp][Yy][Ss]ide6*") + glob(f"{temp}/wheels/shiboken6*"):
+            print(f"Stripping {os.path.basename(whl)}")
+            strip_pyside6_wheel(whl)
+
+        # Extract THIRD_PARTY_LICENSES files from the deadline sdist
+        licenses_dir = Path(temp) / "THIRD_PARTY_LICENSES"
+        licenses_dir.mkdir()
+        with TemporaryDirectory() as sdist_dir:
+            subprocess.run(
+                [
+                    "pip",
+                    "download",
+                    deadline_version_spec,
+                    "--no-binary=:all:",
+                    "--no-deps",
+                    "--dest",
+                    sdist_dir,
+                ],
+                check=True,
+            )
+            sdist_tarball = next(Path(sdist_dir).glob("deadline-*.tar.gz"))
+            with tarfile.open(sdist_tarball) as tar:
+                for member in tar.getmembers():
+                    if member.name.endswith("/THIRD_PARTY_LICENSES"):
+                        # e.g. deadline-0.54.2/scripts/attributions/approved_text/Linux/THIRD_PARTY_LICENSES
+                        platform_name = Path(member.name).parent.name
+                        content = tar.extractfile(member)
+                        if content:
+                            (licenses_dir / f"THIRD_PARTY_LICENSES-{platform_name}").write_bytes(
+                                content.read()
+                            )
+        wheel_filenames = [os.path.basename(wheel) for wheel in glob(f"{temp}/wheels/*")]
+        wheel_block = "\n".join([f'"./wheels/{filename}",' for filename in wheel_filenames])
+
+        manifest = f"""schema_version = "1.0.0"
 
 id = "deadline_cloud"
 version = "{version}"
@@ -155,50 +247,54 @@ wheels = [
 network = "Connect to AWS Deadline Cloud and upload assets"
 files = "Read related assets"
     """
-    with open(str(Path(temp) / "blender_manifest.toml"), "w") as file:
-        file.write(manifest)
+        with open(str(Path(temp) / "blender_manifest.toml"), "w") as file:
+            file.write(manifest)
 
-    Path("dist_extras").mkdir(exist_ok=True)
+        Path("dist_extras").mkdir(exist_ok=True)
 
-    zip = shutil.make_archive("dist_extras/deadline-cloud-blender-addon", "zip", temp)
+        zip = shutil.make_archive("dist_extras/deadline-cloud-blender-addon", "zip", temp)
 
-    with open(zip, "rb") as file:
-        bytes = file.read()
-        sha256 = hashlib.sha256(bytes).hexdigest()
+        with open(zip, "rb") as file:
+            bytes = file.read()
+            sha256 = hashlib.sha256(bytes).hexdigest()
 
-    with open(Path("dist_extras") / "index.json", "w") as file:
-        file.write(
-            json.dumps(
-                {
-                    "version": "v1",
-                    "blocklist": [],
-                    "data": [
-                        {
-                            "schema_version": "1.0.0",
-                            "id": "deadline_cloud",
-                            "name": ADDON_NAME,
-                            "tagline": ADDON_TAGLINE,
-                            "version": version,
-                            "type": "add-on",
-                            "maintainer": "AWS",
-                            "license": ["SPDX:Apache-2.0"],
-                            "blender_version_min": "4.2.0",
-                            "website": "https://github.com/aws-deadline/deadline-cloud-for-blender",
-                            "copyright": [
-                                "Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved."
-                            ],
-                            "permissions": {
-                                "network": "Connect to AWS Deadline Cloud and upload assets",
-                                "files": "Read related assets",
-                            },
-                            "tags": ["Render"],
-                            "python_versions": ["3.11"],
-                            "archive_url": "./deadline-cloud-blender-addon.zip",
-                            "archive_size": Path(zip).stat().st_size,
-                            "archive_hash": f"sha256:{sha256}",
-                        }
-                    ],
-                },
-                indent=2,
+        with open(Path("dist_extras") / "index.json", "w") as file:
+            file.write(
+                json.dumps(
+                    {
+                        "version": "v1",
+                        "blocklist": [],
+                        "data": [
+                            {
+                                "schema_version": "1.0.0",
+                                "id": "deadline_cloud",
+                                "name": ADDON_NAME,
+                                "tagline": ADDON_TAGLINE,
+                                "version": version,
+                                "type": "add-on",
+                                "maintainer": "AWS",
+                                "license": ["SPDX:Apache-2.0"],
+                                "blender_version_min": "4.2.0",
+                                "website": "https://github.com/aws-deadline/deadline-cloud-for-blender",
+                                "copyright": [
+                                    "Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved."
+                                ],
+                                "permissions": {
+                                    "network": "Connect to AWS Deadline Cloud and upload assets",
+                                    "files": "Read related assets",
+                                },
+                                "tags": ["Render"],
+                                "python_versions": ["3.11"],
+                                "archive_url": "./deadline-cloud-blender-addon.zip",
+                                "archive_size": Path(zip).stat().st_size,
+                                "archive_hash": f"sha256:{sha256}",
+                            }
+                        ],
+                    },
+                    indent=2,
+                )
             )
-        )
+
+
+if __name__ == "__main__":
+    main()
