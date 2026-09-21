@@ -232,12 +232,9 @@ def _build_base_environment(working_directory: Path, dependencies: list[str]) ->
     # pyproject.toml).
     dependencies_for_pip = [_add_console_extra(dep) for dep in dependencies]
     if not any(_requests_console_extra(dep) for dep in dependencies_for_pip):
-        # Checks the postcondition (something ends up requesting the console extra), not
-        # that _add_console_extra changed anything: it is idempotent, so a `deadline`
-        # requirement that already declares [console] in project.dependencies is a correct
-        # input that would otherwise fail this guard. A rename, wrapped requirement, or
-        # missing `deadline` entry still fails loudly here instead of silently shipping the
-        # bundle with no awscrt.
+        # Checks that something ends up requesting the console extra, not that
+        # _add_console_extra changed anything -- it's idempotent, so a `deadline[console]`
+        # dependency already in project.dependencies is valid input this guard must accept.
         raise Exception(
             "no dependency requests deadline's `console` extra after _add_console_extra; "
             f"expected a requirement on `deadline` in: {dependencies}"

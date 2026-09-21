@@ -161,10 +161,8 @@ def test_build_base_environment_requests_the_console_extra(tmp_path, monkeypatch
 def test_build_base_environment_accepts_a_deadline_requirement_already_requesting_console(
     tmp_path, monkeypatch
 ):
-    """_add_console_extra is idempotent, so a `deadline[console]` requirement declared
-    directly in project.dependencies is a correct input, not a config the guard should
-    reject. A changed-something check on the guard would fail this case even though pip
-    ends up asking for the console extra either way.
+    """_add_console_extra is idempotent, so a `deadline[console]` requirement already in
+    project.dependencies must not trip the guard below.
     """
     monkeypatch.setattr(
         depsBundle.subprocess, "run", lambda args, **kwargs: subprocess.CompletedProcess(args, 0)
@@ -175,10 +173,7 @@ def test_build_base_environment_accepts_a_deadline_requirement_already_requestin
 
 
 def test_build_base_environment_raises_when_nothing_requests_console(tmp_path, monkeypatch):
-    """The guard still fails loudly on the drift it exists to catch: no requirement that
-    _add_console_extra recognizes as `deadline`, so nothing ends up requesting the console
-    extra.
-    """
+    """Still raises for the actual drift case: nothing recognizable as `deadline`."""
     monkeypatch.setattr(
         depsBundle.subprocess, "run", lambda args, **kwargs: subprocess.CompletedProcess(args, 0)
     )
@@ -205,16 +200,9 @@ def test_add_console_extra_pins_behavior(requirement, expected):
 
 
 def test_add_console_extra_makes_the_real_base_dependencies_request_console():
-    """Stronger than the parametrized behavior test above: proves the injection takes effect
-    against pyproject.toml's actual dependencies, not just a synthetic requirement string.
-
-    Checks the postcondition -- that some entry ends up requesting deadline's ``console``
-    extra -- rather than that ``_add_console_extra`` changed something. ``_add_console_extra``
-    is idempotent, so if ``project.dependencies`` ever declared ``deadline[console]``
-    directly, a changed-something check would fail a config that is already correct. This
-    still fails loudly if the `deadline` requirement is ever renamed, wrapped, or split --
-    say the base dependency became ``deadline-cloud`` -- which is exactly how the bundle
-    would otherwise ship with no awscrt and no build-time signal.
+    """Stronger than the parametrized test above: checks the same postcondition against
+    pyproject.toml's real dependencies, so a rename of the `deadline` requirement fails
+    this test too, not just a synthetic string.
     """
     pyproject_dict = tomllib.loads(PYPROJECT.read_text(encoding="utf-8"))
     dependencies = depsBundle._get_dependencies(pyproject_dict)

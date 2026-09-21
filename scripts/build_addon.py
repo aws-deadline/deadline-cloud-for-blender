@@ -52,11 +52,9 @@ def _get_deadline_requirement(pyproject_contents: str) -> str:
     submitter's dependency bundle has it, since the two channels declare the requirement
     independently and neither enforces the other.
 
-    Parses project.dependencies via tomllib rather than scanning the file's raw text for the
-    first quoted `"deadline..."` line: the substring scan this replaced picked up whichever
-    `"deadline..."` line appeared first in the file, which would have silently become the
-    `gui` extra's `deadline[gui,console]` line -- pulling PySide6 into the extension -- had
-    pyproject.toml ever been reordered.
+    Parses project.dependencies via tomllib rather than scanning raw text for the first
+    quoted `"deadline..."` line, so the result doesn't depend on file order -- a text scan
+    could pick up the `gui` extra's `deadline[gui,console]` line instead.
     """
     dependencies = _get_dependencies(tomllib.loads(pyproject_contents))
     for dependency in dependencies:
@@ -67,8 +65,8 @@ def _get_deadline_requirement(pyproject_contents: str) -> str:
 
 
 def _requirement_floor(requirement: str) -> Version:
-    """The version a requirement's `>=` specifier allows as its lowest, used to check pip's
-    resolution didn't silently backtrack below the floor this PR depends on.
+    """Lowest version a requirement's `>=` specifier allows, used to check pip didn't
+    silently backtrack below it.
     """
     for spec in Requirement(requirement).specifier:
         if spec.operator == ">=":
@@ -78,13 +76,12 @@ def _requirement_floor(requirement: str) -> Version:
 
 def _verify_platform_download(dest: str, platform: str, floor: Version) -> None:
     """Fail the build if pip silently backtracked `deadline` below its floor, or resolved no
-    awscrt wheel, while resolving the console extra's dependency closure for `platform`.
+    awscrt wheel, while resolving the console extra's dependency closure for `platform`. Pip
+    exits 0 either way, so nothing else catches a future dependency dropping support for
+    this platform's tag.
 
-    Both are the same silent-failure mechanism this PR exists to close on macOS/the adaptor,
-    reachable here instead if some future transitive dependency stops publishing a wheel
-    compatible with this platform's tag and pip backtracks to satisfy the rest of the
-    closure. `dest` must hold only this platform's own download (a shared destination across
-    platforms would let an earlier platform's compliant wheel mask a later one's backtrack).
+    `dest` must hold only this platform's own download -- a shared destination across
+    platforms would let an earlier platform's compliant wheel mask a later one's backtrack.
     """
     deadline_wheels = glob(f"{dest}/deadline-*-py3-none-any.whl")
     if not deadline_wheels:
@@ -123,17 +120,13 @@ def strip_pyside6_wheel(whl_path: str) -> None:
 
 def _download_wheels(temp: str, requirement: str, floor: Version) -> None:
     """Download `requirement` and its dependencies for every SUPPORTED_PLATFORMS entry into
-    `{temp}/wheels`, verifying each platform's resolution before merging it in.
+    `{temp}/wheels`, verifying each platform's resolution (see _verify_platform_download)
+    before merging it in.
 
-    Each platform downloads into its own destination under a staging TemporaryDirectory --
-    not `{temp}/wheels` directly, and not anywhere under `temp` at all -- for two reasons:
-    _verify_platform_download needs to see what THIS platform's resolution actually
-    produced (a shared destination would let an earlier, compliant platform's deadline wheel
-    mask a later platform's silent backtrack below the floor), and `temp` is zipped wholesale
-    into the shipped extension archive by the caller. The per-platform staging copies are
-    unstripped (PySide6/shiboken6 stripping only ever runs against `{temp}/wheels`), so
-    staging under `temp` would ship that unstripped payload a second time with nothing in
-    blender_manifest.toml to reveal it.
+    Staging lives in its own TemporaryDirectory, not under `temp`: `temp` is zipped
+    wholesale into the shipped extension archive by the caller, and the per-platform copies
+    are unstripped (PySide6/shiboken6 stripping only runs against `{temp}/wheels`), so
+    staging under `temp` would ship that unstripped payload a second time.
     """
     wheels_dir = Path(f"{temp}/wheels")
     wheels_dir.mkdir(parents=True, exist_ok=True)

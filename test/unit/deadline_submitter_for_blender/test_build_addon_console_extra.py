@@ -51,18 +51,8 @@ gui = [
 
 
 def test_get_deadline_requirement_reads_project_dependencies_not_the_gui_extra():
-    """Pins that the extraction reads project.dependencies specifically, not whichever
-    `deadline` requirement happens to appear first in the file.
-
-    Puts the `gui` extra's `deadline[gui,console]` line before `dependencies` in the text --
-    a naive first-match scan over raw text would return that line instead. tomllib table
-    access does not care about a file's textual order, so this still returns
-    project.dependencies' entry.
-
-    Load-bearing: if this picked up the `gui` extra's line, build_addon.py would pull
-    PySide6 into the extension's wheels/, which -- combined with the manylinux2014_x86_64
-    platform tag change in the same diff as this fix -- would turn into a hard `pip download`
-    failure (PySide6-Essentials only ships manylinux_2_28_x86_64 wheels for linux).
+    """Pins that the extraction reads project.dependencies specifically, regardless of where
+    in the file it appears -- not whichever `deadline` requirement comes first textually.
     """
     pyproject_contents = """
 [project.optional-dependencies]
@@ -126,11 +116,8 @@ def test_verify_platform_download_raises_when_awscrt_is_missing(tmp_path):
 
 
 def test_download_wheels_leaves_only_wheels_under_temp(tmp_path, monkeypatch):
-    """Regression test: the per-platform staging area used to be nested under `temp`, so it
-    rode along when `temp` was zipped wholesale into the shipped extension archive at
-    build_addon.main() -- including unstripped PySide6/shiboken6 payloads that the allowlist
-    stripping exists to remove, with nothing in blender_manifest.toml to reveal the extra
-    megabytes.
+    """Regression test: staging used to be nested under `temp`, which is zipped wholesale
+    into the shipped extension archive.
     """
     monkeypatch.setattr(build_addon, "SUPPORTED_PLATFORMS", ["win_amd64", "manylinux2014_x86_64"])
 
