@@ -96,7 +96,11 @@ def setup_linux(python_version, install_x11=False):
         == 0
         else "yum"
     )
-    run([pkg_mgr, "update", "-y"])
+    # No blanket `update` here on purpose. The CI runner is a persistent reserved-capacity
+    # instance whose environment CodeBuild provisions, including third-party repos we do not
+    # control, so a full-system upgrade pulls unrelated packages (docker, runc, the kernel) and
+    # fails on any repo whose signing key has rotated. Everything the tests need is installed
+    # explicitly: the X11 set by the buildspec, and Blender below.
 
     # Optional, for running tests on a headless runner.
     if install_x11:
@@ -445,6 +449,12 @@ def setup_macos(python_version):
 
 
 if __name__ == "__main__":
+    # CodeBuild captures stdout through a pipe, so Python block-buffers our own prints while the
+    # subprocesses we spawn write to the same fd directly. That reorders the log: the "Running: ..."
+    # line for a failing command lands after that command's output, which makes failures look like
+    # they came from the wrong step. Flush per line so the log reads in execution order.
+    sys.stdout.reconfigure(line_buffering=True)
+
     parser = argparse.ArgumentParser(description="Setup Blender test environment")
     parser.add_argument(
         "--public-urls", action="store_true", help="Download from public URLs instead of S3"
