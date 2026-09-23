@@ -1,3 +1,7 @@
+## 0.6.9 (2026-09-22)
+
+### Bug Fixes
+* Fixed AWS Console sign-in failing to authenticate from the Blender submitter. The minimum `deadline` dependency is now 0.60.4 with the `console` extra, ensuring `awscrt` is properly included and console-based authentication works correctly. (#392)
 ## 0.6.8 (2026-09-11)
 
 ### Features
