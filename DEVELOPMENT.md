@@ -89,7 +89,7 @@ hatch run integ-ci:setup --install-x11
 **Setup Script Options:**
 - `--public-urls`: Download from blender.org instead of S3 with SHA256 checksum verification
 - `--install-x11`: Install X11 libraries and start Xvfb on Linux (for headless rendering)
-- `--versions`: Specify Blender versions to install (e.g., `4.5.4 4.2.12`)
+- `--versions`: Specify Blender versions to install (e.g., `4.5.13 4.2.23`)
 - `--python-version`: Specify Python version for pip installs (e.g., `3.11`).
 
 The `pipeline/setup-runner.py` script downloads and installs Blender versions, then installs the submitter addon.
@@ -107,11 +107,11 @@ These instructions make the following assumptions:
     - `cp -r src/deadline/blender_submitter/addons/ ~/DeadlineCloudSubmitter/Submitters/Blender/python/addons`
 1. Install addon dependencies:
     - For Blender 3.6-4.0 (uses python 3.10):
-        - Windows: `pip install --python-version 3.10 --only-binary=:all: "deadline[gui]" blender-qt-stylesheet -t %USERPROFILE%\DeadlineCloudSubmitter\Submitters\Blender\python\modules`
-        - Linux/macOS: `pip install --python-version 3.10 --only-binary=:all: "deadline[gui]" blender-qt-stylesheet -t ~/DeadlineCloudSubmitter/Submitters/Blender/python/modules`
+        - Windows: `pip install --python-version 3.10 --only-binary=:all: "deadline-cloud-for-blender[gui]" blender-qt-stylesheet -t %USERPROFILE%\DeadlineCloudSubmitter\Submitters\Blender\python\modules`
+        - Linux/macOS: `pip install --python-version 3.10 --only-binary=:all: "deadline-cloud-for-blender[gui]" blender-qt-stylesheet -t ~/DeadlineCloudSubmitter/Submitters/Blender/python/modules`
     - For Blender 4.1-4.5 (uses python 3.11):
-        - Windows: `pip install --python-version 3.11 --only-binary=:all: "deadline[gui]" blender-qt-stylesheet -t %USERPROFILE%\DeadlineCloudSubmitter\Submitters\Blender\python\modules`
-        - Linux/macOS: `pip install --python-version 3.11 --only-binary=:all: "deadline[gui]" blender-qt-stylesheet -t ~/DeadlineCloudSubmitter/Submitters/Blender/python/modules`
+        - Windows: `pip install --python-version 3.11 --only-binary=:all: "deadline-cloud-for-blender[gui]" blender-qt-stylesheet -t %USERPROFILE%\DeadlineCloudSubmitter\Submitters\Blender\python\modules`
+        - Linux/macOS: `pip install --python-version 3.11 --only-binary=:all: "deadline-cloud-for-blender[gui]" blender-qt-stylesheet -t ~/DeadlineCloudSubmitter/Submitters/Blender/python/modules`
 1. Add a script directory in Blender by "Edit" > "Preferences" > "File Paths" > "Script Directories"
     * Windows: `%USERPROFILE%\DeadlineCloudSubmitter\Submitters\Blender\python`
     * Linux/macOS: `~/DeadlineCloudSubmitter/Submitters/Blender/python`

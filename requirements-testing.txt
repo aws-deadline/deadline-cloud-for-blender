@@ -1,10 +1,17 @@
-black == 25.*
+black == 26.*; python_version >= "3.10"
+black == 25.*; python_version < "3.10"
 coverage[toml] == 7.*
 moto[s3,sts] == 5.*
-mypy == 1.*
-pytest == 8.*
+mypy == 2.*; python_version >= "3.10"
+mypy == 1.*; python_version < "3.10"
+pytest == 9.*; python_version >= "3.10"
+pytest == 8.*; python_version < "3.10"
 pytest-cov == 7.*
 pytest-xdist == 3.*
-ruff == 0.15.*
-twine == 6.*
+ruff == 0.16.*
+twine == 7.*; python_version >= "3.10"
+twine == 6.*; python_version < "3.10"
 types-pyyaml == 6.*
+# Both are used by test_console_signin_dependencies.py, which parses pyproject.toml.
+packaging >= 22
+tomli == 2.*; python_version < "3.11"

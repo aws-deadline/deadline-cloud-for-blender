@@ -1,3 +1,47 @@
+## 0.6.9 (2026-09-22)
+
+### Bug Fixes
+* Fixed AWS Console sign-in failing to authenticate from the Blender submitter. The minimum `deadline` dependency is now 0.60.4 with the `console` extra, ensuring `awscrt` is properly included and console-based authentication works correctly. (#392)
+## 0.6.8 (2026-09-11)
+
+### Features
+* Added support for Blender 5.2. (#388)
+
+### Bug Fixes
+* Client script failures (e.g., exceptions during render actions) are now properly surfaced with meaningful error messages instead of silently exiting with code 0. Additionally, renders that completed successfully before a failure are no longer incorrectly marked as failed. (#387)
+* Fixed named pipe existence checks failing on Windows with Python 3.13, where an internal CPython change caused `os.path.exists()` to always return `False` for Windows named pipes. (`2834a44`)
+
+## 0.6.7 (2026-07-27)
+
+### Features
+* The Blender submitter now uses a unified BaseSubmitter architecture, providing a more consistent and reliable job submission experience. (#366)
+## 0.6.6 (2026-07-20)
+
+### Features
+* The Blender render submitter now runs pre-GUI hooks before opening the submission dialog, allowing studios to pre-populate dialog fields. Hooks are sourced from the DEADLINE_HOOKS_DIR environment variable, and the confirmation prompt is skipped when `auto_accept` is enabled in settings. (#370)
+## 0.6.5 (2026-06-22)
+
+### Features
+* The submitter now enables the deadline-cloud-v2 conda channel, allowing jobs to use packages from this channel when rendering on Deadline Cloud. `7ccbc75`
+## 0.6.4 (2026-06-03)
+
+### Features
+* Added support for Blender 5.1. `9a54a02`
+## 0.6.3 (2026-04-23)
+
+### Features
+* You will now be notified within Blender if a newer version of the submitter is available. (#329)
+
+### Bug Fixes
+* UDIM tiled image files are now correctly resolved and included in job attachments. Previously, textures using UDIM tiling may not have been uploaded with the job. (#339)
+## 0.6.2 (2026-04-01)
+
+
+### Features
+* bundle GUI dependencies in the installer (#331) ([`89716ae`](https://github.com/aws-deadline/deadline-cloud-for-blender/commit/89716aea8855721e96f4bfb4feb7f99aa2a45189))
+
+
+
 ## 0.6.1 (2026-02-20)
 
 

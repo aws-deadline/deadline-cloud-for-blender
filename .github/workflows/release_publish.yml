@@ -93,7 +93,7 @@ jobs:
   IsCondaReady:
     needs: Publish
     runs-on: ubuntu-latest
-    environment: release
+    environment: release-gate
     name: “Is the Conda Package available in all ProdWaves and have you ran any required manual tests?”
     steps:
       - run: |
@@ -131,20 +131,20 @@ jobs:
         id-token: write
       steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.TagRelease.outputs.tag }}
           fetch-depth: 0
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: '3.9'
+          python-version: ${{ needs.TagRelease.outputs.build-python-version }}
       - name: Install dependencies
         run: |
-          pip install --upgrade hatch "virtualenv<21"
+          pip install --upgrade hatch
       - name: Build
         run: hatch -v build
       # # See https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/configuring-openid-connect-in-pypi
       - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
 

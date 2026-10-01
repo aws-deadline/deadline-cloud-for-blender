@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import fnmatch
 import re
 import shutil
 import subprocess
@@ -11,8 +12,135 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any
 
-SUPPORTED_PYTHON_VERSIONS = ["3.10", "3.11"]
-NATIVE_DEPENDENCIES = ["xxhash", "psutil"]
+SUPPORTED_PYTHON_VERSIONS = ["3.9", "3.10", "3.11", "3.13"]
+# Packages with compiled extension modules, fetched once per supported Python version so the
+# bundle carries a loadable artifact for each interpreter.
+#
+# awscrt: wheels are not uniformly abi3 -- 3.9/3.10 get a version-specific
+# _awscrt.cpython-3{9,10}-<platform>.so, 3.11+ get the shared _awscrt.abi3.so.
+# pyyaml: ships a version-specific `_yaml` extension module and silently falls back to a
+# pure-Python parser when the artifact doesn't match, masking the same failure mode.
+NATIVE_DEPENDENCIES = ["xxhash", "psutil", "awscrt", "pyyaml"]
+
+PYSIDE6_VERSION = "6.8.3"
+PYSIDE6_PACKAGES = [f"PySide6-Essentials=={PYSIDE6_VERSION}", f"shiboken6=={PYSIDE6_VERSION}"]
+
+# Files to keep from PySide6 and shiboken6 pip packages after installation.
+# Derived from the deadline-cloud pyinstaller allowlist to keep the bundle minimal.
+# Everything not matching these patterns is deleted before zipping.
+PYSIDE6_ALLOWLIST = {
+    # -- shiboken6 --
+    "shiboken6/__init__.py",
+    "shiboken6/_config.py",
+    "shiboken6/Shiboken.abi3.so",
+    "shiboken6/Shiboken.pyd",
+    "shiboken6/libshiboken6.abi3.*.dylib",
+    "shiboken6/libshiboken6.abi3.so.*",
+    "shiboken6/shiboken6.abi3.dll",
+    "shiboken6/VCRUNTIME140.dll",
+    "shiboken6/VCRUNTIME140_1.dll",
+    "shiboken6/MSVCP140.dll",
+    "shiboken6-*.dist-info/*",
+    "shiboken6-*.dist-info/**/*",
+    # -- PySide6 package metadata --
+    "PySide6/__init__.py",
+    "PySide6/_config.py",
+    "PySide6/_git_pyside_version.py",
+    "PySide6-*.dist-info/*",
+    "PySide6-*.dist-info/**/*",
+    "PySide6_Essentials-*.dist-info/*",
+    # -- PySide6 Python bindings --
+    "PySide6/Qt*.abi3.so",
+    "PySide6/QtCore.pyd",
+    "PySide6/QtGui.pyd",
+    "PySide6/QtWidgets.pyd",
+    "PySide6/QtDBus.pyd",
+    "PySide6/QtSvg.pyd",
+    "PySide6/QtNetwork.pyd",
+    "PySide6/QtOpenGL.pyd",
+    "PySide6/QtOpenGLWidgets.pyd",
+    # -- PySide6/shiboken6 shared libraries --
+    "PySide6/libpyside6.abi3.*.dylib",
+    "PySide6/libpyside6.abi3.so.*",
+    "PySide6/pyside6.abi3.dll",
+    # -- Windows MSVC runtime bundled with PySide6 --
+    "PySide6/VCRUNTIME140.dll",
+    "PySide6/VCRUNTIME140_1.dll",
+    "PySide6/MSVCP140.dll",
+    "PySide6/MSVCP140_1.dll",
+    "PySide6/MSVCP140_2.dll",
+    # -- Windows OpenGL software renderer --
+    "PySide6/opengl32sw.dll",
+    # -- Qt core DLLs (Windows) --
+    "PySide6/Qt6Core.dll",
+    "PySide6/Qt6Gui.dll",
+    "PySide6/Qt6Widgets.dll",
+    "PySide6/Qt6DBus.dll",
+    "PySide6/Qt6Svg.dll",
+    # -- Qt frameworks (macOS) --
+    # fnmatch's ** doesn't do recursive matching, so we need both * and **/* patterns
+    "PySide6/Qt/lib/QtCore.framework/*",
+    "PySide6/Qt/lib/QtCore.framework/**/*",
+    "PySide6/Qt/lib/QtGui.framework/*",
+    "PySide6/Qt/lib/QtGui.framework/**/*",
+    "PySide6/Qt/lib/QtWidgets.framework/*",
+    "PySide6/Qt/lib/QtWidgets.framework/**/*",
+    "PySide6/Qt/lib/QtDBus.framework/*",
+    "PySide6/Qt/lib/QtDBus.framework/**/*",
+    "PySide6/Qt/lib/QtSvg.framework/*",
+    "PySide6/Qt/lib/QtSvg.framework/**/*",
+    # -- Qt shared libraries (Linux) --
+    "PySide6/Qt/lib/libQt6Core.so.*",
+    "PySide6/Qt/lib/libQt6Gui.so.*",
+    "PySide6/Qt/lib/libQt6Widgets.so.*",
+    "PySide6/Qt/lib/libQt6DBus.so.*",
+    "PySide6/Qt/lib/libQt6Svg.so.*",
+    "PySide6/Qt/lib/libQt6XcbQpa.so.*",
+    "PySide6/Qt/lib/libQt6WaylandClient.so.*",
+    "PySide6/Qt/lib/libQt6WaylandEglClientHwIntegration.so.*",
+    "PySide6/Qt/lib/libQt6WlShellIntegration.so.*",
+    "PySide6/Qt/lib/libQt6OpenGL.so.*",
+    "PySide6/Qt/lib/libQt6EglFSDeviceIntegration.so.*",
+    "PySide6/Qt/lib/libQt6EglFsKmsSupport.so.*",
+    # ICU (required by Qt6Core on Linux)
+    "PySide6/Qt/lib/libicui18n.so.*",
+    "PySide6/Qt/lib/libicuuc.so.*",
+    "PySide6/Qt/lib/libicudata.so.*",
+    # -- Qt plugins (macOS/Linux: Qt/plugins/, Windows: plugins/) --
+    # platforms
+    "PySide6/Qt/plugins/platforms/libqcocoa.dylib",
+    "PySide6/Qt/plugins/platforms/libqoffscreen.*",
+    "PySide6/Qt/plugins/platforms/libqminimal.*",
+    "PySide6/Qt/plugins/platforms/libqminimalegl.so",
+    "PySide6/Qt/plugins/platforms/libqxcb.so",
+    "PySide6/Qt/plugins/platforms/libqeglfs.so",
+    "PySide6/Qt/plugins/platforms/libqlinuxfb.so",
+    "PySide6/Qt/plugins/platforms/libqvkkhrdisplay.so",
+    "PySide6/Qt/plugins/platforms/libqvnc.so",
+    "PySide6/Qt/plugins/platforms/libqwayland*.so",
+    "PySide6/plugins/platforms/qwindows.dll",
+    "PySide6/plugins/platforms/qminimal.dll",
+    "PySide6/plugins/platforms/qoffscreen.dll",
+    "PySide6/plugins/platforms/qdirect2d.dll",
+    # styles
+    "PySide6/Qt/plugins/styles/libqmacstyle.dylib",
+    "PySide6/plugins/styles/qwindowsvistastyle.dll",
+    "PySide6/plugins/styles/qmodernwindowsstyle.dll",
+    # iconengines
+    "PySide6/Qt/plugins/iconengines/libqsvgicon.*",
+    "PySide6/plugins/iconengines/qsvgicon.dll",
+    # imageformats (svg only)
+    "PySide6/Qt/plugins/imageformats/libqsvg.*",
+    "PySide6/plugins/imageformats/qsvg.dll",
+    # wayland (Linux)
+    "PySide6/Qt/plugins/wayland-shell-integration/lib*.so",
+    "PySide6/Qt/plugins/wayland-decoration-client/lib*.so",
+    # platform themes (Linux)
+    "PySide6/Qt/plugins/platformthemes/lib*.so",
+    # -- Qt translations --
+    "PySide6/Qt/translations/*",
+    "PySide6/translations/*",
+}
 
 
 def _get_project_dict() -> dict[str, Any]:
@@ -40,11 +168,14 @@ def _get_dependencies(pyproject_dict: dict[str, Any]) -> list[str]:
 
     dependencies = pyproject_dict["project"]["dependencies"]
     deps_noopenjd = filter(lambda dep: not dep.startswith("openjd"), dependencies)
-    return list(map(lambda dep: dep.replace(" ", ""), deps_noopenjd))
+    return [dep.replace(" ", "") for dep in deps_noopenjd]
 
 
 def _get_package_version_regex(package: str) -> re.Pattern:
-    return re.compile(rf"^{re.escape(package)} *(.*)$")
+    # Case-insensitive because `pip list` prints the distribution's own casing, which need not
+    # match how the requirement is spelled -- `pyyaml` is reported as `PyYAML`. The required
+    # whitespace keeps a prefix sibling like `pyyaml-env-tag` from matching.
+    return re.compile(rf"^{re.escape(package)}\s+(\S+)\s*$", re.IGNORECASE)
 
 
 def _get_package_version(package: str, install_path: Path) -> str:
@@ -58,19 +189,70 @@ def _get_package_version(package: str, install_path: Path) -> str:
     raise Exception(f"Could not find version for package {package}")
 
 
+_REQUIREMENT_PATTERN = re.compile(
+    r"(?P<name>[A-Za-z0-9._-]+)(?:\[(?P<extras>[^\]]*)\])?(?P<spec>.*)"
+)
+
+
+def _parse_requirement(requirement: str) -> tuple[str, list[str], str] | None:
+    """Split a requirement string into (name, extras, specifier), or None if it doesn't match
+    the `name[extras]spec` shape.
+    """
+    match = _REQUIREMENT_PATTERN.fullmatch(requirement)
+    if not match:
+        return None
+    extras = [extra for extra in (match.group("extras") or "").split(",") if extra]
+    return match.group("name"), extras, match.group("spec")
+
+
+def _add_console_extra(requirement: str) -> str:
+    """Add deadline's `console` extra to a requirement string, preserving its specifier."""
+    parsed = _parse_requirement(requirement)
+    if not parsed or parsed[0].lower() != "deadline":
+        return requirement
+    name, extras, spec = parsed
+    if "console" not in extras:
+        extras = [*extras, "console"]
+    return f"{name}[{','.join(extras)}]{spec}"
+
+
+def _requests_console_extra(requirement: str) -> bool:
+    """Whether a requirement string is a `deadline` requirement whose extras include
+    `console`.
+    """
+    parsed = _parse_requirement(requirement)
+    return parsed is not None and parsed[0].lower() == "deadline" and "console" in parsed[1]
+
+
 def _build_base_environment(working_directory: Path, dependencies: list[str]) -> Path:
     (working_directory / "base_env").mkdir()
     base_env_path = working_directory / "base_env"
+    # Requested here rather than declared in project.dependencies: those also resolve into
+    # the adaptor package under a platform tag with no usable awscrt wheel (see
+    # pyproject.toml).
+    dependencies_for_pip = [_add_console_extra(dep) for dep in dependencies]
+    if not any(_requests_console_extra(dep) for dep in dependencies_for_pip):
+        # Checks that something ends up requesting the console extra, not that
+        # _add_console_extra changed anything -- it's idempotent, so a `deadline[console]`
+        # dependency already in project.dependencies is valid input this guard must accept.
+        raise Exception(
+            "no dependency requests deadline's `console` extra after _add_console_extra; "
+            f"expected a requirement on `deadline` in: {dependencies}"
+        )
     base_env_pip_args = [
         "pip",
         "install",
         "--target",
         str(base_env_path),
         "--only-binary=:all:",
-        *dependencies,
+        *dependencies_for_pip,
     ]
     subprocess.run(base_env_pip_args, check=True)
     return base_env_path
+
+
+def _python_version_key(version: str) -> tuple[int, ...]:
+    return tuple(int(part) for part in version.split("."))
 
 
 def _download_native_dependencies(working_directory: Path, base_env: Path) -> list[Path]:
@@ -79,7 +261,9 @@ def _download_native_dependencies(working_directory: Path, base_env: Path) -> li
         for package_name in NATIVE_DEPENDENCIES
     ]
     native_dependency_paths = []
-    for version in SUPPORTED_PYTHON_VERSIONS:
+    # Ascending order is load-bearing: _copy_native_to_base_env resolves a filename
+    # collision in favour of the tree it sees first.
+    for version in sorted(SUPPORTED_PYTHON_VERSIONS, key=_python_version_key):
         native_dependency_path = working_directory / "native" / f"{version.replace('.', '_')}"
         native_dependency_paths.append(native_dependency_path)
         native_dependency_path.mkdir(parents=True)
@@ -91,6 +275,13 @@ def _download_native_dependencies(working_directory: Path, base_env: Path) -> li
             "--python-version",
             version,
             "--only-binary=:all:",
+            # These trees exist only for their compiled artifacts and overwrite the base
+            # environment during the merge; --no-deps keeps each tree from resolving (and
+            # clobbering) full dependency closures independently. It also guards the other
+            # direction: a compiled transitive dependency of a NATIVE_DEPENDENCIES package
+            # would otherwise reach the bundle only from the base environment's single
+            # build-host artifact. If one shows up, add it to NATIVE_DEPENDENCIES.
+            "--no-deps",
             *versioned_native_dependencies,
         ]
         subprocess.run(native_dependency_pip_args, check=True)
@@ -98,14 +289,29 @@ def _download_native_dependencies(working_directory: Path, base_env: Path) -> li
 
 
 def _copy_native_to_base_env(base_env: Path, native_dependency_paths: list[Path]) -> None:
+    """Flatten the per-version native trees into the bundle, lowest version first.
+
+    ``native_dependency_paths`` is ascending by Python version; the first tree to supply a
+    path wins a filename collision, overwriting the base environment -- which resolved these
+    packages for the build host's interpreter, not one the bundle targets.
+
+    A version-specific name (xxhash's ``_xxhash.cpython-<tag>-*``, pyyaml's
+    ``yaml/_yaml.cpython-<tag>-*``) is unique per version and never collides. An abi3 name
+    (``_awscrt.abi3.so``, psutil's shared wheel) is identical across versions and always
+    collides; abi3 is forward-compatible only, so taking the first (lowest-version) tree is
+    what keeps the one copy every supported interpreter can load.
+    """
+    copied: set[Path] = set()
     for native_dependency_path in native_dependency_paths:
         for file in native_dependency_path.rglob("*"):
             if file.is_file():
                 relative = file.relative_to(native_dependency_path)
+                if relative in copied:
+                    continue
                 in_base_env = base_env / relative
-                if not in_base_env.exists():
-                    in_base_env.parent.mkdir(parents=True, exist_ok=True)
-                    shutil.copy(str(file), str(in_base_env))
+                in_base_env.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy(str(file), str(in_base_env))
+                copied.add(relative)
 
 
 def _get_zip_path(working_directory: Path, project_dict: dict[str, Any]) -> Path:
@@ -134,6 +340,43 @@ def _copy_zip_to_destination(zip_path: Path) -> Path:
     return zip_destination
 
 
+def _install_pyside6(install_path: Path) -> None:
+    """Install PySide6 and shiboken6, then strip to only the files in PYSIDE6_ALLOWLIST."""
+    pip_args = [
+        "pip",
+        "install",
+        "--target",
+        str(install_path),
+        "--only-binary=:all:",
+        *PYSIDE6_PACKAGES,
+    ]
+    subprocess.run(pip_args, check=True)
+    _strip_pyside6(install_path)
+
+
+def _strip_pyside6(install_path: Path) -> None:
+    """Remove PySide6/shiboken6 files not in PYSIDE6_ALLOWLIST."""
+    for prefix in (
+        "PySide6",
+        "shiboken6",
+        "PySide6_Essentials-*.dist-info",
+        "shiboken6-*.dist-info",
+    ):
+        for pkg_dir in install_path.glob(prefix):
+            if not pkg_dir.is_dir():
+                continue
+            for path in list(pkg_dir.rglob("*")):
+                if not path.is_file():
+                    continue
+                rel = str(path.relative_to(install_path))
+                if not any(fnmatch.fnmatch(rel, pat) for pat in PYSIDE6_ALLOWLIST):
+                    path.unlink()
+            # Clean up empty directories
+            for dirpath in sorted(pkg_dir.rglob("*"), reverse=True):
+                if dirpath.is_dir() and not any(dirpath.iterdir()):
+                    dirpath.rmdir()
+
+
 def build_deps_bundle() -> None:
     with TemporaryDirectory() as wd:
         working_directory = Path(wd)
@@ -142,6 +385,7 @@ def build_deps_bundle() -> None:
         base_env = _build_base_environment(working_directory, dependencies)
         native_dependency_paths = _download_native_dependencies(working_directory, base_env)
         _copy_native_to_base_env(base_env, native_dependency_paths)
+        _install_pyside6(base_env)
         zip_path = _get_zip_path(working_directory, project_dict)
         _zip_bundle(base_env, zip_path)
         print(list(working_directory.glob("*")))

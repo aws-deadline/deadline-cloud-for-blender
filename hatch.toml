@@ -24,7 +24,7 @@ lint = [
 build-addon = "python scripts/build_addon.py {args}"
 
 [[envs.all.matrix]]
-python = ["3.9", "3.10", "3.11", "3.12"]
+python = ["3.9", "3.10", "3.11", "3.12", "3.13"]
 
 [envs.default.env-vars]
 DEADLINE_ENABLE_DEVELOPER_OPTIONS="True"
@@ -49,15 +49,28 @@ pre-install-commands = [
 ]
 
 [[envs.integ-ci.matrix]]
-blender = ["4.5.4"]
+blender = ["4.5.13"]
 python = ["3.11"]
 
 [[envs.integ-ci.matrix]]
-blender = ["4.2.12"]
+blender = ["4.2.23"]
 python = ["3.11"]
+
+[[envs.integ-ci.matrix]]
+blender = ["5.0.1"]
+python = ["3.11"]
+
+[[envs.integ-ci.matrix]]
+blender = ["5.1.2"]
+python = ["3.13"]
+
+[[envs.integ-ci.matrix]]
+blender = ["5.2.1"]
+python = ["3.13"]
 
 [envs.integ-ci.env-vars]
 BLENDER_VERSION = "{matrix:blender}"
+BLENDER_TEMP_ALLOWLIST = "{root}"
 
 [envs.integ-ci.scripts]
 setup = "python ./pipeline/setup-runner.py --versions {matrix:blender} --python-version {matrix:python} {args}"

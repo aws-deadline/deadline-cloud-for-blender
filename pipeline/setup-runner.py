@@ -1,38 +1,50 @@
+#!/usr/bin/env python3
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 
-#!/usr/bin/env python3
 """Setup runner for Blender integration tests in CodeBuild."""
+
 import argparse
 import hashlib
 import os
 import platform
-import shutil
 import subprocess
 import sys
 import time
 from pathlib import Path
 
-BLENDER_VERSIONS = ["4.2.12", "4.5.4"]
+BLENDER_VERSIONS = ["4.2.23", "4.5.13", "5.0.1", "5.1.2", "5.2.1"]
 BLENDER_PYTHON_VERSIONS = {
-    "4.2.12": "3.11",
-    "4.5.4": "3.11",
+    "4.2.23": "3.11",
+    "4.5.13": "3.11",
+    "5.0.1": "3.11",
+    "5.1.2": "3.13",
+    "5.2.1": "3.13",
 }
 USE_PUBLIC_URLS = False
 
 # SHA256 checksums from https://www.blender.org/download/
 BLENDER_CHECKSUMS = {
-    "4.2.12-linux-x64": "953717011e00a21bfd4ccf0e8af0d901b4c3ef09c48f14c16a18c146d858bcf7",
-    "4.5.4-linux-x64": "2e6ef8e99fc36327270429ddc8e7bad2859dd878a5a137d2e0bf0f02f6792505",
-    "4.2.12-windows-x64": "d7b77bf3a925722be87e5b5e429b584d7baa3bcc82579afa7952fc1f8c19d2e1",
-    "4.5.4-windows-x64": "0de55df1d99e4e7152605022cb648e795d5d49209c5c5c4889e1a19fb401a054",
-    "4.2.12-macos-arm64": "810bc64b89af7f9028b9d7544a34f32ad900ac6d913fd2f288895f10dc6c2527",
-    "4.5.4-macos-arm64": "7d6bd807563f0af65735cf9e21b788f6ac78bc5ceb87b96c424459785a13cd60",
+    "4.2.23-linux-x64": "bea0eb3146be13eae6225409a117b215184f41b7f79e799f97cb3abb8f6dc404",
+    "4.5.13-linux-x64": "da4e69b06b75b9e642d106496c50e7e240218b411d2f6e18271c1d1d819cef91",
+    "4.2.23-windows-x64": "82e791475779a7342424a480bdde9a20b43710da9264c60346125aa16cd910cb",
+    "4.5.13-windows-x64": "b5fdf800ce65fa2f209e8f68d02667e4d720fa1c42f247c72d1882ab04decba6",
+    "4.2.23-macos-arm64": "8b6bc5fafd4773e94bb863ca19ba1c9a54d096eecbbc4375eae7dbc3b49fab40",
+    "4.5.13-macos-arm64": "663ce944257c61ff1d6aa09e15c8f57bbd8d59023adb2fa7edde33a9ed960b53",
+    "5.0.1-linux-x64": "8019580ee1b7262e505f4196a00237ccf743c88d205b38d34201510676e60b09",
+    "5.0.1-windows-x64": "921d77f6c505a35b2c2f6e67d4ad1c10b72418338ba0e0d3ea7f582a5e5fe46e",
+    "5.0.1-macos-arm64": "102a81ddee5346c96339c6a529069a2d52df05f330eb9bfd431c8dd79fb4afb6",
+    "5.1.2-linux-x64": "aaccb355f50183979b698bcce7467103a76261b5fa59f4972295842662a285fb",
+    "5.1.2-windows-x64": "345bedea7b0acf7cc9666423d8553f9129622aea34ded65c23e8cb70f83f14ff",
+    "5.1.2-macos-arm64": "f104ffee2ba6aee32328e5c203b7e4608d8a1745f7bbcf2766f3b9777e8fbe17",
+    "5.2.1-linux-x64": "a31f524fa99a527d3d52b7f5aaa68c34e1a19d5a1c9473f79c5cc610fd5b10e9",
+    "5.2.1-windows-x64": "0e631dad7d0cad6d5d18abdd2e2550f6c0213215334eda00ddbd3d22b96ecb2c",
+    "5.2.1-macos-arm64": "6409e21de80994db5f4c4a34486b6fd43cea21085b912f7491c53e923acb65a3",
 }
 
 
 def run(cmd, check=True):
     print(f"Running: {' '.join(cmd)}")
-    result = subprocess.run(cmd)
+    result = subprocess.run(cmd, check=False)
     if check and result.returncode != 0:
         sys.exit(result.returncode)
     return result
@@ -80,10 +92,15 @@ def validate_version(version):
 def setup_linux(python_version, install_x11=False):
     pkg_mgr = (
         "dnf"
-        if subprocess.run(["command", "-v", "dnf"], capture_output=True).returncode == 0
+        if subprocess.run(["command", "-v", "dnf"], capture_output=True, check=False).returncode
+        == 0
         else "yum"
     )
-    run([pkg_mgr, "update", "-y"])
+    # No blanket `update` here on purpose. The CI runner is a persistent reserved-capacity
+    # instance whose environment CodeBuild provisions, including third-party repos we do not
+    # control, so a full-system upgrade pulls unrelated packages (docker, runc, the kernel) and
+    # fails on any repo whose signing key has rotated. Everything the tests need is installed
+    # explicitly: the X11 set by the buildspec, and Blender below.
 
     # Optional, for running tests on a headless runner.
     if install_x11:
@@ -274,15 +291,7 @@ def setup_windows(python_version):
 
     for version in BLENDER_VERSIONS:
         major_minor = ".".join(version.split(".")[:2])
-        submitter_path = f"DeadlineCloudSubmitter\\Submitters\\Blender{major_minor}"
-
-        Path(f"{submitter_path}\\python").mkdir(parents=True, exist_ok=True)
-
-        # Remove stale addons directory from previous runs on reserved capacity instances.
-        # Windows xcopy fails with exit code 4 when copying into an existing destination.
-        addons_path = Path(f"{submitter_path}\\python\\addons")
-        if addons_path.exists():
-            shutil.rmtree(addons_path)
+        submitter_path = f"DCS\\Blender{major_minor}"
 
         run(
             [
@@ -440,6 +449,12 @@ def setup_macos(python_version):
 
 
 if __name__ == "__main__":
+    # CodeBuild captures stdout through a pipe, so Python block-buffers our own prints while the
+    # subprocesses we spawn write to the same fd directly. That reorders the log: the "Running: ..."
+    # line for a failing command lands after that command's output, which makes failures look like
+    # they came from the wrong step. Flush per line so the log reads in execution order.
+    sys.stdout.reconfigure(line_buffering=True)
+
     parser = argparse.ArgumentParser(description="Setup Blender test environment")
     parser.add_argument(
         "--public-urls", action="store_true", help="Download from public URLs instead of S3"

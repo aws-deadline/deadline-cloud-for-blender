@@ -231,5 +231,3 @@ class DefaultBlenderHandler:
         """
         Only implemented in the Cycles handler.
         """
-
-        pass

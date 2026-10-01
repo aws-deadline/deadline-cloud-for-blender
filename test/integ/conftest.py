@@ -9,7 +9,6 @@ import sys
 
 from pathlib import Path
 
-
 _BLENDER_VERSION_RE = re.compile(r"^Blender (?P<version>\d+\.\d+)\..*$")
 
 
@@ -43,7 +42,7 @@ def blender_location() -> Path:
 
     # On Windows and MacOS, look for Blender in the default install location
     if os.name == "nt":
-        for version in ("4.5", "4.4", "4.3", "4.2", "4.1", "4.0", "3.6"):
+        for version in ("5.2", "5.1", "5.0", "4.5", "4.4", "4.3", "4.2", "4.1", "4.0", "3.6"):
             location = os.path.join(
                 os.environ["ProgramFiles"],
                 "Blender Foundation",
@@ -65,9 +64,7 @@ def blender_location() -> Path:
 @pytest.fixture
 def blender_version(blender_location) -> str:
     cmd = [str(blender_location), "--version"]
-    result = subprocess.run(
-        cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
-    )
+    result = subprocess.run(cmd, check=True, capture_output=True, text=True)
     first_line = result.stdout.splitlines()[0]
     match = _BLENDER_VERSION_RE.match(first_line)
     if not match:

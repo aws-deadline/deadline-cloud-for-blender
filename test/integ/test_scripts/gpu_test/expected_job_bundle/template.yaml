@@ -1,5 +1,5 @@
 specificationVersion: jobtemplate-2023-09
-name: test
+name: car-gpu-test
 description: host_test
 parameterDefinitions:
 - name: BlenderFile
@@ -118,7 +118,7 @@ parameterDefinitions:
   minValue: 1
   description: The image height.
 steps:
-- name: ViewLayer_001
+- name: RenderLayer
   parameterSpace:
     taskParameterDefinitions:
     - name: Frame

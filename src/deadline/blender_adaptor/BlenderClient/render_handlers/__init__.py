@@ -5,8 +5,8 @@ from .cycles_blender_handler import CyclesHandler
 from .workbench_blender_handler import WorkbenchHandler
 
 __all__ = [
-    "DefaultBlenderHandler",
     "CyclesHandler",
+    "DefaultBlenderHandler",
     "WorkbenchHandler",
     "get_render_handler",
 ]

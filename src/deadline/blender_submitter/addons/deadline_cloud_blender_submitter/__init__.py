@@ -3,13 +3,14 @@
 """
 Registration of Deadline Cloud Submitter Addon + activate logger
 """
-import logging
-from pathlib import Path
-import subprocess
-import sys
 
-import bpy  # noqa
+import logging
+import sys
+from typing import Any
+
+import bpy
 from bpy.types import Operator
+from .update_utils import check_and_show_update_dialog
 
 from . import logutil
 
@@ -21,7 +22,7 @@ bl_info = {
     "name": "Deadline Cloud for Blender",
     "description": "Submit to AWS Deadline Cloud",
     "author": "AWS",
-    "version": (0, 6, 1),
+    "version": (0, 6, 9),
     "blender": (3, 6, 0),
     "category": "Render",
 }
@@ -31,7 +32,7 @@ logutil.add_file_handler()
 
 _logger = logging.getLogger(__name__)
 
-addon_keymaps = []
+addon_keymaps: list[tuple[Any, Any]] = []
 
 
 class DEADLINE_CLOUD_OT_open_dialog(Operator):
@@ -47,10 +48,8 @@ class DEADLINE_CLOUD_OT_open_dialog(Operator):
 
         See the bpy Operator docs: https://docs.blender.org/api/current/bpy.types.Operator.html
         """
-        if not self.has_gui_deps():
-            self.install_gui()
-
         from qtpy import QtCore, QtWidgets
+        from deadline.client.exceptions import DeadlineOperationCanceled
         from .open_deadline_cloud_dialog import (
             create_deadline_dialog,
         )
@@ -58,6 +57,9 @@ class DEADLINE_CLOUD_OT_open_dialog(Operator):
         self.app = QtWidgets.QApplication.instance()
         if not self.app:
             self.app = QtWidgets.QApplication(sys.argv)
+
+        if check_and_show_update_dialog():
+            return {"FINISHED"}
 
         try:
             # optionally use the blender_stylesheet if it exists
@@ -70,6 +72,12 @@ class DEADLINE_CLOUD_OT_open_dialog(Operator):
         _logger.info("Initializing Deadline Cloud Blender Submitter UI")
         try:
             self.widget = create_deadline_dialog()
+        except DeadlineOperationCanceled as e:
+            # Raised by run_pre_gui_hooks when the user declines the pre-GUI hook confirmation.
+            # It is not a RuntimeError, so it must be caught separately; a decline is a clean
+            # cancel, not an error.
+            _logger.info("Submission canceled: %s", e)
+            return {"CANCELLED"}
         except RuntimeError as e:
             self.report({"ERROR"}, str(e))
             return {"CANCELLED"}
@@ -93,57 +101,8 @@ class DEADLINE_CLOUD_OT_open_dialog(Operator):
         self.report({"INFO"}, "OK!")
         return {"FINISHED"}
 
-    def draw(self, context):
-        layout = self.layout
-        col = layout.column()
-        col.label(text="Press 'OK' to install GUI dependencies. Please wait...")
-
     def invoke(self, context, event):
-        if self.has_gui_deps():
-            # don't prompt user if gui deps exist
-            return self.execute(context)
-        wm = context.window_manager
-        return wm.invoke_props_dialog(self)
-
-    def has_gui_deps(self):
-        try:
-            import qtpy  # noqa
-            from .open_deadline_cloud_dialog import (  # noqa
-                create_deadline_dialog,
-            )
-        except Exception as e:
-            # qtpy throws a QtBindingsNotFoundError when running
-            # from qtpy import QtBindingsNotFoundError
-            if not (type(e).__name__ == "QtBindingsNotFoundError" or isinstance(e, ImportError)):
-                raise
-            return False
-
-        return True
-
-    def install_gui(self):
-        import deadline.client
-
-        deadline.client.version
-        pip_install_command = [
-            sys.executable,
-            "-m",
-            "pip",
-            "install",
-            f"deadline[gui]=={deadline.client.version}",
-        ]
-        # module_directory assumes relative install location of:
-        #   * [installdir]/Submitters/Blender/python/addons/deadline_cloud_blender_submitter/__init__.py
-        #   * [installdir]/Submitters/Blender/python/modules/
-        module_directory = Path(__file__).parent.parent.parent / "modules"
-        if module_directory.exists():
-            _logger.info(f"Missing GUI libraries, installing deadline[gui] to {module_directory}")
-            pip_install_command.extend(["--target", str(module_directory)])
-        else:
-            _logger.info(
-                "Missing GUI libraries with non-standard set-up, installing deadline[gui] into Blender's python"
-            )
-
-        subprocess.run(pip_install_command)
+        return self.execute(context)
 
 
 def deadline_cloud_dialog_topbar_btn(self, context):

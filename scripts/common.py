@@ -35,7 +35,7 @@ def run(
 
     if p.returncode != 0:
         raise BadExitCodeError(
-            f"Process '{str(cmd)}' failed with exit code {p.returncode} and output: {output}"
+            f"Process '{cmd!s}' failed with exit code {p.returncode} and output: {output}"
         )
 
     return output

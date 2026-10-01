@@ -21,6 +21,7 @@ classifiers = [
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
   "Operating System :: POSIX :: Linux",
   "Operating System :: Microsoft :: Windows",
   "Operating System :: MacOS",
@@ -28,12 +29,34 @@ classifiers = [
   "Intended Audience :: Developers",
   "Intended Audience :: End Users/Desktop",
 ]
+# Blender 2.9 uses Python version 3.9
 # Blender 3.1-4.0 uses Python version 3.10
-# Blender 4.1+ uses Python version 3.11
+# Blender 4.1-5.0 uses Python version 3.11
+# Blender 5.1+ uses Python version 3.13
 
 dependencies = [
-    "deadline >= 0.54,< 0.55", 
+    # 0.60.4 is the floor because AWS Console sign-in landed there and nowhere earlier:
+    # 0.60.2/0.60.3 have no AWS_CONSOLE_LOGIN credentials source and do not declare a
+    # `console` extra at all. (BaseSubmitter/BaseSubmitterSettings, this package's other
+    # floor, first ship in 0.60.2, which 0.60.4 also satisfies.)
+    #
+    # The console extra is deliberately NOT requested here. It is only needed by the
+    # submitter, and it pulls awscrt, a compiled wheel. These base dependencies are
+    # resolved into the adaptor package by scripts/create_adaptor_packaging_artifact.sh
+    # with --only-binary=:all: --platform <tag>, and awscrt ships no macosx_10_9_* wheel
+    # at all, so console sign-in would appear installed and silently not work under the
+    # macosx_10_9_x86_64 tag that script uses. The adaptor never takes the console path
+    # anyway: it runs on a worker with host-provided credentials.
+    "deadline >= 0.60.4,< 0.61",
     "openjd-adaptor-runtime >= 0.7,< 0.10",
+]
+
+[project.optional-dependencies]
+gui = [
+    # The console extra pulls awscrt, which AWS Console sign-in requires: botocore's
+    # LoginProvider refreshes the DPoP-bound cached token in-process, and signing those
+    # proofs needs awscrt. Without it, sign-in fails on a pre-flight dependency check.
+    "deadline[gui,console] >= 0.60.4,< 0.61",
 ]
 
 [project.urls]
@@ -97,9 +120,25 @@ module = ["bpy.*", "qtpy.*", "PyOpenColorIO.*"]
 
 [tool.ruff]
 line-length = 100
+exclude = [".kiro"]
 
 [tool.ruff.lint]
-ignore = ["E501"]
+ignore = [
+    "E501",
+    # Rules newly enforced in ruff 0.16 - suppress for Python 3.9 compat or intentional patterns
+    "B008",      # function-call-in-default-argument
+    "BLE001",    # blind-except (intentional broad catch)
+    "FA100",     # future-annotations-import (47 files)
+    "I001",      # unsorted-imports (36 files - conflicts with isort config)
+    "PLR1704",   # redefined-argument-from-local
+    "RUF012",    # mutable-class-default
+    "SIM113",    # enumerate-for-loop
+    "SIM117",    # multiple-with-statements (Python 3.9 compat)
+    "TRY002",    # raise-vanilla-class (scripts)
+    "UP006",     # non-pep585-annotation (Python 3.9 compat)
+    "UP035",     # deprecated-import (Python 3.9 compat)
+    "UP045",     # non-pep604-annotation (Python 3.9 compat)
+]
 
 [tool.ruff.lint.isort]
 known-first-party = ["deadline"]

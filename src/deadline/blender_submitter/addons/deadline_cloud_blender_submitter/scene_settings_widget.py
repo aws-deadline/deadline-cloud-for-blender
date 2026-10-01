@@ -142,7 +142,9 @@ class SceneSettingsWidget(QWidget):
             )
             layout.addWidget(self.include_adaptor_wheels, qt_pos_index, 0)
 
-        layout.addItem(QSpacerItem(0, 0, QSizePolicy.Minimum, QSizePolicy.Expanding), 10, 0)
+        layout.addItem(
+            QSpacerItem(0, 0, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding), 10, 0
+        )
 
         self._fill_scenes_box()
         self._fill_cameras_box()
@@ -275,11 +277,11 @@ class SceneSettingsWidget(QWidget):
 
     def activate_enable_gpu_changed(self, state):
         """Set the activated/deactivated status of the GPU Device text box."""
-        self.gpu_device_box.setEnabled(Qt.CheckState(state) == Qt.Checked)
+        self.gpu_device_box.setEnabled(Qt.CheckState(state) == Qt.CheckState.Checked)
 
     def activate_frame_override_changed(self, state):
         """Set the activated/deactivated status of the Frame override text box."""
-        self.frame_override_txt.setEnabled(Qt.CheckState(state) == Qt.Checked)
+        self.frame_override_txt.setEnabled(Qt.CheckState(state) == Qt.CheckState.Checked)
 
 
 class FileSearchLineEdit(QWidget):
@@ -308,10 +310,10 @@ class FileSearchLineEdit(QWidget):
                 self,
                 "Open Directory",
                 self.get_text(),
-                QFileDialog.ShowDirsOnly | QFileDialog.DontResolveSymlinks,
+                QFileDialog.Option.ShowDirsOnly | QFileDialog.Option.DontResolveSymlinks,
             )
         else:
-            new_txt = QFileDialog.getOpenFileName(self, "Select File", self.get_text())
+            new_txt, _ = QFileDialog.getOpenFileName(self, "Select File", self.get_text())
 
         if new_txt:
             self.set_text(new_txt)
