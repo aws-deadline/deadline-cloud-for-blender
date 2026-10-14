@@ -4,6 +4,10 @@ on:
   pull_request:
     types: [opened, reopened]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name == 'pull_request' && 'pr' || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   call-record-workflow:
     uses: aws-deadline/.github/.github/workflows/reusable_record_pr_details.yml@mainline
