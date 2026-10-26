@@ -1,0 +1,87 @@
+name: "Release: Prepare"
+run-name: "Release: Prepare ${{ github.event.head_commit.message || inputs.tag }}"
+
+on:
+  push:
+    branches:
+      - mainline
+    paths:
+      - CHANGELOG.md
+  workflow_dispatch:
+    inputs:
+      tag:
+        required: true
+        type: string
+        description: Specify a tag to re-run a release.
+
+concurrency:
+  group: release
+
+permissions:
+  contents: read
+
+jobs:
+  TagRelease:
+    if: >-
+      github.repository == 'aws-deadline/deadline-cloud-for-blender' &&
+      github.ref == 'refs/heads/mainline'
+    uses: aws-deadline/.github/.github/workflows/reusable_tag_release.yml@mainline
+    secrets: inherit
+    with:
+      tag: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || '' }}
+
+  UnitTests:
+    needs: [TagRelease]
+    name: Unit Tests
+    uses: ./.github/workflows/code_quality.yml
+    with:
+      tag: ${{ needs.TagRelease.outputs.tag }}
+
+  IntegrationTests:
+    needs: [TagRelease, UnitTests]
+    name: ${{ matrix.name }} Integration Tests
+    permissions:
+      id-token: write
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: linux
+            name: Linux
+          - os: windows
+            name: Windows
+          - os: macos
+            name: MacOS
+    uses: aws-deadline/.github/.github/workflows/reusable_integration_test.yml@mainline
+    secrets: inherit
+    with:
+      repository: ${{ github.event.repository.name }}
+      # Builds refs/tags/<tag>, so dispatch re-runs test the release tag, not the dispatch ref.
+      tag: ${{ needs.TagRelease.outputs.tag }}
+      os: ${{ matrix.os }}
+
+  BuildInstaller:
+    needs: [TagRelease, UnitTests, IntegrationTests]
+    uses: aws-deadline/.github/.github/workflows/reusable_build_installers.yml@mainline
+    secrets: inherit
+    permissions:
+      id-token: write
+      contents: read
+    with:
+      ref_type: tags
+      ref: ${{ needs.TagRelease.outputs.tag }}
+      oses: "['Linux', 'Windows', 'MacOS']"
+      environment: release
+      project_name: ${{ github.event.repository.name }}
+
+  # Publishing to CodeArtifact starts the Conda adaptor build. release_publish.yml
+  # completes the release once blender-openjd reaches the public Conda channel.
+  PublishToCodeArtifact:
+    needs: [TagRelease, BuildInstaller]
+    uses: aws-deadline/.github/.github/workflows/reusable_publish_python.yml@mainline
+    permissions:
+      id-token: write
+    secrets: inherit
+    with:
+      tag: ${{ needs.TagRelease.outputs.tag }}
