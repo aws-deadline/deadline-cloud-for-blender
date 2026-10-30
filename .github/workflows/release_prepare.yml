@@ -61,8 +61,18 @@ jobs:
       tag: ${{ needs.TagRelease.outputs.tag }}
       os: ${{ matrix.os }}
 
+  # Drives the real submitter dialog on Linux, macOS and Windows against the release tag.
+  SubmitterGuiTests:
+    needs: [TagRelease, UnitTests]
+    name: Submitter GUI Tests
+    uses: ./.github/workflows/submitter_gui_tests.yml
+    permissions:
+      contents: read
+    with:
+      ref: refs/tags/${{ needs.TagRelease.outputs.tag }}
+
   BuildInstaller:
-    needs: [TagRelease, UnitTests, IntegrationTests]
+    needs: [TagRelease, UnitTests, IntegrationTests, SubmitterGuiTests]
     uses: aws-deadline/.github/.github/workflows/reusable_build_installers.yml@mainline
     secrets: inherit
     permissions:

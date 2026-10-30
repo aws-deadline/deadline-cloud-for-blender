@@ -96,7 +96,7 @@ The `pipeline/setup-runner.py` script downloads and installs Blender versions, t
 
 #### Submitter GUI Tests (integ-gui environment)
 
-`test/integ_gui/` launches real Blender with this repo's submitter add-on and opens the submitter dialog. It drives the dialog with [xa11y](https://github.com/xa11y/xa11y) and submits a job to an in-process mock Deadline Cloud backend. No AWS account is needed. The **Submitter GUI Tests** workflow (`submitter_gui_tests.yml`) runs it on Linux, macOS and Windows for every mainline push and pull request.
+`test/integ_gui/` launches real Blender with this repo's submitter add-on and opens the submitter dialog. It drives the dialog with [xa11y](https://github.com/xa11y/xa11y) and submits a job to an in-process mock Deadline Cloud backend. No AWS account is needed. The **Submitter GUI Tests** workflow (`submitter_gui_tests.yml`) runs it on Linux, macOS and Windows for every mainline push, for pull requests that touch the submitter or the test, and for every release: Release: Prepare runs it against the release tag and builds installers only if it passes.
 
 To run it locally:
 
