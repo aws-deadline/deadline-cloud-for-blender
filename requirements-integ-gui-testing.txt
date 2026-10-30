@@ -1,0 +1,8 @@
+# GUI tests drive the real submitter dialog through the OS accessibility APIs with xa11y,
+# against an in-process mock Deadline Cloud backend and a moto server for job attachments.
+xa11y >= 0.15.2, < 0.16
+moto[server,s3,sts] == 5.*
+pytest-timeout == 2.*
+# The mock backend parses each submitted job template with openjd-model. Without it CreateJob
+# returns a 500 and the submitter's progress dialog never completes.
+openjd-model >= 0.14.0

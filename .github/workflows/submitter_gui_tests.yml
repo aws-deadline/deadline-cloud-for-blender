@@ -1,0 +1,285 @@
+# Drives the real Blender submitter dialog with xa11y on Linux, macOS and Windows, against an
+# in-process mock Deadline Cloud backend. Uses public Blender installers verified against the
+# SHA-256 digests in pipeline/setup-runner.py, and needs no secrets or AWS access.
+#
+# Adapted from aws-deadline/deadline-cloud .github/workflows/blender_submitter_ui_test.yml.
+#
+# The Blender caches carry `# zizmor: ignore[cache-poisoning]`: this workflow publishes nothing,
+# and each cache holds one Blender release whose digest is checked before it is first cached.
+name: Submitter GUI Tests
+
+on:
+  push:
+    branches: [mainline]
+  pull_request:
+    branches: [mainline, release, 'patch_*', 'feature_*']
+    types: [opened, synchronize, reopened, ready_for_review]
+    # Six GUI jobs per PR update, two of them on macOS: skip PRs that can't affect the
+    # submitter or this test. Mainline pushes always run.
+    paths:
+      - 'src/**'
+      - 'test/integ_gui/**'
+      - 'pipeline/setup-runner.py'
+      - 'pyproject.toml'
+      - 'hatch.toml'
+      - 'hatch_custom_hook.py'
+      - 'requirements-testing.txt'
+      - 'requirements-integ-gui-testing.txt'
+      - '.github/workflows/submitter_gui_tests.yml'
+  workflow_dispatch:
+
+concurrency:
+  # One group per mainline run so queued post-merge runs aren't replaced; PR runs share a group
+  # and cancel superseded ones. Same pattern as code_quality.yml.
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name == 'pull_request' && 'pr' || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  Linux:
+    name: Linux (Blender ${{ matrix.blender }})
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft != true
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        # Each Blender version needs the test Python that matches its bundled Python.
+        include:
+          - blender: "5.0.1"
+            python: "3.11"
+          - blender: "5.2.1"
+            python: "3.13"
+    env:
+      BLENDER_VERSION: ${{ matrix.blender }}
+      DISPLAY: ':99'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        id: setup-python
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            xvfb dbus dbus-x11 at-spi2-core \
+            libxkbcommon-x11-0 libxcb-cursor0 libxcb-icccm4 \
+            libxcb-keysyms1 libxcb-image0 libxcb-render-util0 \
+            libxcb-xkb1 libegl1 libglib2.0-0 libfontconfig1 \
+            libdbus-1-3 libx11-xcb1 libxcb-render0 libxcb-shape0 \
+            libxcb-xfixes0 \
+            libxi6 libxxf86vm1 libxfixes3 libxrender1 \
+            libgl1-mesa-glx libsm6
+
+      - name: Cache Blender
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0 # zizmor: ignore[cache-poisoning]
+        id: cache-blender
+        with:
+          path: /opt/blender-${{ matrix.blender }}-linux-x64
+          key: blender-${{ runner.os }}-${{ matrix.blender }}
+
+      - name: Install Blender
+        if: steps.cache-blender.outputs.cache-hit != 'true'
+        run: |
+          python test/integ_gui/fetch_blender.py "$BLENDER_VERSION" linux-x64 "$RUNNER_TEMP/blender.tar.xz"
+          sudo tar -xJf "$RUNNER_TEMP/blender.tar.xz" -C /opt
+
+      - name: Install hatch
+        run: pip install hatch
+
+      - name: Run test under Xvfb + AT-SPI
+        env:
+          HATCH_PYTHON: ${{ steps.setup-python.outputs.python-path }}
+          GUI_TEST_ARTIFACT_DIR: ${{ runner.temp }}/gui-test-artifacts
+        run: |
+          export BLENDER_EXECUTABLE="/opt/blender-${BLENDER_VERSION}-linux-x64/blender"
+          dbus-run-session -- bash -c '
+            set -e
+            Xvfb :99 -screen 0 1920x1080x24 -ac &
+            sleep 1
+
+            export QT_ACCESSIBILITY=1
+            export QT_LINUX_ACCESSIBILITY_ALWAYS_ON=1
+
+            /usr/libexec/at-spi-bus-launcher --launch-immediately &
+            sleep 1
+            /usr/libexec/at-spi2-registryd &
+            sleep 1
+
+            hatch run integ-gui:test
+          '
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: gui-test-linux-blender-${{ matrix.blender }}
+          path: ${{ runner.temp }}/gui-test-artifacts
+          if-no-files-found: ignore
+
+  MacOS:
+    name: macOS (Blender ${{ matrix.blender }})
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft != true
+    # Pinned rather than macos-latest: the TCC grant below depends on the macOS release, and
+    # macos-26 is the image the deadline-cloud workflow this was copied from runs on.
+    runs-on: macos-26
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - blender: "5.0.1"
+            python: "3.11"
+          - blender: "5.2.1"
+            python: "3.13"
+    env:
+      BLENDER_VERSION: ${{ matrix.blender }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        id: setup-python
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Cache Blender
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0 # zizmor: ignore[cache-poisoning]
+        id: cache-blender
+        with:
+          path: /Applications/Blender.app
+          key: blender-${{ runner.os }}-${{ matrix.blender }}
+
+      - name: Install Blender
+        if: steps.cache-blender.outputs.cache-hit != 'true'
+        run: |
+          python test/integ_gui/fetch_blender.py "$BLENDER_VERSION" macos-arm64 "$RUNNER_TEMP/blender.dmg"
+          hdiutil attach "$RUNNER_TEMP/blender.dmg" -nobrowse -mountpoint /Volumes/Blender
+          sudo cp -R /Volumes/Blender/Blender.app /Applications/Blender.app
+          hdiutil detach /Volumes/Blender
+
+      - name: Install hatch
+        run: pip install hatch
+
+      - name: Grant accessibility TCC permission
+        env:
+          HATCH_PYTHON: ${{ steps.setup-python.outputs.python-path }}
+        run: |
+          # Create the environment first: on creation pip also writes to stdout, which would end up
+          # in the captured path.
+          hatch env create integ-gui
+          HATCH_ENV_PYTHON=$(hatch -e integ-gui run python -c "import os,sys; print(os.path.realpath(sys.executable))" | tail -n 1)
+          echo "Granting Accessibility to: $HATCH_ENV_PYTHON"
+          SETUP_PYTHON=$(python3 -c "import os,sys; print(os.path.realpath(sys.executable))")
+          BLENDER_BIN="/Applications/Blender.app/Contents/MacOS/Blender"
+          for BIN_PATH in "$SETUP_PYTHON" "$HATCH_ENV_PYTHON" "$BLENDER_BIN"; do
+            sudo sqlite3 "/Library/Application Support/com.apple.TCC/TCC.db" \
+              "INSERT OR REPLACE INTO access(service,client,client_type,auth_value,auth_reason,auth_version,csreq,policy_id,indirect_object_identifier_type,indirect_object_identifier,indirect_object_code_identity,flags,last_modified) \
+              VALUES('kTCCServiceAccessibility','${BIN_PATH}',1,2,4,1,NULL,NULL,0,'UNUSED',NULL,0,$(date +%s));"
+          done
+          sudo launchctl stop com.apple.tccd 2>/dev/null || true
+          sleep 2
+
+      - name: Run test
+        env:
+          HATCH_PYTHON: ${{ steps.setup-python.outputs.python-path }}
+          BLENDER_EXECUTABLE: /Applications/Blender.app/Contents/MacOS/Blender
+          GUI_TEST_ARTIFACT_DIR: ${{ runner.temp }}/gui-test-artifacts
+          QT_ACCESSIBILITY: "1"
+        run: hatch run integ-gui:test
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: gui-test-macos-blender-${{ matrix.blender }}
+          path: ${{ runner.temp }}/gui-test-artifacts
+          if-no-files-found: ignore
+
+  Windows:
+    name: Windows (Blender ${{ matrix.blender }})
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft != true
+    runs-on: windows-2025
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - blender: "5.0.1"
+            python: "3.11"
+          - blender: "5.2.1"
+            python: "3.13"
+    env:
+      BLENDER_VERSION: ${{ matrix.blender }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        id: setup-python
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Cache Blender
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0 # zizmor: ignore[cache-poisoning]
+        id: cache-blender
+        with:
+          path: C:\Tools\blender-${{ matrix.blender }}-windows-x64
+          key: blender-${{ runner.os }}-${{ matrix.blender }}
+
+      - name: Install Blender
+        if: steps.cache-blender.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          python test/integ_gui/fetch_blender.py "$env:BLENDER_VERSION" windows-x64 "$env:RUNNER_TEMP\blender.zip"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Expand-Archive -Path "$env:RUNNER_TEMP\blender.zip" -DestinationPath "C:\Tools"
+
+      - name: Install Mesa llvmpipe (software OpenGL)
+        shell: pwsh
+        run: |
+          # Hosted Windows runners have no GPU. Mesa's opengl32.dll next to blender.exe gives
+          # Blender a software OpenGL implementation.
+          $mesaUrl = "https://github.com/pal1000/mesa-dist-win/releases/download/24.3.2/mesa3d-24.3.2-release-msvc.7z"
+          $expected = "ff63c7c7f2aa4365296dd18d65670117ea3918f787abbda86ec4bec44e86497a"
+          Invoke-WebRequest -Uri $mesaUrl -OutFile "$env:RUNNER_TEMP\mesa.7z"
+          $actual = (Get-FileHash "$env:RUNNER_TEMP\mesa.7z" -Algorithm SHA256).Hash.ToLower()
+          if ($actual -ne $expected) { throw "Mesa SHA-256 mismatch: expected $expected, got $actual" }
+          7z x "$env:RUNNER_TEMP\mesa.7z" -o"$env:RUNNER_TEMP\mesa" -y
+          $blenderDir = "C:\Tools\blender-$env:BLENDER_VERSION-windows-x64"
+          Copy-Item "$env:RUNNER_TEMP\mesa\x64\opengl32.dll" "$blenderDir\opengl32.dll"
+          Copy-Item "$env:RUNNER_TEMP\mesa\x64\libgallium_wgl.dll" "$blenderDir\libgallium_wgl.dll"
+          Copy-Item "$env:RUNNER_TEMP\mesa\x64\libglapi.dll" "$blenderDir\libglapi.dll"
+          Copy-Item "$env:RUNNER_TEMP\mesa\x64\dxil.dll" "$blenderDir\dxil.dll" -ErrorAction SilentlyContinue
+
+      - name: Install hatch
+        run: pip install hatch
+
+      - name: Run test
+        shell: pwsh
+        env:
+          HATCH_PYTHON: ${{ steps.setup-python.outputs.python-path }}
+          GUI_TEST_ARTIFACT_DIR: ${{ runner.temp }}\gui-test-artifacts
+          QT_ACCESSIBILITY: "1"
+          GALLIUM_DRIVER: llvmpipe
+          MESA_GL_VERSION_OVERRIDE: "4.5"
+        run: |
+          $env:BLENDER_EXECUTABLE = "C:\Tools\blender-$env:BLENDER_VERSION-windows-x64\blender.exe"
+          hatch run integ-gui:test
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: gui-test-windows-blender-${{ matrix.blender }}
+          path: ${{ runner.temp }}\gui-test-artifacts
+          if-no-files-found: ignore
