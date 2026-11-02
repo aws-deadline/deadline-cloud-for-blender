@@ -1,150 +1,247 @@
 name: "Release: Publish"
-run-name: "Release: ${{ github.event.head_commit.message || inputs.tag }}"
+run-name: "Release: Publish ${{ inputs.tag || 'next pending release' }}"
 
 on:
-  push:
-    branches:
-      - mainline
-    paths:
-      - CHANGELOG.md
+  schedule:
+    # Check at 00:17, 06:17, 12:17, and 18:17 UTC.
+    - cron: "17 */6 * * *"
   workflow_dispatch:
     inputs:
       tag:
-        required: true
+        description: Specific pending release tag to check
+        required: false
         type: string
-        description: Specify a tag to re-run a release.
+      force_publish:
+        description: Bypass Conda availability after release-gate approval (requires tag)
+        required: false
+        default: false
+        type: boolean
 
 concurrency:
-  group: release
+  # Not the `release` group that Bump and Prepare share: GitHub keeps one pending run per group,
+  # so a queued 6-hourly Publish could otherwise replace a pending Prepare and leave a merged
+  # release untagged. Publish runs still never overlap each other.
+  group: release-public
 
 permissions:
   contents: read
 
 jobs:
-  TagRelease:
-    uses: aws-deadline/.github/.github/workflows/reusable_tag_release.yml@mainline
-    secrets: inherit
-    with:
-      tag: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || '' }}
+  CheckConda:
+    if: >-
+      github.repository == 'aws-deadline/deadline-cloud-for-blender' &&
+      github.ref == 'refs/heads/mainline'
+    runs-on: ubuntu-latest
+    outputs:
+      ready: ${{ steps.readiness.outputs.ready }}
+      tag: ${{ steps.readiness.outputs.tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
 
-  UnitTests:
-    needs: [TagRelease]
-    name: Unit Tests
-    uses: ./.github/workflows/code_quality.yml
-    with:
-      tag: ${{ needs.TagRelease.outputs.tag }}
+      - name: Check release readiness
+        id: readiness
+        uses: aws-deadline/.github/.github/actions/check-release-readiness@mainline
+        with:
+          github-token: ${{ github.token }}
+          requested-tag: ${{ inputs.tag }}
+          force-publish: ${{ inputs.force_publish }}
+          package-name: blender-openjd
+          required-platforms: linux-64
+          # blender-openjd has taken about a week or more to reach the public Conda channel
+          # after its tag (over 8 days for 0.6.9), so the default of 4 would fail most
+          # releases. Lower this to 4 once the Conda adaptor update reliably lands sooner.
+          timeout-days: 10
 
-  IntegrationTests:
-    needs: [TagRelease, UnitTests]
-    name: ${{ matrix.name}} Integration Tests
+  # A Conda package only appears after Release: Prepare has tested the tag and published it to
+  # CodeArtifact. force_publish skips that evidence, so first require a successful Prepare run
+  # for the tag. Otherwise one approval could publish a tag whose tests or installers failed.
+  VerifyPrepared:
+    needs: CheckConda
+    if: >-
+      inputs.force_publish == true &&
+      needs.CheckConda.outputs.tag != '' &&
+      needs.CheckConda.outputs.ready != 'true'
+    runs-on: ubuntu-latest
     permissions:
-      id-token: write
+      actions: read
       contents: read
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: linux
-            name: Linux
-          - os: windows
-            name: Windows
-          - os: macos
-            name: MacOS
-    uses: aws-deadline/.github/.github/workflows/reusable_integration_test.yml@mainline
-    secrets: inherit
-    with:
-      repository: ${{ github.event.repository.name }}
-      tag: ${{ needs.TagRelease.outputs.tag }}
-      os: ${{ matrix.os }}
-      
-  PreRelease:
-      needs: [TagRelease, UnitTests, IntegrationTests]
-      uses: aws-deadline/.github/.github/workflows/reusable_prerelease.yml@mainline
-      permissions:
-        id-token: write
-        contents: write
-      secrets: inherit
-      with:
-          tag: ${{ needs.TagRelease.outputs.tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
 
-  BuildInstaller:
-    needs: [TagRelease, PreRelease]
-    uses: aws-deadline/.github/.github/workflows/reusable_build_installers.yml@mainline
-    secrets: inherit
-    permissions:
-      id-token: write
-      contents: read
-    with:
-      ref_type: tags
-      ref: ${{ needs.TagRelease.outputs.tag }}
-      oses: "['Linux', 'Windows', 'MacOS']"
-      environment: release
-      project_name: ${{ github.event.repository.name }}
+      - name: "Require a successful Release: Prepare run for the tag"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.CheckConda.outputs.tag }}
+        run: |
+          COMMIT=$(git rev-parse "refs/tags/$TAG^{commit}")
+          # Push-triggered runs build the tagged commit; dispatched re-runs are titled with the tag.
+          RUN_URL=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow release_prepare.yml \
+              --status success --limit 100 --json headSha,displayTitle,url |
+            jq -r --arg commit "$COMMIT" --arg title "Release: Prepare $TAG" \
+              'map(select(.headSha == $commit or .displayTitle == $title)) | first | .url // empty')
+          if [[ -z "$RUN_URL" ]]; then
+            echo "::error::No successful Release: Prepare run for $TAG ($COMMIT). Re-run Release: Prepare for the tag before forcing publication."
+            exit 1
+          fi
+          echo "Release: Prepare succeeded for $TAG: $RUN_URL"
+          echo "Release: Prepare succeeded for \`$TAG\`: $RUN_URL" >> "$GITHUB_STEP_SUMMARY"
 
-  Publish:
-      needs: [TagRelease, BuildInstaller]
-      uses: aws-deadline/.github/.github/workflows/reusable_publish_python.yml@mainline
-      permissions:
-        id-token: write
-      secrets: inherit
-      with:
-          tag: ${{ needs.TagRelease.outputs.tag }}
-
-  IsCondaReady:
-    needs: Publish
+  ApproveManifestOverride:
+    needs: [CheckConda, VerifyPrepared]
+    if: >-
+      inputs.force_publish == true &&
+      needs.CheckConda.outputs.tag != '' &&
+      needs.CheckConda.outputs.ready != 'true' &&
+      needs.VerifyPrepared.result == 'success'
     runs-on: ubuntu-latest
     environment: release-gate
-    name: “Is the Conda Package available in all ProdWaves and have you ran any required manual tests?”
+    permissions: {}
     steps:
-      - run: |
-         :
+      - name: Record approved override
+        env:
+          TAG: ${{ needs.CheckConda.outputs.tag }}
+        run: |
+          echo "Conda manifest override approved for release $TAG."
+          # shellcheck disable=SC2016 # The backticks are Markdown, not command substitution.
+          {
+            echo "### Conda manifest override"
+            echo
+            printf 'Release `%s` was approved without a published Conda package.\n' "$TAG"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  AuthorizePublish:
+    needs: [CheckConda, ApproveManifestOverride]
+    if: >-
+      always() &&
+      needs.CheckConda.result == 'success' &&
+      needs.CheckConda.outputs.tag != '' &&
+      (
+        needs.CheckConda.outputs.ready == 'true' ||
+        needs.ApproveManifestOverride.result == 'success'
+      )
+    runs-on: ubuntu-latest
+    permissions: {}
+    outputs:
+      tag: ${{ steps.release.outputs.tag }}
+    steps:
+      - name: Authorize public release
+        id: release
+        env:
+          TAG: ${{ needs.CheckConda.outputs.tag }}
+        run: echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+  # ApproveManifestOverride is expected to be skipped for normal releases.
+  # Explicit status checks prevent GitHub from propagating that skipped
+  # ancestor through the rest of the release dependency chain.
+  ValidateRelease:
+    needs: AuthorizePublish
+    if: >-
+      !cancelled() &&
+      needs.AuthorizePublish.result == 'success' &&
+      needs.AuthorizePublish.outputs.tag != ''
+    uses: aws-deadline/.github/.github/workflows/reusable_tag_release.yml@mainline
+    permissions:
+      contents: read
+    secrets: inherit
+    with:
+      tag: ${{ needs.AuthorizePublish.outputs.tag }}
+
+  # Runs .github/actions/prepush_release_hook (add-on zip and extension index).
+  # It must stay in this run: Release signs and uploads its build-artifact.
+  PreRelease:
+    needs: ValidateRelease
+    if: >-
+      !cancelled() &&
+      needs.ValidateRelease.result == 'success' &&
+      needs.ValidateRelease.outputs.tag != ''
+    uses: aws-deadline/.github/.github/workflows/reusable_prerelease.yml@mainline
+    permissions:
+      id-token: write
+      contents: write
+    secrets: inherit
+    with:
+      tag: ${{ needs.ValidateRelease.outputs.tag }}
 
   ReleaseInstaller:
-    needs: [TagRelease, IsCondaReady]
+    needs: [ValidateRelease, PreRelease]
+    if: >-
+      !cancelled() &&
+      needs.ValidateRelease.result == 'success' &&
+      needs.PreRelease.result == 'success' &&
+      needs.ValidateRelease.outputs.tag != ''
     uses: aws-deadline/.github/.github/workflows/reusable_release_installers.yml@mainline
     secrets: inherit
     permissions:
       id-token: write
       contents: read
     with:
-      tag: ${{ needs.TagRelease.outputs.tag }}
+      tag: ${{ needs.ValidateRelease.outputs.tag }}
       oses: "['Linux', 'Windows', 'MacOS']"
       project_name: ${{ github.event.repository.name }}
 
+  # The GitHub Release is the completion marker: once it exists, scheduled runs report
+  # "Already published" and stop. Until then each scheduled run retries PreRelease and
+  # ReleaseInstaller as well, which re-copies the same staged installers. PyPI runs after the
+  # marker, so a failed PyPI upload is not retried automatically: re-run this run's failed job.
   Release:
-      needs: [TagRelease, ReleaseInstaller]
-      uses: aws-deadline/.github/.github/workflows/reusable_release.yml@mainline
-      secrets: inherit
-      permissions:
-        id-token: write
-        contents: write
-      with:
-          tag: ${{ needs.TagRelease.outputs.tag }}
-  
-  # PyPI does not support reusable workflows yet
-  # # See https://github.com/pypi/warehouse/issues/11096
+    needs: [ValidateRelease, PreRelease, ReleaseInstaller]
+    if: >-
+      !cancelled() &&
+      needs.ValidateRelease.result == 'success' &&
+      needs.PreRelease.result == 'success' &&
+      needs.ReleaseInstaller.result == 'success' &&
+      needs.ValidateRelease.outputs.tag != ''
+    uses: aws-deadline/.github/.github/workflows/reusable_release.yml@mainline
+    secrets: inherit
+    permissions:
+      id-token: write
+      contents: write
+    with:
+      tag: ${{ needs.ValidateRelease.outputs.tag }}
+
+  # PyPI does not support reusable workflows yet.
+  # See https://github.com/pypi/warehouse/issues/11096
   PublishToPyPI:
-      needs: [TagRelease, Release]
-      runs-on: ubuntu-latest
-      environment: release
-      permissions:
-        id-token: write
-      steps:
+    needs: [ValidateRelease, Release]
+    if: >-
+      !cancelled() &&
+      needs.ValidateRelease.result == 'success' &&
+      needs.Release.result == 'success' &&
+      needs.ValidateRelease.outputs.tag != ''
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      id-token: write
+      contents: read
+    steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ needs.TagRelease.outputs.tag }}
+          ref: ${{ needs.ValidateRelease.outputs.tag }}
           fetch-depth: 0
+          persist-credentials: false
+
       - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
-          python-version: ${{ needs.TagRelease.outputs.build-python-version }}
+          python-version: ${{ needs.ValidateRelease.outputs.build-python-version }}
+
       - name: Install dependencies
-        run: |
-          pip install --upgrade hatch
+        run: pip install --upgrade hatch
+
       - name: Build
         run: hatch -v build
-      # # See https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/configuring-openid-connect-in-pypi
-      - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
 
+      # See https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/configuring-openid-connect-in-pypi
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
+        with:
+          skip-existing: true
