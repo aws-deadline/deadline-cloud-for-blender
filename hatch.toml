@@ -76,6 +76,17 @@ BLENDER_TEMP_ALLOWLIST = "{root}"
 setup = "python ./pipeline/setup-runner.py --versions {matrix:blender} --python-version {matrix:python} {args}"
 test = "pytest --no-cov {args:test/integ} -vvv --numprocesses=1"
 
+[envs.integ-gui]
+# GUI tests need a Python whose major.minor matches the Blender under test: Blender imports
+# this environment's site-packages. Choose it with HATCH_PYTHON (see DEVELOPMENT.md).
+features = ["gui"]
+pre-install-commands = [
+  "pip install -r requirements-testing.txt -r requirements-integ-gui-testing.txt"
+]
+
+[envs.integ-gui.scripts]
+test = "pytest --no-cov {args:test/integ_gui} -vvv --numprocesses=1 --timeout=300"
+
 [envs.codebuild.env-vars]
 SKIP_BOOTSTRAP_TEST_RESOURCES="True"
 
