@@ -22,7 +22,7 @@
         "required_reviewers": [
           {
             "minimum_approvals": 2,
-            "file_patterns": ["*", "!/.github/**", "!/*.md"],
+            "file_patterns": ["/src/**", "/test/**"],
             "reviewer": {
               "id": 19835138,
               "type": "Team"
