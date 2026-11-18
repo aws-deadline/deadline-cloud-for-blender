@@ -43,6 +43,24 @@ _BLENDER_INIT_KEYS = [
     "output_format",
 ]
 
+# Where Blender starts an error message: the line start (4.x), "| ERROR " (the 5.x log),
+# "Error: " (a report) or "] " (a 4.x glog line).
+_ERROR_START = r"(?:^|\| ERROR |Error: |\] )"
+
+# Out-of-memory errors that Cycles prints. Blender can hang after one, so the task fails on the
+# line instead of waiting for Blender to exit. Anchoring at _ERROR_START keeps scene, object and
+# file names that contain these words from failing a render.
+_OUT_OF_MEMORY_REGEXES = [
+    re.compile(_ERROR_START + r"System is out of GPU (?:and shared host )?memory"),
+    # The CUDA and HIP error name, and Blender 5's message for a failed allocation.
+    re.compile(_ERROR_START + r"Out of memory"),
+    re.compile(r"\(Out of memory\)$"),
+    # Blender 4.x's message for a failed allocation.
+    re.compile(r"Error: run out of memory!"),
+    # Relayed by Cycles from OptiX.
+    re.compile(_ERROR_START + r"cblCudaReconfigureLocalMemory failed with out of memory"),
+]
+
 
 def _check_for_exception(func: Callable) -> Callable:
     """
@@ -196,6 +214,7 @@ class BlenderAdaptor(Adaptor[AdaptorConfiguration]):
         if self.init_data.get("strict_error_checking", False):
             callback_list.append(RegexCallback(error_regexes, self._handle_error))
         callback_list.append(RegexCallback(version_regexes, self._handle_version))
+        callback_list.append(RegexCallback(_OUT_OF_MEMORY_REGEXES, self._handle_out_of_memory))
 
         return callback_list
 
@@ -231,6 +250,17 @@ class BlenderAdaptor(Adaptor[AdaptorConfiguration]):
             RuntimeError: Always raises a runtime error to halt the adaptor.
         """
         self._exc_info = RuntimeError(f"Blender Encountered an Error: {match.group(0)}")
+
+    def _handle_out_of_memory(self, match: re.Match) -> None:
+        """
+        Callback for stdout and stderr that indicates Blender ran out of memory. Fails the task
+        without waiting for Blender to exit, because Blender can hang after these errors. Keeps an
+        earlier error if one is set.
+        Args:
+            match (re.Match): The match object from the regex pattern that was matched the message
+        """
+        if self._exc_info is None:
+            self._exc_info = RuntimeError(f"Blender ran out of memory: {match.string}")
 
     def _handle_version(self, match: re.Match) -> None:
         """

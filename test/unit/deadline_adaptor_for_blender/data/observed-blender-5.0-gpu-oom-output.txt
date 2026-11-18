@@ -1,0 +1,29 @@
+# Blender 5.0 output around a Cycles GPU out-of-memory error, observed on Deadline Cloud workers.
+# Each line appeared in the session log after the prefix 'ADAPTOR_OUTPUT: STDOUT: ', which is
+# removed here. Whitespace is exactly as logged. Texture paths are replaced with
+# /textures/example_height.dds. Nothing else is edited.
+
+## Not out of memory: printed by the same Blender 5.0 runs before the error, tasks kept rendering
+00:05.380  cycles           | WARNING HIPEW initialization failed: Error opening HIP dynamic library
+01:03.962  io.usd           | WARNING Primvar 'smoothness' (interpolation constant, type double[]) cannot be converted to Blender
+00:54.092  cycles           | WARNING Maximum number of closures exceeded: 97 > 64
+01:29.182  cycles           | WARNING Maximum number of closures exceeded: 85 > 64
+00:54.443  cycles           | ERROR Image file '/textures/example_height.dds' does not exist.
+
+## Case A: CUDA out of memory. The 'Illegal address' line then repeats; after that Blender printed nothing more and never exited
+01:37.974  cycles           | ERROR Out of memory
+01:38.032  cycles           | ERROR Illegal address in cuMemFree_v2((CUdeviceptr)device_pointer) (intern/cycles/device/cuda/device_impl.cpp:533)
+01:38.032  cycles           | ERROR Refer to the Cycles GPU rendering documentation for possible solutions:
+                            | https://docs.blender.org/manual/en/latest/render/cycles/gpu_rendering.html
+                            | 
+01:38.032  cycles           | ERROR Illegal address in cuMemFree_v2((CUdeviceptr)device_pointer) (intern/cycles/device/cuda/device_impl.cpp:533)
+01:38.032  cycles           | ERROR Illegal address in cuMemFree_v2((CUdeviceptr)device_pointer) (intern/cycles/device/cuda/device_impl.cpp:533)
+01:38.032  cycles           | ERROR Illegal address in cuMemFree_v2((CUdeviceptr)device_pointer) (intern/cycles/device/cuda/device_impl.cpp:533)
+
+## Case B: OptiX out of memory. The 'Failed to query' continuation line repeats; after the OPTIX_ERROR line Blender rendered nothing more and never exited
+02:03.969  cycles           | ERROR cblCudaReconfigureLocalMemory failed with out of memory
+02:04.159  cycles           | ERROR Failed to query command list event (CUDA error string: unspecified launch failure, CUDA error code: 719)
+                            | Failed to query command list event (CUDA error string: unspecified launch failure, CUDA error code: 719)
+                            | Failed to query command list event (CUDA error string: unspecified launch failure, CUDA error code: 719)
+                            | Error launching work to RTX
+02:04.159  cycles           | ERROR OPTIX_ERROR_CUDA_ERROR in optixLaunch(pipeline, cuda_stream_, launch_params_ptr, optix_device->launch_params.data_elements, &sbt_params, work_size, 1, 1) (intern/cycles/device/optix/queue.cpp:209)
