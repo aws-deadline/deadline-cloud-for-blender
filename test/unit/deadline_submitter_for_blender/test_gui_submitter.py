@@ -530,6 +530,73 @@ def test_fill_job_template_use_default_camera(submitter_settings, common_layer_s
 
 
 # ---------------------------------------------------------------------------
+# Task run timeout
+# ---------------------------------------------------------------------------
+
+
+def _on_run_actions(template: dict) -> list[dict]:
+    return [step["script"]["actions"]["onRun"] for step in template["steps"]]
+
+
+def _env_actions(template: dict) -> list[dict]:
+    return [step["stepEnvironments"][0]["script"]["actions"] for step in template["steps"]]
+
+
+def test_fill_job_template_has_no_task_run_timeout_by_default(
+    submitter_settings, common_layer_settings
+):
+    """The task run timeout is off by default, so onRun has no timeout key."""
+    filled = template_filling.fill_job_template(
+        submitter_settings, LAYER_NAMES, common_layer_settings, host_requirements=None
+    )
+
+    for action in _on_run_actions(filled):
+        assert "timeout" not in action
+
+
+def test_fill_job_template_sets_custom_task_run_timeout_on_every_step(
+    submitter_settings, common_layer_settings
+):
+    """A configured timeout is applied to every step; environment timeouts are unchanged."""
+    submitter_settings.task_run_timeout_seconds = 3600
+    filled = template_filling.fill_job_template(
+        submitter_settings, LAYER_NAMES, common_layer_settings, host_requirements=None
+    )
+
+    assert [a["timeout"] for a in _on_run_actions(filled)] == [3600, 3600]
+    for actions in _env_actions(filled):
+        assert actions["onEnter"]["timeout"] == 3720
+        assert actions["onExit"]["timeout"] == 120
+
+
+def test_fill_job_template_zero_task_run_timeout_means_no_timeout(
+    submitter_settings, common_layer_settings
+):
+    """0 leaves onRun without a timeout key."""
+    submitter_settings.task_run_timeout_seconds = 0
+    filled = template_filling.fill_job_template(
+        submitter_settings, LAYER_NAMES, common_layer_settings, host_requirements=None
+    )
+
+    for action in _on_run_actions(filled):
+        assert "timeout" not in action
+
+
+@pytest.mark.parametrize("bad_value", [-1, 1.5, "3600", True, None])
+def test_fill_job_template_rejects_invalid_task_run_timeout(
+    submitter_settings, common_layer_settings, bad_value
+):
+    submitter_settings.task_run_timeout_seconds = bad_value
+    with pytest.raises(DeadlineOperationError) as exc_info:
+        template_filling.fill_job_template(
+            submitter_settings, LAYER_NAMES, common_layer_settings, host_requirements=None
+        )
+    assert str(exc_info.value) == (
+        "The task run timeout must be a whole number of seconds, 0 or greater: " f"{bad_value!r}"
+    )
+
+
+# ---------------------------------------------------------------------------
 # GUI -> unified submitter delegation
 #
 # The dialog no longer builds the bundle itself; it adapts its UI settings to
@@ -588,6 +655,49 @@ def test_ui_settings_adapter_uses_override_frame_range_when_set():
         result = dlg._ui_settings_to_submitter_settings(ui)
 
     assert result.frame_list == "5-8"
+
+
+def test_ui_settings_adapter_maps_task_run_timeout():
+    """The UI timeout row maps to task_run_timeout_seconds; unchecked maps to 0."""
+    dlg = _dialog_module()
+
+    ui = template_filling.BlenderSubmitterUISettings()
+    with patch.object(dlg.bu, "get_frames", return_value="1-10"):
+        # Off by default.
+        assert dlg._ui_settings_to_submitter_settings(ui).task_run_timeout_seconds == 0
+
+        # Checking the row uses its pre-filled 2 days.
+        task_run = ui.timeouts.entries["Task Run"]
+        task_run.is_activated = True
+        assert dlg._ui_settings_to_submitter_settings(ui).task_run_timeout_seconds == 172800
+
+        task_run.seconds = 1800
+        assert dlg._ui_settings_to_submitter_settings(ui).task_run_timeout_seconds == 1800
+
+        task_run.is_activated = False
+        assert dlg._ui_settings_to_submitter_settings(ui).task_run_timeout_seconds == 0
+
+
+def test_ui_settings_adapter_rejects_enabled_zero_timeout():
+    """An enabled timeout of zero is a user error, shown by the dialog."""
+    from deadline.client.exceptions import NonValidInputError
+
+    dlg = _dialog_module()
+
+    ui = template_filling.BlenderSubmitterUISettings()
+    ui.timeouts.entries["Task Run"].is_activated = True
+    ui.timeouts.entries["Task Run"].seconds = 0
+    with (
+        patch.object(dlg.bu, "get_frames", return_value="1-10"),
+        pytest.raises(NonValidInputError) as exc_info,
+    ):
+        dlg._ui_settings_to_submitter_settings(ui)
+    # The message comes from deadline-cloud's TimeoutTableEntries.validate_entries.
+    assert str(exc_info.value) == (
+        "The following timeout value(s) must be greater than 0: \n"
+        "Task Run"
+        "\n\nPlease configure these value(s) in the 'Job specific settings' tab."
+    )
 
 
 def test_create_bundle_delegates_to_blender_submitter(tmp_path):
@@ -655,3 +765,97 @@ def test_load_sticky_settings_normalizes_legacy_none_gpu_device(tmp_path):
     ui.load_sticky_settings(str(scene))
 
     assert ui.gpu_device == "NONE"
+
+
+def test_ui_settings_default_task_run_timeout():
+    entry = template_filling.BlenderSubmitterUISettings().timeouts.entries["Task Run"]
+    # Off by default, with 2 days pre-filled for when the user turns it on.
+    assert entry.is_activated is False
+    assert entry.seconds == 172800
+
+
+def test_ui_settings_timeouts_are_not_shared_between_instances():
+    a = template_filling.BlenderSubmitterUISettings()
+    b = template_filling.BlenderSubmitterUISettings()
+    a.timeouts.entries["Task Run"].seconds = 60
+    assert b.timeouts.entries["Task Run"].seconds == 172800
+
+
+def test_sticky_settings_round_trip_task_run_timeout(tmp_path):
+    """The timeout is saved as plain JSON and loaded back into the same row."""
+    import json
+
+    scene = tmp_path / "scene.blend"
+    ui = template_filling.BlenderSubmitterUISettings()
+    ui.timeouts.entries["Task Run"].seconds = 5400
+    ui.timeouts.entries["Task Run"].is_activated = True
+    ui.save_sticky_settings(str(scene))
+
+    saved = json.loads(scene.with_suffix(".deadline_render_settings.json").read_text())
+    assert saved["timeouts"] == {"Task Run": {"is_activated": True, "seconds": 5400}}
+
+    loaded = template_filling.BlenderSubmitterUISettings()
+    loaded.load_sticky_settings(str(scene))
+    entry = loaded.timeouts.entries["Task Run"]
+    assert (entry.is_activated, entry.seconds) == (True, 5400)
+    # The tooltip is not saved, so it must survive loading.
+    assert entry.tooltip
+
+
+def test_sticky_settings_without_timeouts_keep_default(tmp_path):
+    """Sticky files written before this setting existed get the default (off)."""
+    import json
+
+    scene = tmp_path / "scene.blend"
+    scene.with_suffix(".deadline_render_settings.json").write_text(
+        json.dumps({"name": "old settings"})
+    )
+
+    ui = template_filling.BlenderSubmitterUISettings()
+    ui.load_sticky_settings(str(scene))
+
+    assert ui.name == "old settings"
+    entry = ui.timeouts.entries["Task Run"]
+    assert (entry.is_activated, entry.seconds) == (False, 172800)
+
+
+@pytest.mark.parametrize(
+    "bad_timeouts",
+    [
+        "not a dict",
+        {"Task Run": "not a dict"},
+        {"Task Run": {"is_activated": "yes", "seconds": 60}},
+        {"Task Run": {"is_activated": True, "seconds": "60"}},
+        {"Task Run": {"is_activated": True, "seconds": -5}},
+        {"Task Run": {"is_activated": True}},
+    ],
+)
+def test_sticky_settings_malformed_timeouts_keep_default(tmp_path, bad_timeouts):
+    """A corrupt timeouts value is ignored without affecting other settings."""
+    import json
+
+    scene = tmp_path / "scene.blend"
+    scene.with_suffix(".deadline_render_settings.json").write_text(
+        json.dumps({"name": "kept", "timeouts": bad_timeouts})
+    )
+
+    ui = template_filling.BlenderSubmitterUISettings()
+    ui.load_sticky_settings(str(scene))
+
+    assert ui.name == "kept"
+    entry = ui.timeouts.entries["Task Run"]
+    assert (entry.is_activated, entry.seconds) == (False, 172800)
+
+
+def test_sticky_settings_ignore_unknown_timeout_rows(tmp_path):
+    import json
+
+    scene = tmp_path / "scene.blend"
+    scene.with_suffix(".deadline_render_settings.json").write_text(
+        json.dumps({"timeouts": {"Not A Row": {"is_activated": True, "seconds": 1}}})
+    )
+
+    ui = template_filling.BlenderSubmitterUISettings()
+    ui.load_sticky_settings(str(scene))
+
+    assert list(ui.timeouts.entries) == ["Task Run"]

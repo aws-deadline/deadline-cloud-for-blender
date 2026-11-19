@@ -11,6 +11,7 @@ import os
 import traceback
 from copy import deepcopy
 from dataclasses import dataclass, field
+from datetime import timedelta
 from pathlib import Path
 from typing import Any, Optional
 
@@ -18,11 +19,59 @@ import yaml
 from deadline.client.api import BaseSubmitterSettings
 from deadline.client.exceptions import DeadlineOperationError
 from deadline.client.job_bundle.parameters import JobParameter
+from deadline.client.ui.dataclasses.timeouts import TimeoutEntry, TimeoutTableEntries
 
 _logger = logging.getLogger(__name__)
 
 _ALL_CAMERAS = "ALL_CAMERAS"
 _SETTINGS_FILE_EXT = ".deadline_render_settings.json"
+
+# Label of the task run row in the submitter's timeout table. It is also the
+# key under which the value is saved in the sticky settings file.
+TASK_RUN_TIMEOUT_LABEL = "Task Run"
+# Value pre-filled in the task run row. The row starts unchecked, so jobs have
+# no task run timeout unless the user turns it on. Without a timeout, a Blender
+# process that hangs (for example after a fatal GPU error) holds its worker
+# until someone cancels the task.
+DEFAULT_TASK_RUN_TIMEOUT_SECONDS = int(timedelta(days=2).total_seconds())
+
+
+def default_timeout_entries() -> TimeoutTableEntries:
+    """Return the timeout rows shown in the submitter, with their default values."""
+    return TimeoutTableEntries(
+        entries={
+            TASK_RUN_TIMEOUT_LABEL: TimeoutEntry(
+                tooltip="Maximum duration for a task to run, which renders one frame. "
+                "A task that runs longer is canceled and marked as failed.",
+                seconds=DEFAULT_TASK_RUN_TIMEOUT_SECONDS,
+                is_activated=False,
+            ),
+        }
+    )
+
+
+def _valid_timeout_sticky_entries(value: Any) -> dict[str, dict[str, Any]]:
+    """Return the well-formed timeout entries from a sticky settings value.
+
+    Entries with a missing or wrongly typed field are dropped, so a hand-edited
+    or corrupt sticky file falls back to the defaults instead of breaking the UI.
+    """
+    if not isinstance(value, dict):
+        return {}
+    valid = {}
+    for label, entry in value.items():
+        if not isinstance(entry, dict):
+            continue
+        is_activated = entry.get("is_activated")
+        seconds = entry.get("seconds")
+        if (
+            isinstance(is_activated, bool)
+            and isinstance(seconds, int)
+            and not isinstance(seconds, bool)
+            and seconds >= 0
+        ):
+            valid[label] = {"is_activated": is_activated, "seconds": seconds}
+    return valid
 
 
 @dataclass
@@ -79,6 +128,12 @@ class BlenderSubmitterUISettings:
     image_width_parameter_name: str = field(default="ResolutionX")
     image_height_parameter_name: str = field(default="ResolutionY")
 
+    # Action timeouts. Saved in the sticky settings file as
+    # {label: {"is_activated": bool, "seconds": int}}.
+    timeouts: TimeoutTableEntries = field(
+        default_factory=default_timeout_entries, metadata={"sticky": True}
+    )
+
     # developer options
     include_adaptor_wheels: bool = field(default=False, metadata={"sticky": True})
 
@@ -117,7 +172,14 @@ class BlenderSubmitterUISettings:
                 if field.metadata.get("sticky")
             }
             for name, value in sticky_settings.items():
-                if name in sticky_fields:
+                if name not in sticky_fields:
+                    continue
+                current = getattr(self, name)
+                if isinstance(current, TimeoutTableEntries):
+                    # Update the existing rows in place, so rows added in a
+                    # newer version keep their defaults.
+                    current.update_from_sticky_settings(_valid_timeout_sticky_entries(value))
+                else:
                     setattr(self, name, value)
             # Normalize a legacy "None" gpu_device (written by older addon
             # versions for CPU scenes) to the "NONE" sentinel the template and
@@ -137,11 +199,14 @@ class BlenderSubmitterUISettings:
         """
         file = Path(scene).with_suffix(_SETTINGS_FILE_EXT)
         with open(file, "w", encoding="utf8") as fh:
-            sticky_settings = {
-                field.name: getattr(self, field.name)
-                for field in dataclasses.fields(self)
-                if field.metadata.get("sticky")
-            }
+            sticky_settings = {}
+            for settings_field in dataclasses.fields(self):
+                if not settings_field.metadata.get("sticky"):
+                    continue
+                value = getattr(self, settings_field.name)
+                if isinstance(value, TimeoutTableEntries):
+                    value = value.to_sticky_settings_dict()
+                sticky_settings[settings_field.name] = value
             json.dump(sticky_settings, fh, indent=1)
         _logger.info(f"Saved sticky settings to {file}.")
 
@@ -191,6 +256,8 @@ class BlenderSubmitterSettings(BaseSubmitterSettings):
     gpu_device: str = "NONE"
     ocio_config_path: str = ""
     description: str = ""
+    # Timeout of each step's onRun action (one frame render). 0 means no timeout.
+    task_run_timeout_seconds: int = 0
 
     # developer option
     include_adaptor_wheels: bool = False
@@ -203,6 +270,12 @@ def fill_job_template(
     host_requirements: Optional[dict],
 ):
     """Create and return a filled-in job template."""
+
+    timeout = settings.task_run_timeout_seconds
+    if isinstance(timeout, bool) or not isinstance(timeout, int) or timeout < 0:
+        raise DeadlineOperationError(
+            f"The task run timeout must be a whole number of seconds, 0 or greater: {timeout!r}"
+        )
 
     # Read the default job template.
     with open(Path(__file__).parent / "default_blender_template.yaml") as fh:
@@ -331,11 +404,12 @@ def _fill_step_template(
 
     Each step corresponds to a view layer in Blender. Its defined state is a dict that will be serialized to YAML and written to the job template. The default step template contains the basic structure of a step, but it is not filled in with the specific values for this layer.
 
-    There are four steps to defining a step:
+    Defining a step:
     - Update the step name to the name of the layer.
     - Update the init data.
     - Create a parameter space dimension for the selected frames.
     - Create a parameter space dimension for the selected cameras.
+    - Set the task run timeout, if one is configured.
     - Inject the host requirements, if provided.
 
     NOTE: In f-strings, doubling { escapes it.
@@ -404,6 +478,11 @@ def _fill_step_template(
         param_defs.append({"name": "Camera", "type": "STRING", "range": cameras})
         run_data = step["script"]["embeddedFiles"][0]
         run_data["data"] += "camera: '{{Task.Param.Camera}}'\n"
+
+    # Without the EXPR extension, an action timeout in a 2023-09 job template
+    # must be a literal number, so the configured value is written in here.
+    if settings.task_run_timeout_seconds > 0:
+        step["script"]["actions"]["onRun"]["timeout"] = settings.task_run_timeout_seconds
 
     # If host requirements are provided, inject them into the step template.
     if host_requirements:

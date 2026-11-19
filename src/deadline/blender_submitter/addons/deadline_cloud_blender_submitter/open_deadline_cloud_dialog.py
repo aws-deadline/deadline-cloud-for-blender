@@ -214,6 +214,12 @@ def _ui_settings_to_submitter_settings(
     frame_list = settings.frame_list if settings.override_frame_range else bu.get_frames()
     width, height = bpy.context.scene.render.resolution_x, bpy.context.scene.render.resolution_y
 
+    # Raises NonValidInputError, which the dialog shows to the user, if an
+    # enabled timeout is set to zero.
+    settings.timeouts.validate_entries()
+    task_run = settings.timeouts.entries[tf.TASK_RUN_TIMEOUT_LABEL]
+    task_run_timeout_seconds = task_run.seconds if task_run.is_activated else 0
+
     return BlenderSubmitterSettings(
         job_name=settings.name,
         description=settings.description,
@@ -234,6 +240,7 @@ def _ui_settings_to_submitter_settings(
         enable_gpu=settings.enable_gpu,
         gpu_device=settings.gpu_device,
         ocio_config_path=settings.ocio_config_path,
+        task_run_timeout_seconds=task_run_timeout_seconds,
         include_adaptor_wheels=settings.include_adaptor_wheels,
     )
 

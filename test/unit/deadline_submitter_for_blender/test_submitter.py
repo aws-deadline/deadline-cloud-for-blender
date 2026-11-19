@@ -228,6 +228,12 @@ def test_blender_submitter_settings_gpu_device_defaults_to_none_sentinel():
     assert api_mod.BlenderSubmitterSettings().gpu_device == "NONE"
 
 
+def test_blender_submitter_settings_default_task_run_timeout():
+    """API submissions have no task run timeout by default, matching the dialog."""
+    api_mod = _import_api()
+    assert api_mod.BlenderSubmitterSettings().task_run_timeout_seconds == 0
+
+
 def test_get_settings_uses_scene_camera_when_present():
     api_mod = _import_api()
 
