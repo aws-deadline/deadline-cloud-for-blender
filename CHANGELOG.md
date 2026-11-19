@@ -1,3 +1,10 @@
+## 0.7.0 (2026-11-19)
+
+### Features
+* The submitter's Job-specific settings tab now has a Timeouts box with a Task Run row, so you can set a timeout for each task's run. It's off by default, with 2 days pre-filled for when you turn it on, and it's saved in the scene's sticky settings. With a timeout set, a Blender task that hangs (for example after a GPU error) no longer holds its worker until someone cancels it. (#421)
+
+### Bug Fixes
+* Tasks now fail when Cycles reports an out-of-memory error. Before, the error didn't fail the task. (`9670cbb`)
 ## 0.6.9 (2026-09-22)
 
 ### Bug Fixes
