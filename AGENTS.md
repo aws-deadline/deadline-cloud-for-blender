@@ -32,8 +32,12 @@ hatch run integ:test     # Integration tests; needs BLENDER_EXECUTABLE (see DEVE
 
 ## Specs
 
-`specs/` holds the design specifications. Start at [`specs/adaptor/README.md`](specs/adaptor/README.md),
-which indexes the adaptor's specs.
+`specs/` holds the design specifications. Start at the index for the part you are changing:
+
+- [`specs/adaptor/README.md`](specs/adaptor/README.md) for the adaptor.
+- [`specs/submitter/README.md`](specs/submitter/README.md) for the submitter. Read
+  [`specs/submitter/timeouts.md`](specs/submitter/timeouts.md) before changing an action's timeout,
+  the Timeouts box, or the adaptor's own time limits.
 
 ### Spec and code change together
 

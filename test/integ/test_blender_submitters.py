@@ -1,5 +1,7 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 
+import json
+import shutil
 import yaml
 import os
 import pytest
@@ -289,3 +291,58 @@ class TestSubmitters:
             self.assert_asset_references(job_history_dir, expected_asset_references)
         finally:
             detected_gpu_file.unlink(missing_ok=True)
+
+    # The test renders minimal_test's scene from a copy in tmp_path, so the sticky settings it
+    # saves (with the timeout on) never reach minimal_test's scene, which may be in use by a
+    # parallel test. Nothing exists at this marker's path; the cleanup fixture requires one.
+    @pytest.mark.scene_files(Path("task_run_timeout_test") / "scene" / "test.blend")
+    def test_task_run_timeout_submitter(
+        self, blender_location: Path, script_location: Path, tmp_path: Path
+    ) -> None:
+        """Turning on the Task Run timeout in the dialog writes it into every step's onRun."""
+        task_run_timeout_seconds = 5400  # 1 h 30 min, as set by the script
+        job_history_dir = tmp_path / "jobhistory"
+        output_path = tmp_path / "output"
+        test_artifact_dir = script_location / "task_run_timeout_test"
+        scene_location = tmp_path / "scene" / "test.blend"
+        os.makedirs(job_history_dir, exist_ok=True)
+        os.makedirs(output_path, exist_ok=True)
+        os.makedirs(scene_location.parent)
+        shutil.copyfile(script_location / "minimal_test" / "scene" / "test.blend", scene_location)
+
+        output = run_blender_submitter_test(
+            blender_location,
+            test_artifact_dir / "_test_blend.py",
+            str(job_history_dir),
+            str(output_path),
+            str(scene_location),
+        )
+
+        assert output.returncode == 0
+        assert is_valid_template(job_history_dir / "template.yaml")
+
+        with open(job_history_dir / "template.yaml") as f:
+            actual = yaml.safe_load(f)
+
+        # Check the timeouts directly first, so a failure names the field that is wrong.
+        assert len(actual["steps"]) == 2
+        for step in actual["steps"]:
+            on_run_timeout = step["script"]["actions"]["onRun"].get("timeout")
+            assert on_run_timeout == task_run_timeout_seconds, step["name"]
+            env_actions = step["stepEnvironments"][0]["script"]["actions"]
+            assert env_actions["onEnter"].get("timeout") == 3720, step["name"]
+            assert env_actions["onExit"].get("timeout") == 120, step["name"]
+
+        # The rest of the template matches minimal_test's.
+        with open(test_artifact_dir / "expected_job_bundle" / "template.yaml") as f:
+            assert actual == yaml.safe_load(f)
+
+        # The dialog saves the timeout in the scene's sticky settings.
+        sticky_file = scene_location.with_name(
+            f"{scene_location.stem}.deadline_render_settings.json"
+        )
+        with open(sticky_file, encoding="utf8") as f:
+            sticky = json.load(f)
+        assert sticky["timeouts"] == {
+            "Task Run": {"is_activated": True, "seconds": task_run_timeout_seconds}
+        }

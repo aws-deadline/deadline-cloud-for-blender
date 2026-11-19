@@ -8,6 +8,7 @@ import logging
 import os
 
 from deadline.client.ui import block_signals
+from deadline.client.ui.widgets.job_timeouts_widget import TimeoutTableWidget
 from . import blender_utils
 from .template_filling import BlenderSubmitterUISettings
 from . import ocio_utils as ocio
@@ -47,10 +48,10 @@ class SceneSettingsWidget(QWidget):
         self.all_layer_selectable_cameras = initial_settings.all_layer_selectable_cameras
         self.current_layer_selectable_cameras = initial_settings.current_layer_selectable_cameras
 
-        self._build_ui()
+        self._build_ui(initial_settings)
         self._load(initial_settings)
 
-    def _build_ui(self):
+    def _build_ui(self, initial_settings: BlenderSubmitterUISettings):
         """Set up the UI."""
         layout = QGridLayout(self)
 
@@ -135,6 +136,11 @@ class SceneSettingsWidget(QWidget):
         validator = QRegularExpressionValidator(regex, self.frame_override_txt)
         self.frame_override_txt.setValidator(validator)
 
+        qt_pos_index += 1
+        # The widget takes its rows (labels and tooltips) from the settings.
+        self.timeouts_box = TimeoutTableWidget(timeouts=initial_settings.timeouts, parent=self)
+        layout.addWidget(self.timeouts_box, qt_pos_index, 0, 1, 2)
+
         if self.dev_options:
             qt_pos_index += 1
             self.include_adaptor_wheels = QCheckBox(
@@ -142,8 +148,11 @@ class SceneSettingsWidget(QWidget):
             )
             layout.addWidget(self.include_adaptor_wheels, qt_pos_index, 0)
 
+        qt_pos_index += 1
         layout.addItem(
-            QSpacerItem(0, 0, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding), 10, 0
+            QSpacerItem(0, 0, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding),
+            qt_pos_index,
+            0,
         )
 
         self._fill_scenes_box()
@@ -243,6 +252,8 @@ class SceneSettingsWidget(QWidget):
         self.frame_override_txt.setEnabled(settings.override_frame_range)
         self.frame_override_txt.setText(settings.frame_list)
 
+        self.timeouts_box.refresh_ui(settings.timeouts)
+
         if self.dev_options:
             self.include_adaptor_wheels.setChecked(settings.include_adaptor_wheels)
 
@@ -271,6 +282,7 @@ class SceneSettingsWidget(QWidget):
 
         settings.override_frame_range = self.frame_override_check.isChecked()
         settings.frame_list = self.frame_override_txt.text()
+        self.timeouts_box.update_settings(settings.timeouts)
         settings.include_adaptor_wheels = (
             self.include_adaptor_wheels.isChecked() if self.dev_options else False
         )
