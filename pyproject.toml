@@ -35,10 +35,12 @@ classifiers = [
 # Blender 5.1+ uses Python version 3.13
 
 dependencies = [
-    # 0.60.4 is the floor because AWS Console sign-in landed there and nowhere earlier:
+    # 0.60.12 is the floor because it lists farms reached only through a queue or fleet
+    # membership (ListMemberships); older releases show those users an empty farm list.
+    # AWS Console sign-in also needs 0.60.4 or later, since it landed there and nowhere earlier:
     # 0.60.2/0.60.3 have no AWS_CONSOLE_LOGIN credentials source and do not declare a
     # `console` extra at all. (BaseSubmitter/BaseSubmitterSettings, this package's other
-    # floor, first ship in 0.60.2, which 0.60.4 also satisfies.)
+    # floor, first ship in 0.60.2, which 0.60.12 also satisfies.)
     #
     # The console extra is deliberately NOT requested here. It is only needed by the
     # submitter, and it pulls awscrt, a compiled wheel. These base dependencies are
@@ -47,7 +49,7 @@ dependencies = [
     # at all, so console sign-in would appear installed and silently not work under the
     # macosx_10_9_x86_64 tag that script uses. The adaptor never takes the console path
     # anyway: it runs on a worker with host-provided credentials.
-    "deadline >= 0.60.4,< 0.61",
+    "deadline >= 0.60.12,< 0.61",
     "openjd-adaptor-runtime >= 0.7,< 0.10",
 ]
 
@@ -56,7 +58,7 @@ gui = [
     # The console extra pulls awscrt, which AWS Console sign-in requires: botocore's
     # LoginProvider refreshes the DPoP-bound cached token in-process, and signing those
     # proofs needs awscrt. Without it, sign-in fails on a pre-flight dependency check.
-    "deadline[gui,console] >= 0.60.4,< 0.61",
+    "deadline[gui,console] >= 0.60.12,< 0.61",
 ]
 
 [project.urls]
