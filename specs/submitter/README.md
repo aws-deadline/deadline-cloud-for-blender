@@ -25,5 +25,5 @@ The adaptor that runs the job on workers is specified in [`../adaptor/README.md`
 
 - [Open Job Description 2023-09 template schemas](https://github.com/OpenJobDescription/openjd-specifications/wiki/2023-09-Template-Schemas):
   `<Action>` timeouts and `<CancelationMethod>`.
-- [deadline-cloud](https://github.com/aws-deadline/deadline-cloud) 0.60.4, the lowest version
+- [deadline-cloud](https://github.com/aws-deadline/deadline-cloud) 0.60.12, the lowest version
   `pyproject.toml` accepts: the submitter dialog and the shared timeout widget.
