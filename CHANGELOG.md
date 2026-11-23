@@ -1,3 +1,7 @@
+## 0.6.11 (2026-11-23)
+
+### Bug Fixes
+* Fixed an issue where artists with access only to a queue or fleet saw an empty farm list in the submitter. Farms reachable through queue or fleet membership now show up. (`67aa862`)
 ## 0.6.10 (2026-11-20)
 
 ### Features
